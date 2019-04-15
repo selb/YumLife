@@ -345,7 +345,13 @@ Font::~Font() {
         }
     }
 
+void Font::hetuwSetScaleFactor( double newScaleFactor ) {
+	mScaleFactor = newScaleFactor;
+}
 
+double Font::hetuwGetScaleFactor() {
+	return mScaleFactor;
+}
 
 void Font::copySpacing( Font *inOtherFont ) {
     memcpy( mCharLeftEdgeOffset, inOtherFont->mCharLeftEdgeOffset,

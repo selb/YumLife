@@ -37,6 +37,8 @@ class Font {
         
         ~Font();
         
+		void hetuwSetScaleFactor( double newScaleFactor );
+		double hetuwGetScaleFactor();
 
         // copies character spacing and kerning from another font
         // (useful for erased fonts that can't be scanned properly for
