@@ -82,6 +82,8 @@ char showMouseDuringPlayback();
 char *getHashSalt();
 
 
+void hetuwSetViewSize();
+
 
 // name of custom font TGA file to find in "graphics" folder
 const char *getFontTGAFileName();
