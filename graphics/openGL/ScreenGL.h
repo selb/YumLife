@@ -165,6 +165,17 @@ typedef struct SocketEvent {
     } SocketEvent;
 
 
+// hetuw mod - copied from https://github.com/Awbz/minorGems/commit/94911116df3ed21e525d9f4c67d4fffbee70f3ff
+namespace MouseButton {
+    enum {
+        NONE,
+        LEFT,
+        MIDDLE,
+        RIGHT,
+        WHEELUP,
+        WHEELDOWN
+        };
+    }
 
 
 /**
@@ -665,6 +676,10 @@ class ScreenGL {
             return mLastMouseButtonRight;
             }
 
+// hetuw mod - copied from https://github.com/Awbz/minorGems/commit/94911116df3ed21e525d9f4c67d4fffbee70f3ff
+        int getLastMouseButton() {
+            return mLastMouseButton;
+        }
 
 
     private :
@@ -842,6 +857,9 @@ class ScreenGL {
 
         char mLastMouseButtonRight;
         
+// hetuw mod - copied from https://github.com/Awbz/minorGems/commit/94911116df3ed21e525d9f4c67d4fffbee70f3ff
+        int mLastMouseButton;
+
         // for playing back minimized window state
         char mLastMinimizedStatus;
         
