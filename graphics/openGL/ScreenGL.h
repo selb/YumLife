@@ -177,6 +177,22 @@ namespace MouseButton {
         };
     }
 
+class HetuwMouseActionBuffer {
+	public:
+		const int bufferSize = 32;
+		int buffer[32];
+		int bufferPos = 0;
+
+		void Add(int value) {
+			if (bufferPos >= bufferSize) return;
+			buffer[bufferPos] = value;
+			bufferPos++;
+		}
+		void Reset() {
+			bufferPos = 0;
+		}
+};
+
 
 /**
  * Object that handles general initialization of an OpenGL screen.
@@ -676,11 +692,9 @@ class ScreenGL {
             return mLastMouseButtonRight;
             }
 
-// hetuw mod - copied from https://github.com/Awbz/minorGems/commit/94911116df3ed21e525d9f4c67d4fffbee70f3ff
-        int getLastMouseButton() {
-            return mLastMouseButton;
-        }
-
+		HetuwMouseActionBuffer* hetuwGetMouseActionBuffer() {
+			return &mHetuwMouseBuffer;
+		}
 
     private :
 
@@ -857,8 +871,7 @@ class ScreenGL {
 
         char mLastMouseButtonRight;
         
-// hetuw mod - copied from https://github.com/Awbz/minorGems/commit/94911116df3ed21e525d9f4c67d4fffbee70f3ff
-        int mLastMouseButton;
+		HetuwMouseActionBuffer mHetuwMouseBuffer;
 
         // for playing back minimized window state
         char mLastMinimizedStatus;

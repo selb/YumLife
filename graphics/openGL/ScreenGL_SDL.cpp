@@ -2799,9 +2799,13 @@ void callbackPassiveMotion( int inX, int inY ) {
 	
 void callbackMouse( int inButton, int inState, int inX, int inY ) {
 	
+	// hetuw mod - inspired by https://github.com/Awbz/minorGems/commit/94911116df3ed21e525d9f4c67d4fffbee70f3ff
+	currentScreenGL->mHetuwMouseBuffer.Add( inButton );
+
     // ignore wheel events
     if( inButton == SDL_BUTTON_WHEELUP ||
         inButton == SDL_BUTTON_WHEELDOWN ) {
+	
         return;
         }
     

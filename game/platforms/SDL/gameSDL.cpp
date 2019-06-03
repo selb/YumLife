@@ -3960,6 +3960,10 @@ char isLastMouseButtonRight() {
     }
 
 
+HetuwMouseActionBuffer* hetuwGetMouseActionBuffer() {
+    return screen->hetuwGetMouseActionBuffer();
+}
+
 
 void obscureRecordedNumericTyping( char inObscure, 
                                    char inCharToRecordInstead ) {

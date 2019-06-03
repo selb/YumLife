@@ -10,7 +10,8 @@
 #include "doublePair.h"
 #include "minorGems/graphics/Image.h"
 
-
+// hetuw mod
+#include "minorGems/graphics/openGL/ScreenGL.h"
 
 // these are called by SDL or iPhone (or other platform) app wrapper
 
@@ -163,6 +164,8 @@ void pointerUp( float inX, float inY );
 // for now, can only differentiate right clicks from other clicks
 char isLastMouseButtonRight();
 
+// hetuw mod - inspired by https://github.com/Awbz/minorGems/commit/94911116df3ed21e525d9f4c67d4fffbee70f3ff
+HetuwMouseActionBuffer* hetuwGetMouseActionBuffer();
 
 
 void keyDown( unsigned char inASCII );
