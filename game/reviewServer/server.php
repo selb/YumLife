@@ -95,6 +95,18 @@ rs_connectToDatabase();
 //sleep( 5 );
 
 
+$maxNumAnswers = 10;
+
+$answerNames = array();
+$answerLetters = array( "A", "B", "C",
+                        "D", "E", "F",
+                        "G", "H", "I",
+                        "J" );
+for( $i=0; $i<$maxNumAnswers; $i++ ) {
+    $answerNames[$i] = "answer" . $answerLetters[$i];
+    }
+
+
 // general processing whenver server.php is accessed directly
 
 
@@ -147,6 +159,21 @@ else if( $action == "regen_static_html" ) {
 else if( $action == "show_detail" ) {
     rs_showDetail();
     }
+else if( $action == "create_poll" ) {
+    rs_createPoll();
+    }
+else if( $action == "delete_poll" ) {
+    rs_deletePoll();
+    }
+else if( $action == "check_for_poll" ) {
+    rs_checkForPoll();
+    }
+else if( $action == "poll_vote" ) {
+    rs_pollVote();
+    }
+else if( $action == "list_polls" ) {
+    rs_listPolls();
+    }
 else if( $action == "view_review" ) {
     rs_viewReview();
     }
@@ -189,6 +216,7 @@ else if( preg_match( "/server\.php/", $_SERVER[ "SCRIPT_NAME" ] ) ) {
     
     // check if our tables exist
     $exists = rs_doesTableExist( $tableNamePrefix . "user_stats" ) &&
+        rs_doesTableExist( $tableNamePrefix . "polls" ) &&
         rs_doesTableExist( $tableNamePrefix . "log" );
     
         
@@ -281,7 +309,58 @@ function rs_setupDatabase() {
             "review_game_seconds INT NOT NULL," .
             "review_game_count INT NOT NULL," .
             // in future, we may allow users to upvote/downvote reviews
-            "review_votes INT NOT NULL );";
+            "review_votes INT NOT NULL,".
+            "lives_since_recent_poll INT NOT NULL,".
+            "seconds_lived_since_recent_poll INT NOT NULL, ".
+            "recent_poll_answered TINYINT NOT NULL );";
+
+        $result = rs_queryDatabase( $query );
+
+        echo "<B>$tableName</B> table created<BR>";
+        }
+    else {
+        echo "<B>$tableName</B> table already exists<BR>";
+        }
+
+
+
+    $tableName = $tableNamePrefix . "polls";
+    if( ! rs_doesTableExist( $tableName ) ) {
+
+        // this table contains general info about each ticket
+        $query =
+            "CREATE TABLE $tableName(" .
+            "id INT UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT," .
+            "post_date DATETIME NOT NULL," .
+            "start_date DATETIME NOT NULL," .
+            "end_date DATETIME NOT NULL," .
+            "min_lives INT NOT NULL,".
+            "min_lives_since_post_date INT NOT NULL,".
+            "min_lived_seconds INT NOT NULL,".
+            "min_lived_seconds_since_post_date INT NOT NULL,".
+            "question TEXT NOT NULL," .
+            // up to 10 answers
+            // later answers are "" if there are fewer answers
+            "answerA TEXT NOT NULL," .
+            "answerB TEXT NOT NULL," .
+            "answerC TEXT NOT NULL," .
+            "answerD TEXT NOT NULL," .
+            "answerE TEXT NOT NULL," .
+            "answerF TEXT NOT NULL," .
+            "answerG TEXT NOT NULL," .
+            "answerH TEXT NOT NULL," .
+            "answerI TEXT NOT NULL," .
+            "answerJ TEXT NOT NULL," .
+            "answerA_count int NOT NULL," .
+            "answerB_count int NOT NULL," .
+            "answerC_count int NOT NULL," .
+            "answerD_count int NOT NULL," .
+            "answerE_count int NOT NULL," .
+            "answerF_count int NOT NULL," .
+            "answerG_count int NOT NULL," .
+            "answerH_count int NOT NULL," .
+            "answerI_count int NOT NULL," .
+            "answerJ_count int NOT NULL );";
 
         $result = rs_queryDatabase( $query );
 
@@ -659,6 +738,228 @@ function rs_showData( $checkPassword = true ) {
     echo "</table>";
 
 
+
+    echo "<br><br><hr><br><br>";
+
+    
+
+    // now show polls
+
+    $query = "SELECT COUNT(*) FROM $tableNamePrefix".
+        "polls;";
+
+    $result = rs_queryDatabase( $query );
+    $totalRecords = rs_mysqli_result( $result, 0, 0 );
+
+
+    $poll_skip = rs_requestFilter( "poll_skip", "/[0-9]+/", 0 );
+
+    $startSkip = $poll_skip + 1;
+    
+    $endSkip = $startSkip + $usersPerPage - 1;
+
+    if( $endSkip > $totalRecords ) {
+        $endSkip = $totalRecords;
+        }
+
+    echo "$totalRecords poll records". $searchDisplay .
+        " (showing $startSkip - $endSkip):<br>\n";
+    
+    
+    $nextSkip = $poll_skip + $usersPerPage;
+
+    $prevSkip = $poll_skip - $usersPerPage;
+    
+    if( $prevSkip >= 0 ) {
+        echo "[<a href=\"server.php?action=show_data" .
+            "&poll_skip=$prevSkip\">".
+            "Previous Page</a>] ";
+        }
+    if( $nextSkip < $totalRecords ) {
+        echo "[<a href=\"server.php?action=show_data" .
+            "&poll_skip=$nextSkip\">".
+            "Next Page</a>]";
+        }
+
+    echo "<br><br>";
+    
+    
+
+    $query = "SELECT * FROM $tableNamePrefix"."polls ".
+        "ORDER BY post_date desc ".
+        "LIMIT $poll_skip, $usersPerPage;";
+    $result = rs_queryDatabase( $query );
+    
+    $numRows = mysqli_num_rows( $result );
+    
+    echo "<table border=1 cellpadding=5>\n";
+    
+    echo "<tr>\n";    
+    echo "<td>Post Date</td>\n";
+    echo "<td>Start/End</td>\n";
+    echo "<td>Min Lives</td>\n";
+    echo "<td>Min Lived Time</td>\n";
+    echo "<td>Question</td>\n";
+    echo "<td>Answers</td>\n";
+    echo "<td></td>\n";
+    echo "</tr>\n";
+
+
+    global $maxNumAnswers, $answerNames;
+    
+    for( $i=0; $i<$numRows; $i++ ) {
+        $id = rs_mysqli_result( $result, $i, "id" );
+
+        $post_date = rs_mysqli_result( $result, $i, "post_date" );
+        $start_date = rs_mysqli_result( $result, $i, "start_date" );
+        $end_date = rs_mysqli_result( $result, $i, "end_date" );
+
+        $min_lives = rs_mysqli_result( $result, $i, "min_lives" );
+        $min_lives_since_post_date =
+            rs_mysqli_result( $result, $i, "min_lives_since_post_date" );
+
+        $min_lived_seconds =
+            rs_mysqli_result( $result, $i, "min_lived_seconds" );
+        $min_lived_seconds_since_post_date =
+            rs_mysqli_result( $result, $i,
+                              "min_lived_seconds_since_post_date" );
+
+        
+        $question = rs_mysqli_result( $result, $i, "question" );
+
+        $answers = array();
+
+        $answerCounts = array();
+        $totalCounts = 0;
+        
+        for( $a=0; $a < $maxNumAnswers; $a++ ) {
+            $ans = rs_mysqli_result( $result, $i, $answerNames[$a] );
+
+            if( $ans != "" ) {
+                $answers[] = $ans;
+                $num = rs_mysqli_result( $result, $i,
+                                         $answerNames[$a] . "_count" );
+                $answerCounts[] = $num;
+                $totalCounts += $num;
+                
+                }
+            }
+        
+        echo "<tr>\n";
+
+        $postAgo = rs_secondsToAgeSummary( strtotime( "now" ) -
+                                           strtotime( $post_date ) );
+        
+        echo "<td>$post_date<br>($postAgo ago)</td>\n";
+
+        $startAgoSec = strtotime( "now" ) - strtotime( $start_date );
+
+        $startAgo;
+
+        if( $startAgoSec > 0 ) {
+            $startAgo = rs_secondsToAgeSummary( $startAgoSec ) . " ago";
+            }
+        else {
+            $startAgo = "in " . rs_secondsToAgeSummary( -$startAgoSec );
+            }
+
+
+        $endAgoSec = strtotime( "now" ) - strtotime( $end_date );
+
+        $endAgo;
+
+        if( $endAgoSec > 0 ) {
+            $endAgo = rs_secondsToAgeSummary( $endAgoSec ) . " ago";
+            }
+        else {
+            $endAgo = "in " . rs_secondsToAgeSummary( -$endAgoSec );
+            }
+
+        $runTime = rs_secondsToTimeSummary( strtotime( $end_date ) -
+                                            strtotime( $start_date ) );
+        
+        
+        echo "<td>$start_date<br>($startAgo)<br><br>".
+            "to<br><br>$end_date<br>($endAgo)<br><br>".
+            "Run time:  $runTime</td>\n";
+        
+        echo "<td>$min_lives<br>($min_lives_since_post_date new)</td>\n";
+        $livedTime = rs_secondsToTimeSummary( $min_lived_seconds );
+        $livedTimeSince =
+            rs_secondsToTimeSummary( $min_lived_seconds_since_post_date );
+
+        echo "<td>$livedTime<br>($livedTimeSince new)</td>\n";
+        
+        echo "<td>$question</td>\n";
+
+        echo "<td>";
+
+        $a = 0;
+        foreach( $answers as $ans ) {
+            $percent =  ( 100 * $answerCounts[$a] / $totalCounts );
+            
+            echo "$ans : <b>" . $answerCounts[$a] . "</b> ($percent%)<br>";
+            $a ++;
+            }
+        echo "</td>";
+
+        echo "<td><FORM ACTION=server.php METHOD=post>".
+            "<INPUT TYPE=hidden NAME=action VALUE=delete_poll>".
+            "<INPUT TYPE=hidden NAME=id VALUE=$id>".
+            "<INPUT TYPE=checkbox NAME=confirm VALUE=1>".      
+            "<INPUT TYPE=Submit VALUE=Delete>".
+            "</FORM></td>";
+        
+        echo "</tr>\n";
+        }
+    echo "</table>";
+
+
+    echo "<br><br><hr><br><br>";
+
+    // form for adding a new poll
+
+    echo "Create new Poll:<br><br>"
+?>
+    <FORM ACTION="server.php" METHOD="post">
+    <INPUT TYPE="hidden" NAME="action" VALUE="create_poll">
+         Start in:
+    <INPUT TYPE="text" MAXLENGTH=10 SIZE=10 NAME="start_hours"
+          value="2"> hours<br>
+         Run for:
+    <INPUT TYPE="text" MAXLENGTH=10 SIZE=10 NAME="run_days"
+          value="2"> days<br>
+          Min Lives:
+    <INPUT TYPE="text" MAXLENGTH=10 SIZE=10 NAME="min_lives"
+          value="10"><br>
+         Min Lives Since Poll Posted:
+    <INPUT TYPE="text" MAXLENGTH=10 SIZE=10 NAME="min_lives_since_post_date"
+          value="3"><br>
+
+         Min Lived Hours:
+    <INPUT TYPE="text" MAXLENGTH=10 SIZE=10 NAME="min_lived_hours"
+          value="2"><br>
+         Min Lived Minutes Since Poll Posted:
+    <INPUT TYPE="text" MAXLENGTH=10 SIZE=10 NAME="min_lived_minutes_since_post_date"
+          value="60"><br>
+         
+         Question:<br>
+     <TEXTAREA NAME="question" COLS=60 ROWS=10></TEXTAREA><br>
+               Answers:<br>
+<?php
+    for( $a=0; $a < $maxNumAnswers; $a++ ) {
+        $name = $answerNames[$a];
+        
+        echo "<INPUT TYPE=text MAXLENGTH=43 SIZE=43 NAME=$name ".
+        "value='' ><br>";
+        }
+    ?>
+    <INPUT TYPE="checkbox" NAME="confirm" VALUE=1> Confirm<br>      
+    <INPUT TYPE="Submit" VALUE="Send">
+    </FORM>
+<?php
+    
+
     echo "<hr>";
     
     echo "<a href=\"server.php?action=show_log\">".
@@ -721,6 +1022,528 @@ function rs_showDetail( $checkPassword = true ) {
     echo "</td></tr></table></center>";
     
     
+    }
+
+
+
+
+function rs_createPoll() {
+    rs_checkPassword( "create_poll" );
+    
+
+    
+    global $tableNamePrefix, $rs_mysqlLink;
+
+    $confirm = rs_requestFilter( "confirm", "/[01]/" );
+
+
+    if( $confirm != 1 ) {
+        echo "[<a href=\"server.php?action=show_data" .
+            "\">Main</a>]<br><br><br>";
+
+        echo "You must check the Confirm box to create a poll\n";
+        return;
+        }
+    
+
+    $question = "";
+    if( isset( $_REQUEST[ "question" ] ) ) {
+        $question = $_REQUEST[ "question" ];
+        }
+    
+    $question = preg_replace( '/\r\n/', "  ", $question );
+
+    $question = preg_replace( '/    /', "  ", $question );
+
+    
+    $question = mysqli_real_escape_string( $rs_mysqlLink, $question );
+    
+    $start_hours = rs_requestFilter( "start_hours", "/[0-9.]+/", 1 );
+    
+    $run_days = rs_requestFilter( "run_days", "/[0-9.]+/", 1 );
+
+    $min_lives = rs_requestFilter( "min_lives", "/[0-9]+/", 10 );
+
+    $min_lives_since_post_date =
+        rs_requestFilter( "min_lives_since_post_date", "/[0-9]+/", 2 );
+
+        $min_lives = rs_requestFilter( "min_lives", "/[0-9]+/", 10 );
+
+    $min_lived_hours =
+        rs_requestFilter( "min_lived_hours", "/[0-9]+/", 2 );
+
+    $min_lived_minutes_since_post_date =
+        rs_requestFilter( "min_lived_minutes_since_post_date", "/[0-9]+/", 2 );
+
+    
+    $answers = array();
+
+    global $maxNumAnswers, $answerNames;
+    
+    for( $i=0; $i<$maxNumAnswers; $i++ ) {
+        $answers[$i] = "";
+
+        if( isset( $_REQUEST[ $answerNames[$i] ] ) ) {
+            $answers[$i] = $_REQUEST[ $answerNames[$i] ];
+            }
+
+        $answers[$i] = mysqli_real_escape_string( $rs_mysqlLink, $answers[$i] );
+        }
+
+    global $maxNumAnswers, $answerNames;
+    
+    $answerClause = "";
+    $countClause = "";
+    for( $i=0; $i<$maxNumAnswers; $i++ ) {
+        $answerClause =
+            $answerClause .
+            $answerNames[$i] .
+            " = '" . $answers[$i] . "' ";
+
+        $countClause = $countClause . $answerNames[$i] . "_count = 0, ";
+        
+        if( $i < $maxNumAnswers - 1 ) {
+            $answerClause = $answerClause . " , ";
+            }
+        }
+
+    global $tableNamePrefix;
+    
+    $query = "INSERT INTO $tableNamePrefix". "polls SET " .
+        "post_date = CURRENT_TIMESTAMP, ".
+        "start_date = DATE_ADD( CURRENT_TIMESTAMP, ".
+        "  INTERVAL $start_hours * 3600 SECOND ), ".
+        "end_date = DATE_ADD( DATE_ADD( CURRENT_TIMESTAMP, ".
+        "  INTERVAL $start_hours * 3600 SECOND ), ".
+        "  INTERVAL $run_days * 3600 * 24 SECOND ), ".
+        "min_lives = $min_lives, ".
+        "min_lives_since_post_date = $min_lives_since_post_date, ".
+        "min_lived_seconds = $min_lived_hours * 3600, ".
+        "min_lived_seconds_since_post_date = ".
+        "    $min_lived_minutes_since_post_date * 60, ".
+        "question = '$question', ".
+        $countClause .
+        $answerClause .
+        ";";
+
+    rs_log( $query );
+    
+    rs_queryDatabase( $query );
+
+
+    // reset lives for all users
+    $query = "UPDATE $tableNamePrefix". "user_stats SET " .
+        "lives_since_recent_poll = 0, seconds_lived_since_recent_poll = 0, ".
+        "recent_poll_answered = 0;";
+
+    rs_queryDatabase( $query );
+
+
+    rs_showData( false );
+    }
+
+
+
+function rs_deletePoll() {
+    rs_checkPassword( "delete_poll" );
+
+    
+    global $tableNamePrefix;
+
+    $confirm = rs_requestFilter( "confirm", "/[01]/" );
+    
+    if( $confirm != 1 ) {
+        echo "[<a href=\"server.php?action=show_data" .
+            "\">Main</a>]<br><br><br>";
+        echo "You must check the Confirm box to delete a poll\n";
+        return;
+        }
+
+    
+    $id = rs_requestFilter( "id", "/[0-9]+/", -1 );
+    
+    global $tableNamePrefix;
+    
+    rs_queryDatabase( "DELETE FROM $tableNamePrefix"."polls " .
+                      "WHERE id = $id;" );
+    
+    
+    rs_showData( false );
+    }
+
+
+
+
+// if $doNotPrint is true, returns active poll ID or -1
+function rs_checkForPoll( $doNotPrint = false ) {
+
+    $email = rs_requestFilter( "email", "/[A-Z0-9._%+\-]+@[A-Z0-9.\-]+/i", "" );
+
+    if( $email == "" ) {
+        if( $doNotPrint ) {
+            return -1;
+            }
+        
+        echo "DENIED";
+        return;
+        }
+    
+    
+    global $tableNamePrefix;
+
+
+    $query = "SELECT * FROM $tableNamePrefix"."user_stats ".
+            "WHERE email = '$email';";
+    $result = rs_queryDatabase( $query );
+
+    $numRows = mysqli_num_rows( $result );
+
+    if( $numRows == 0 ) {
+        if( $doNotPrint ) {
+            return -1;
+            }
+        echo "DENIED";
+        return;
+        }
+    
+
+    $game_count =
+        rs_mysqli_result( $result, 0, "game_count" );
+    $game_total_seconds =
+        rs_mysqli_result( $result, 0, "game_total_seconds" );
+
+
+    $seconds_lived_since_recent_poll =
+        rs_mysqli_result( $result, 0, "seconds_lived_since_recent_poll" );
+
+    $lives_since_recent_poll =
+        rs_mysqli_result( $result, 0, "lives_since_recent_poll" );
+    
+    $recent_poll_answered =
+        rs_mysqli_result( $result, 0, "recent_poll_answered" );
+
+    if( $recent_poll_answered ) {
+        if( $doNotPrint ) {
+            return -1;
+            }
+        echo "DENIED";
+        return;
+        }
+
+
+    $query = "SELECT * FROM $tableNamePrefix"."polls ".
+        "WHERE start_date <= CURRENT_TIMESTAMP AND ".
+        "end_date > CURRENT_TIMESTAMP AND ".
+        "min_lives <= $game_count AND ".
+        "min_lives_since_post_date <= $lives_since_recent_poll AND ".
+        "min_lived_seconds <= $game_total_seconds AND ".
+        "min_lived_seconds_since_post_date <= ".
+        "    $seconds_lived_since_recent_poll;";
+
+
+    $result = rs_queryDatabase( $query );
+
+    $numRows = mysqli_num_rows( $result );
+
+    if( $numRows == 0 ) {
+        if( $doNotPrint ) {
+            return -1;
+            }
+        echo "DENIED";
+        return;
+        }
+
+    $poll_id = rs_mysqli_result( $result, 0, "id" );
+
+    // one exists
+    if( $doNotPrint ) {
+        return $poll_id;
+        }
+        
+
+
+    echo "$poll_id\n";
+
+
+    $question = rs_mysqli_result( $result, 0, "question" );
+
+    echo "$question\n";
+
+
+    global $maxNumAnswers, $answerNames;
+    
+    for( $i=0; $i<$maxNumAnswers; $i++ ) {
+        $answers[$i] = "";
+
+        $ans = rs_mysqli_result( $result, 0, $answerNames[$i] );
+
+        if( $ans != "" ) {
+            echo "$ans\n";
+            }
+        }
+
+    echo "OK";
+    }
+
+
+
+
+function rs_pollVote() {
+    global $tableNamePrefix, $sharedGameServerSecret, $rs_mysqlLink;
+    
+
+    $email = rs_requestFilter( "email", "/[A-Z0-9._%+\-]+@[A-Z0-9.\-]+/i", "" );
+    $poll_id = rs_requestFilter( "poll_id", "/[0-9]+/i", "0" );
+    $vote_number = rs_requestFilter( "vote_number", "/[0-9]+/i", "0" );
+
+    $hash_value = rs_requestFilter( "hash_value", "/[A-F0-9]+/i", "" );
+
+    $hash_value = strtoupper( $hash_value );
+
+    
+    
+
+    if( $email == "" ) {
+        rs_log( "poll_vote denied for bad email" );
+
+        echo "DENIED";
+        return;
+        }
+
+
+    $stringToHash = $poll_id . "v" . $vote_number;
+
+
+    $encodedString = urlencode( $stringToHash );
+    $encodedEmail = urlencode( $email );
+
+    global $ticketServerURL;
+
+    $request = "$ticketServerURL".
+        "?action=check_ticket_hash".
+        "&email=$encodedEmail" .
+        "&hash_value=$hash_value" .
+        "&string_to_hash=$encodedString";
+    
+    $result = file_get_contents( $request );
+
+    if( $result != "VALID" ) {
+        rs_log( "poll_vote denied for failed hash check " );
+
+        echo "DENIED";
+        return;
+        }
+
+    // lock table to prevent double-voiting
+    rs_queryDatabase( "lock tables $tableNamePrefix"."user_stats write;" );
+
+
+    $poll_id = rs_checkForPoll( true );
+
+    if( $poll_id == -1 ) {
+        rs_log( "poll_vote denied, no poll exists" );
+
+        rs_queryDatabase( "unlock tables;" );
+
+        echo "DENIED";
+        return;
+        }
+
+    
+    $query = "UPDATE $tableNamePrefix".
+        "user_stats SET recent_poll_answered = 1 WHERE  email = '$email';";
+
+    $result = rs_queryDatabase( $query );
+
+    rs_queryDatabase( "unlock tables;" );
+
+    global $maxNumAnswers, $answerNames;
+
+    $thisAnswerName = "";
+    
+    for( $i=0; $i<$maxNumAnswers; $i++ ) {
+
+        if( $i == $vote_number ) {
+            $thisAnswerName = $answerNames[$i];
+            break;
+            }
+        }
+
+
+    if( $thisAnswerName == "" ) {
+        rs_log( "poll_vote denied, bad answer index $vote_number" );
+        
+        echo "DENIED";
+        return;
+        }
+    
+
+    $query = "UPDATE $tableNamePrefix".
+        "polls SET $thisAnswerName" . "_count = ".
+        "$thisAnswerName" . "_count + 1 WHERE id = $poll_id;";
+
+    $result = rs_queryDatabase( $query );
+
+    
+    echo "OK";
+    }
+
+
+
+function rs_listPolls() {
+    global $header, $footer;
+
+    eval( $header );
+    
+    $posNeg = rs_requestFilter( "pos_neg", "/[\-01]+/i", -1 );
+    $skip = rs_requestFilter( "skip", "/[0-9]+/i", 0 );
+
+    global $reviewPageWidth;
+    echo "<center><table border=0 width=$reviewPageWidth><tr><td>";
+
+    global $tableNamePrefix;
+    
+    $query = "SELECT * FROM $tableNamePrefix"."polls ".
+        "ORDER BY post_date desc;";
+    $result = rs_queryDatabase( $query );
+
+    $numRows = mysqli_num_rows( $result );
+
+    
+    for( $i=0; $i<$numRows; $i++ ) {
+        $id = rs_mysqli_result( $result, $i, "id" );
+
+        $post_date = rs_mysqli_result( $result, $i, "post_date" );
+        $start_date = rs_mysqli_result( $result, $i, "start_date" );
+        $end_date = rs_mysqli_result( $result, $i, "end_date" );
+
+        $min_lives = rs_mysqli_result( $result, $i, "min_lives" );
+        $min_lives_since_post_date =
+            rs_mysqli_result( $result, $i, "min_lives_since_post_date" );
+
+        $min_lived_seconds =
+            rs_mysqli_result( $result, $i, "min_lived_seconds" );
+        $min_lived_seconds_since_post_date =
+            rs_mysqli_result( $result, $i,
+                              "min_lived_seconds_since_post_date" );
+
+        
+        $question = rs_mysqli_result( $result, $i, "question" );
+
+        $answers = array();
+
+        $answerCounts = array();
+        $totalCounts = 0;
+
+        global $answerNames, $maxNumAnswers;
+        
+        for( $a=0; $a < $maxNumAnswers; $a++ ) {
+            $ans = rs_mysqli_result( $result, $i, $answerNames[$a] );
+
+            if( $ans != "" ) {
+                $answers[] = $ans;
+                $num = rs_mysqli_result( $result, $i,
+                                         $answerNames[$a] . "_count" );
+                $answerCounts[] = $num;
+                $totalCounts += $num;
+                
+                }
+            }
+
+        echo "<table border=0 width=100% cellpadding=20>".
+            "<tr><td BGCOLOR=#444444>";
+
+        $startAgoSec = strtotime( "now" ) - strtotime( $start_date );
+
+        $startAgo;
+
+        if( $startAgoSec > 0 ) {
+            $startAgo = rs_secondsToAgeSummary( $startAgoSec ) . " ago";
+            }
+        else {
+            $startAgo = "in " . rs_secondsToAgeSummary( -$startAgoSec );
+            }
+
+        $startString = date('l F j, Y g:i:s A', strtotime( $start_date ) );
+
+                
+        $runTime = rs_secondsToTimeSummary( strtotime( $end_date ) -
+                                            strtotime( $start_date ) );
+
+        $endHint = "";
+
+        $endAgoSec = strtotime( "now" ) - strtotime( $end_date );
+
+        if( $endAgoSec < 0 ) {
+            $endHint =
+                " (ends in " . rs_secondsToAgeSummary( -$endAgoSec ) . ")";
+            }
+        
+
+        echo "<table border=0 cellspacing=0 cellpadding=0 width=100%>";
+        
+        echo "<tr><td>$startString</td><td align=right>$startAgo</td></tr>";
+        echo "<tr><td colspan=2 align=left>Run time: $runTime".
+            "$endHint</td></tr>";
+        echo "</table>";
+
+        echo "<hr><br>";
+        
+
+        echo "Question:<br><br>";
+
+        echo "<center><table border=0 width=90% cellpadding=15 cellspacing=0>";
+        echo "<tr><td BGCOLOR=#333333>$question</td></tr>";
+
+        echo "</table></center>";
+        
+        echo "<br>";
+
+        
+        echo "Answers:<br><br>";
+
+        echo "<center><table border=0 width=90% cellpadding=15 cellspacing=0>";
+
+        $bgColor = "BGCOLOR=#555555";
+
+        $bgColorAlt = "BGCOLOR=#333333";
+        
+        $a = 0;
+
+        $answerCountMap = array();
+
+        foreach( $answers as $answer ) {
+            $num = $answerCounts[$a];
+
+            $answerCountMap[ $answer ] = $num;
+            $a++;
+            }
+        
+        arsort( $answerCountMap );
+        
+        
+        foreach( $answerCountMap as $answer => $num ) {
+            $percent = 100 * $num / $totalCounts;
+            $percent = number_format( $percent, 1 );
+            
+            echo "<tr><td $bgColor>$answer</td>".
+                "<td $bgColor align=right>$num</td>".
+                "<td $bgColor align=right nowrap>$percent %</td></tr>";
+
+            $temp = $bgColor;
+            $bgColor = $bgColorAlt;
+            $bgColorAlt = $temp;
+            }
+        echo "</td></tr></table>";
+        
+        
+        echo "</td></tr></table><br><br><br><br>";
+        }
+    
+    
+    echo "</td></tr></table></center>";
+    
+    eval( $footer );
     }
 
 
@@ -1278,7 +2101,10 @@ function rs_logGame() {
             "game_count = game_count + 1, " .
             "game_total_seconds = game_total_seconds + $game_seconds, " .
             "last_game_date = CURRENT_TIMESTAMP, " .
-            "last_game_seconds = $game_seconds " .
+            "last_game_seconds = $game_seconds, " .
+            "lives_since_recent_poll = lives_since_recent_poll + 1, " .
+            "seconds_lived_since_recent_poll = ".
+            "    seconds_lived_since_recent_poll + $game_seconds " .
             "WHERE email = '$email'; ";
         
         }
@@ -1520,14 +2346,27 @@ function rs_closeDatabase() {
  */
 function rs_secondsToTimeSummary( $inSeconds ) {
     if( $inSeconds < 120 ) {
+        if( $inSeconds == 1 ) {
+            return "$inSeconds second";
+            }
         return "$inSeconds seconds";
         }
     else if( $inSeconds < 3600 ) {
         $min = number_format( $inSeconds / 60, 0 );
+
+        if( $min == 1 ) {
+            return "$min minute";
+            }
+        
         return "$min minutes";
         }
     else {
         $hours = number_format( $inSeconds / 3600, 1 );
+
+        if( $hours == 1 ) {
+            return "$hours hour";
+            }
+        
         return "$hours hours";
         }
     }
