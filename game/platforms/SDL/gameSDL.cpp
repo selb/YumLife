@@ -5603,7 +5603,7 @@ char isSoundRecordingSupported() {
 #elif defined(__mac__)
     return false;
 #elif defined(WIN_32)
-    return false;
+    return true;
 #else
     return false;
 #endif
@@ -5695,15 +5695,64 @@ int16_t *stopRecording16BitMonoSound( int *outNumSamples ) {
 
 #elif defined(WIN_32)
 
+#include <mmsystem.h>
+
 const char *arecordFileName = "inputSound.wav";
+static int arecordSampleRate = 0;
 
 // windows implementation does nothing for now
 char startRecording16BitMonoSound( int inSampleRate ) {
+
+    arecordSampleRate = inSampleRate;
+    
+    if( mciSendString( "open new type waveaudio alias my_sound", 
+                       NULL, 0, 0 ) == 0 ) { 
+
+        char *settingsString = 
+            autoSprintf( "set my_sound alignment 2 bitspersample 16"
+                         " samplespersec %d"
+                         " channels 1"
+                         " bytespersec %d"
+                         " time format milliseconds format tag pcm",
+                         inSampleRate,
+                         ( 16 * inSampleRate ) / 8 );
+        
+        mciSendString( settingsString, NULL, 0, 0 );
+        
+        delete [] settingsString;
+
+        mciSendString( "record my_sound", NULL, 0, 0 );
+        return true;
+        }
+
     return false;
     }
 
 int16_t *stopRecording16BitMonoSound( int *outNumSamples ) {
-    return NULL;
+    mciSendString( "stop my_sound", NULL, 0, 0 );
+    
+    char *saveCommand = autoSprintf( "save my_sound %s", arecordFileName );
+    
+    mciSendString( saveCommand, NULL, 0, 0 );
+    delete [] saveCommand;
+    
+    mciSendString( "close my_sound", NULL, 0, 0 );
+    
+    int rate = -1;
+
+    int16_t *data = load16BitMonoSound( outNumSamples, &rate );
+
+    if( rate != arecordSampleRate ) {
+        *outNumSamples = 0;
+        
+        if( data != NULL ) {
+            delete [] data;
+            }
+        return NULL;
+        }
+    else {
+        return data;
+        }
     }
 
 #else
