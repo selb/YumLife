@@ -2397,13 +2397,38 @@ function ts_printSendAllNoteForm( $inSetMessageSubject, $inSetMessageBody ) {
     Tag:
     <SELECT NAME="tag">
 <?php
-    // auto-gen ALL tags for batches
+    
 
+
+
+    
     $query = "SELECT COUNT(*) FROM $tableNamePrefix"."tickets ".
          "WHERE blocked = '0' AND email_opt_in = '1';";
     $result = ts_queryDatabase( $query );
-    $totalTickets = ts_mysqli_result( $result, 0, 0 );
+    
 
+    
+    global $useBulkEmailerForNotes;
+
+    if( $useBulkEmailerForNotes ) {
+        $totalTickets = ts_mysqli_result( $result, 0, 0 );
+
+        $numToSkip = 0;
+        global $bulkEmailBatchSize;
+    
+        while( $totalTickets > 0 ) {
+            echo "<OPTION VALUE=\"BULK_BATCH_$numToSkip\">".
+                "BULK_BATCH_$numToSkip</OPTION>";
+            $totalTickets -= $bulkEmailBatchSize;
+            $numToSkip += $bulkEmailBatchSize;
+            }
+        }
+
+
+
+    // auto-gen ALL tags for batches
+
+    $totalTickets = ts_mysqli_result( $result, 0, 0 );
     $numToSkip = 0;
     global $emailMaxBatchSize;
     
@@ -2422,21 +2447,6 @@ function ts_printSendAllNoteForm( $inSetMessageSubject, $inSetMessageBody ) {
         echo "<OPTION VALUE=\"$tag\">$tag</OPTION>";
         }
 
-    global $useBulkEmailerForNotes;
-
-    if( $useBulkEmailerForNotes ) {
-        $totalTickets = ts_mysqli_result( $result, 0, 0 );
-
-        $numToSkip = 0;
-        global $bulkEmailBatchSize;
-    
-        while( $totalTickets > 0 ) {
-            echo "<OPTION VALUE=\"BULK_BATCH_$numToSkip\">".
-                "BULK_BATCH_$numToSkip</OPTION>";
-            $totalTickets -= $bulkEmailBatchSize;
-            $numToSkip += $bulkEmailBatchSize;
-            }
-        }
     
 ?>
     </SELECT> Skip: <INPUT TYPE="text" MAXLENGTH=20 SIZE=10 NAME="message_skip"
