@@ -17,6 +17,7 @@ typedef struct FloatColor {
 
 
 
+void hetuwSetDrawColor(float r, float g, float b, float a);
 
 void setDrawColor( float inR, float inG, float inB, float inA );
 

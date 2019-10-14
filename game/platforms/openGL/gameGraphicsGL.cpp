@@ -6,8 +6,10 @@
 
 #include "minorGems/util/SimpleVector.h"
 
+#include "OneLife/gameSource/hetuwmod.h"
 
 static float lastR, lastG, lastB, lastA;
+
 
 
 static char additiveTextureColorMode = false;
@@ -72,7 +74,10 @@ float getTotalGlobalFade() {
     }
 
 
-
+void hetuwSetDrawColor(float r, float g, float b, float a) {
+	if (HetuwMod::drawColorAlpha != 1.0f) a = HetuwMod::drawColorAlpha;
+	glColor4f(r, g, b, a);
+}
 
 
 void setDrawColor( float inR, float inG, float inB, float inA ) {
@@ -101,7 +106,7 @@ void setDrawColor( float inR, float inG, float inB, float inA ) {
         inA *= globalFadeTotal;
         }
         
-    glColor4f( inR, inG, inB, inA );
+    hetuwSetDrawColor( inR, inG, inB, inA );
     }
 
 
@@ -126,7 +131,7 @@ FloatColor getDrawColor() {
 void setDrawFade( float inA ) {    
     lastA = inA;
     
-    glColor4f( lastR, lastG, lastB, inA * globalFadeTotal );
+    hetuwSetDrawColor( lastR, lastG, lastB, inA * globalFadeTotal );
     }
 
 
