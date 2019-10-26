@@ -679,7 +679,7 @@ void startCountingSpritePixelsDrawn() {
 
 
 
-unsigned int endCountingSpritePixelsDrawn() {
+double  endCountingSpritePixelsDrawn() {
     return SpriteGL::endCountingPixelsDrawn();
     }
 
@@ -688,7 +688,7 @@ unsigned int endCountingSpritePixelsDrawn() {
 // more efficient and simpler to always count
 // instead of keeping an "are we counting" state
 // just set this to zero whenever user asks to start counting
-static unsigned int numSpritesDrawn = 0;
+static double numSpritesDrawn = 0;
 
 
 void startCountingSpritesDrawn() {
@@ -697,7 +697,7 @@ void startCountingSpritesDrawn() {
 
 
 
-unsigned int endCountingSpritesDrawn() {
+double endCountingSpritesDrawn() {
     return numSpritesDrawn;
     }
 
