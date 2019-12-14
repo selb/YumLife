@@ -18,6 +18,11 @@ typedef struct FloatColor {
 
 
 void hetuwSetDrawColor(float r, float g, float b, float a);
+// converts from string like "#e6194B"
+FloatColor getFloatColor( const char *inHexString );
+
+
+
 
 void setDrawColor( float inR, float inG, float inB, float inA );
 
