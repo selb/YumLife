@@ -11,9 +11,9 @@ have" features from other mods will also be added over time.
 
 1. Make sure the game is fully updated in Steam.
 2. Run the game from Steam once to ensure the Steam login details are properly set up.
-2. Download the latest version of the mod from [the Releases page](htts://github.com/selb/YumLife). For Windows, this is YumLife_windows.exe.
-3. Install the mod into the OHOL installation folder (Steam users: right click game > Manage > Browse local files)
-4. Run the mod from the OHOL installation folder.
+3. Download the latest version of the mod from [the Releases page](https://github.com/selb/YumLife). For Windows, this is YumLife_windows.exe.
+4. Install the mod into the OHOL installation folder (Steam users: right click game > Manage > Browse local files)
+5. Run the mod from the OHOL installation folder.
 
 ## Direct download users:
 
