@@ -56,6 +56,7 @@
 #include "fitnessScore.h"
 #include "arcReport.h"
 #include "curseDB.h"
+#include "trustDB.h"
 #include "specialBiomes.h"
 #include "cravings.h"
 #include "offspringTracker.h"
@@ -233,6 +234,9 @@ char *curseBabyPhrase = NULL;
 static SimpleVector<char*> forgivingPhrases;
 static SimpleVector<char*> youForgivingPhrases;
 
+static SimpleVector<char*> trustingPhrases;
+static SimpleVector<char*> youTrustingPhrases;
+
 
 static SimpleVector<char*> youGivingPhrases;
 static SimpleVector<char*> namedGivingPhrases;
@@ -257,6 +261,10 @@ static SimpleVector<char*> namedRedeemPhrases;
 static SimpleVector<char*> youKillPhrases;
 static SimpleVector<char*> namedKillPhrases;
 static SimpleVector<char*> namedAfterKillPhrases;
+
+
+static SimpleVector<char*> forgiveEveryonePhrases;
+
 
 
 static SimpleVector<int> clueIndicesLeftToGive;
@@ -718,7 +726,8 @@ typedef struct LiveObject {
 
 
         char isEve;        
-
+        char isRespawningEve;
+        
         char isTutorial;
 
         char isTwin;
@@ -1239,9 +1248,8 @@ static LiveObject *findFittestOffspring( int inPlayerID, int inSkipID,
 
 
 static LiveObject *findFittestCloseRelative( LiveObject *inPlayer,
+                                             GridPos inLocation,
                                              int inMaxDistance ) {
-
-    GridPos location = getPlayerPos( inPlayer );
 
     LiveObject *offspring = NULL;
     
@@ -1258,7 +1266,7 @@ static LiveObject *findFittestCloseRelative( LiveObject *inPlayer,
             
         offspring = findFittestOffspring( 
             inPlayer->lineage->getElementDirect( lineageStep ),
-            inPlayer->id, location, inMaxDistance );
+            inPlayer->id, inLocation, inMaxDistance );
         
         lineageStep++;
         }
@@ -1267,8 +1275,7 @@ static LiveObject *findFittestCloseRelative( LiveObject *inPlayer,
 
 
 
-static LiveObject *findHeir( LiveObject *inPlayer ) {
-    GridPos location = getPlayerPos( inPlayer );
+static LiveObject *findHeir( LiveObject *inPlayer, GridPos inLocation ) {
     
     // use followDistance to limit consideration for heir
     int maxDistance = 
@@ -1281,23 +1288,25 @@ static LiveObject *findHeir( LiveObject *inPlayer ) {
     
     if( getFemale( inPlayer ) ) {
         offspring = findFittestOffspring( inPlayer->id, inPlayer->id,
-                                          location, maxDistance );
+                                          inLocation, maxDistance );
         
         if( offspring == NULL ) {
             // none found in maxDistance, search in much larger distance
             offspring = findFittestOffspring( inPlayer->id, inPlayer->id,
-                                              location, hugeDistance );
+                                              inLocation, hugeDistance );
             }
         }
     
     if( offspring == NULL ) {
         // no direct offspring found
         
-        offspring = findFittestCloseRelative( inPlayer, maxDistance );
+        offspring = findFittestCloseRelative( inPlayer, 
+                                              inLocation, maxDistance );
         
-        if( offspring != NULL ) {
+        if( offspring == NULL ) {
             // none found in maxDistance, search in much larger distance
-            findFittestCloseRelative( inPlayer, hugeDistance );
+            offspring = 
+                findFittestCloseRelative( inPlayer, inLocation, hugeDistance );
             }
         }
 
@@ -1557,7 +1566,8 @@ void removeAllOwnership( LiveObject *inPlayer, char inProcessInherit = true ) {
         if( noOtherOwners && inProcessInherit ) {
             // find closest relative
             
-            LiveObject *heir = findHeir( inPlayer );
+            // find the closest heir to this property location
+            LiveObject *heir = findHeir( inPlayer, *p );
             
             if( heir != NULL ) {
                 heir->ownedPositions.push_back( *p );
@@ -1849,6 +1859,8 @@ char isPlayerIgnoredForEvePlacement( int inID ) {
 
 
 static double pickBirthCooldownSeconds() {
+    return 0;
+    
     // Kumaraswamy distribution
     // PDF:
     // k(x,a,b) = a * b * x**( a - 1 ) * (1-x**a)**(b-1)
@@ -2391,6 +2403,7 @@ void quitCleanup() {
     freeCurses();
     
     freeCurseDB();
+    freeTrustDB();
 
     freeLifeTokens();
 
@@ -2448,6 +2461,9 @@ void quitCleanup() {
     
     forgivingPhrases.deallocateStringElements();
     youForgivingPhrases.deallocateStringElements();
+
+    trustingPhrases.deallocateStringElements();
+    youTrustingPhrases.deallocateStringElements();
     
     youGivingPhrases.deallocateStringElements();
     namedGivingPhrases.deallocateStringElements();
@@ -2471,6 +2487,9 @@ void quitCleanup() {
     namedKillPhrases.deallocateStringElements();
     namedAfterKillPhrases.deallocateStringElements();
     
+    forgiveEveryonePhrases.deallocateStringElements();
+    
+
     if( orderPhrase != NULL ) {
         delete [] orderPhrase;
         orderPhrase = NULL;
@@ -6037,7 +6056,11 @@ static void makePlayerSay( LiveObject *inPlayer, char *inToSay ) {
     if( strcmp( inToSay, curseYouPhrase ) == 0 ) {
         isYouShortcut = true;
         }
-    if( strcmp( inToSay, curseBabyPhrase ) == 0 ) {
+    
+    if( strcmp( inToSay, curseBabyPhrase ) == 0
+        &&
+        SettingsManager::getIntSetting( "allowBabyCursing", 0 ) ) {
+        
         isBabyShortcut = true;
         }    
     
@@ -7378,9 +7401,17 @@ static void updateYum( LiveObject *inPlayer, int inFoodEatenID,
                 }
             
             // craving satisfied, go on to next thing in list
+            
+            int parentChainLength = inPlayer->parentChainLength;
+            if( inPlayer->isRespawningEve ) {
+                // Eves that respawn in their same camp on low-pop
+                // servers crave everything
+                parentChainLength = 1000;
+                }
+            
             inPlayer->cravingFood = 
                 getCravedFood( inPlayer->lineageEveID,
-                               inPlayer->parentChainLength,
+                               parentChainLength,
                                inPlayer->cravingFood );
             // reset generational bonus counter
             inPlayer->cravingFoodYumIncrement = 1;
@@ -8441,11 +8472,11 @@ static double posseDelayReductionFactor = 2.0;
 
 
 
-// for placement of tutorials out of the way 
+// for placement of tutorials out of the way, 5,000,000 to East of 0 to start 
 static int maxPlacementX = 5000000;
 
-// tutorial is alwasy placed 400,000 to East of furthest birth/Eve
-// location
+// tutorial is always placed 400,000 to East of furthest birth/Eve
+// location and 400,000 to East of furthest other tutorial
 static int tutorialOffsetX = 400000;
 
 
@@ -8840,6 +8871,7 @@ int processLoggedInPlayer( int inAllowOrForceReconnect,
     newObject.displayID = getRandomPersonObject();
     
     newObject.isEve = false;
+    newObject.isRespawningEve = false;
     
     newObject.isTutorial = false;
     
@@ -9189,6 +9221,44 @@ int processLoggedInPlayer( int inAllowOrForceReconnect,
                 "Only fertile mom on server has us curse-blocked.  "
                 "Avoiding her, and not going to d-town, spawning new Eve" );   
         }
+    else if( parentChoices.size() == 0 &&
+             numBirthLocationsCurseBlocked > 0 ) {
+
+        // they are blocked from being born EVERYWHERE by curses
+
+        AppLog::infoF( "No available mothers, and %d are curse blocked, "
+                       "looking for a d-town mother",
+                       numBirthLocationsCurseBlocked );
+
+
+        // they are going to d-town
+        inCurseStatus.curseLevel = 1;
+        inCurseStatus.excessPoints = 1;
+        
+        // add all existing fertile d-town residents as possible parents
+        
+        // we're not going to do any special balancing here
+        // d-town births will be random to fertile mothers there
+
+        // we're also going to skip proping up races and families in d-town
+        // there will be just one big family there
+        for( int i=0; i<numPlayers; i++ ) {
+            LiveObject *player = players.getElement( i );
+            
+            
+            if( ! player->error &&
+                ! player->isTutorial &&
+                ! player->vogMode &&
+                player->curseStatus.curseLevel > 0 &&
+                isFertileAge( player ) ) {
+                
+                parentChoices.push_back( player );
+                }
+            }
+        
+        AppLog::infoF( "Found %d d-town mothers", parentChoices.size() );
+        }
+    
 
     
     if( parentChoices.size() > 0 &&
@@ -9294,15 +9364,8 @@ int processLoggedInPlayer( int inAllowOrForceReconnect,
 
 
     if( parentChoices.size() == 0 && numBirthLocationsCurseBlocked > 0 ) {
-        // they are blocked from being born EVERYWHERE by curses
-
-        AppLog::infoF( "No available mothers, and %d are curse blocked, "
-                       "sending a new Eve to donkeytown",
-                       numBirthLocationsCurseBlocked );
-
-        // d-town
-        inCurseStatus.curseLevel = 1;
-        inCurseStatus.excessPoints = 1;
+        AppLog::infoF( "No available mothers in d-town, "
+                       "sending a new Eve to donkeytown" );
         }
 
     
@@ -9441,6 +9504,11 @@ int processLoggedInPlayer( int inAllowOrForceReconnect,
         newObject.lifeStartTimeSeconds -= 14 * ( 1.0 / getAgeRate() );
         
         // she starts off craving a food right away
+        
+        // for respawned Eve, give her a low-tier food early
+        // on in her life (use here parentChainLength = 0)
+        // but after she eats this, we will expand to all possible foods
+        // on her second craving
         newObject.cravingFood = getCravedFood( newObject.lineageEveID,
                                                newObject.parentChainLength );
         // initilize increment
@@ -9974,10 +10042,17 @@ int processLoggedInPlayer( int inAllowOrForceReconnect,
             }
 
         int startX, startY;
-        getEvePosition( newObject.email, 
-                        newObject.id, &startX, &startY, 
-                        &otherPeoplePos, allowEveRespawn, 
-                        incrementEvePlacement );
+        char didEveRespawn =
+            getEvePosition( newObject.email, 
+                            newObject.id, &startX, &startY, 
+                            &otherPeoplePos, allowEveRespawn, 
+                            incrementEvePlacement );
+        
+        
+        if( newObject.isEve ) {
+            newObject.isRespawningEve = didEveRespawn;
+            }
+        
 
         
         if( players.size() >= 
@@ -9993,20 +10068,20 @@ int processLoggedInPlayer( int inAllowOrForceReconnect,
         
 
         if( inCurseStatus.curseLevel > 0 ) {
-            // keep cursed players away
+            // keep cursed players away by sticking them in Donkeytown 
 
-            // 20K away in X and 20K away in Y, pushing out away from 0
+            // 200M away in X pushing out away from 0
             // in both directions
 
+            // note that since we only push out in X, we keep Y from the above
+            // placement code, which means we might place Donkeytown Eve in
+            // a biome band, etc.
+
             if( startX > 0 )
-                startX += 20000;
+                startX += 200000000;
             else
-                startX -= 20000;
+                startX -= 200000000;
             
-            if( startY > 0 )
-                startY += 20000;
-            else
-                startY -= 20000;
             }
         
 
@@ -10460,21 +10535,24 @@ int processLoggedInPlayer( int inAllowOrForceReconnect,
         
         // a living other player
         
-        // consider all men here
-        // and any childless women (they are counted as aunts
-        // for any children born before they themselves have children
-        // or after all their own children die)
-        if( newObject.parentID != otherPlayer->id 
-            &&
-            ( ! getFemale( otherPlayer ) ||
-              countLivingChildren( otherPlayer->id ) == 0 ) ) {
+        // consider all men and women here
+        // look for uncles and aunts
+        // Note that we used to only consider childless women
+        // but now all aunts (even those with their own children)
+        // count.
+        if( newObject.parentID != otherPlayer->id
+            // Make sure they are NOT *our* ancestor (don't look for mother,
+            // grandmother, etc. here... only aunts)
+            // i.e., make sure they aren't in our lineage directly
+            && newObject.lineage->getElementIndex( otherPlayer->id ) == -1  ) {
             
-            // check if his mother is an ancestor
-            // (then he's an uncle, or she's a childless aunt)
             if( otherPlayer->parentID > 0 ) {
+                // they have a mother
+                
+                // check if their mother is an ancestor of newObject
                 
                 // look at lineage above parent
-                // don't count brothers, only uncles
+                // don't count brothers/sisters, only uncles/aunts
                 for( int i=1; i<newObject.lineage->size(); i++ ) {
                     
                     if( newObject.lineage->getElementDirect( i ) ==
@@ -10487,9 +10565,11 @@ int processLoggedInPlayer( int inAllowOrForceReconnect,
 
                         // i tells us how many greats
                         SimpleVector<char> workingName;
+                        SimpleVector<char> workingReverseName;
                         
                         for( int g=2; g<=i; g++ ) {
                             workingName.appendElementString( "Great_" );
+                            workingReverseName.appendElementString( "Great_" );
                             }
                         if( ! getFemale( &newObject ) ) {
                             workingName.appendElementString( "Nephew" );
@@ -10497,6 +10577,14 @@ int processLoggedInPlayer( int inAllowOrForceReconnect,
                         else {
                             workingName.appendElementString( "Niece" );
                             }
+                        
+                        if( getFemale( otherPlayer ) ) {
+                            workingReverseName.appendElementString( "Aunt" );
+                            }
+                        else {
+                            workingReverseName.appendElementString( "Uncle" );
+                            }
+
 
                         newObject.ancestorRelNames->push_back(
                             workingName.getElementString() );
@@ -10504,13 +10592,27 @@ int processLoggedInPlayer( int inAllowOrForceReconnect,
                         newObject.ancestorLifeStartTimeSeconds->push_back(
                             otherPlayer->lifeStartTimeSeconds );
                         
+
+                        // we do bi-directionality here too
+                        // players should try to prevent their
+                        // uncles and aunts from dying
+
+                        otherPlayer->ancestorIDs->push_back( newObject.id );
+                        otherPlayer->ancestorEmails->push_back( 
+                            stringDuplicate( newObject.email ) );
+                        otherPlayer->ancestorRelNames->push_back( 
+                            workingReverseName.getElementString() );
+                        otherPlayer->ancestorLifeStartTimeSeconds->push_back(
+                            newObject.lifeStartTimeSeconds );
+
                         break;
                         }
                     }
                 }
             }
         else {
-            // females, look for direct ancestry
+            // else we found them in our ancestry above
+            // handle case of mother, grandmother, etc here.
 
             for( int i=0; i<newObject.lineage->size(); i++ ) {
                     
@@ -10565,7 +10667,7 @@ int processLoggedInPlayer( int inAllowOrForceReconnect,
                     newObject.ancestorLifeStartTimeSeconds->push_back(
                             otherPlayer->lifeStartTimeSeconds );
                     
-                    // this is the only case of bi-directionality
+                    // this is another case of bi-directionality
                     // players should try to prevent their mothers, gma,
                     // ggma, etc from dying
 
@@ -10587,16 +10689,14 @@ int processLoggedInPlayer( int inAllowOrForceReconnect,
 
         
         // are they our sibling?
-        // note that this is only uni-directional
         // (we're checking here for this new baby born)
-        // so only our OLDER sibs count as our ancestors (and thus
-        // they care about protecting us).
-
-        // this is a little weird, but it does make some sense
-        // you are more protective of little sibs
+        
+        // we're now setting this up bidirectionally
+        // so you are protective of both your older and younger sibs
 
         // anyway, the point of this is to close the "just care about yourself
         // and avoid having kids" exploit.  If your mother has kids after you
+        // or before you
         // (which is totally out of your control), then their survival
         // will affect your score.
         
@@ -10626,7 +10726,27 @@ int processLoggedInPlayer( int inAllowOrForceReconnect,
             
             newObject.ancestorLifeStartTimeSeconds->push_back(
                 otherPlayer->lifeStartTimeSeconds );
-                        
+
+            
+            // bi-directional part here:
+            const char *reverseRelName;
+            
+            if( ! getFemale( otherPlayer ) ) {
+                reverseRelName = "Big_Brother";
+                }
+            else {
+                reverseRelName = "Big_Sister";
+                }
+            
+            otherPlayer->ancestorIDs->push_back( newObject.id );
+            otherPlayer->ancestorEmails->push_back( 
+                stringDuplicate( newObject.email ) );
+            otherPlayer->ancestorRelNames->push_back( 
+                stringDuplicate( reverseRelName ) );
+            otherPlayer->ancestorLifeStartTimeSeconds->push_back(
+                newObject.lifeStartTimeSeconds );
+
+       
             continue;
             }
         }
@@ -12596,6 +12716,22 @@ char isYouForgivingSay( char *inSaidString ) {
 // returns pointer into inSaidString
 char *isNamedForgivingSay( char *inSaidString ) {
     return isNamingSay( inSaidString, &forgivingPhrases );
+    }
+
+
+
+char isYouTrustingSay( char *inSaidString ) {
+    return isWildcardGivingSay( inSaidString, &youTrustingPhrases );
+    }
+
+// returns pointer into inSaidString
+char *isNamedTrustingSay( char *inSaidString ) {
+    return isNamingSay( inSaidString, &trustingPhrases );
+    }
+
+
+char isForgiveEveryoneSay( char *inSaidString ) {
+    return isWildcardGivingSay( inSaidString, &forgiveEveryonePhrases );
     }
 
 
@@ -17366,6 +17502,9 @@ int main() {
     readPhrases( "forgivingPhrases", &forgivingPhrases );
     readPhrases( "forgiveYouPhrases", &youForgivingPhrases );
 
+    readPhrases( "trustingPhrases", &trustingPhrases );
+    readPhrases( "trustYouPhrases", &youTrustingPhrases );
+
     
     readPhrases( "youGivingPhrases", &youGivingPhrases );
     readPhrases( "namedGivingPhrases", &namedGivingPhrases );
@@ -17390,6 +17529,8 @@ int main() {
     readPhrases( "youKillPhrases", &youKillPhrases );
     readPhrases( "namedKillPhrases", &namedKillPhrases );
     readPhrases( "namedAfterKillPhrases", &namedAfterKillPhrases );
+
+    readPhrases( "forgiveEveryonePhrases", &forgiveEveryonePhrases );
 
 
     orderPhrase = 
@@ -17479,6 +17620,7 @@ int main() {
     initLineageLimit();
     
     initCurseDB();
+    initTrustDB();
 
     initOffspringTracker();
     
@@ -21535,7 +21677,8 @@ int main() {
                             }
                         
                         if( otherToForgive != NULL ) {
-                            clearDBCurse( nextPlayer->email, 
+                            clearDBCurse( nextPlayer->id, 
+                                          nextPlayer->email, 
                                           otherToForgive->email );
                             
                             char *message = 
@@ -21550,6 +21693,78 @@ int main() {
                                                  message, strlen( message ) );
                             delete [] message;
                             }
+
+                        
+
+                        if( isForgiveEveryoneSay( m.saidText ) ) {
+                            
+                            // this kicks off a process
+                            // that happens gradually when
+                            // we do our regular curse db iterative culling
+                            clearAllDBCurse( nextPlayer->id, 
+                                             nextPlayer->email );
+                            
+                            
+                            // But right now, do it for all living players
+                            // that this player has cursed.
+                            // This causes the effect to happen instantly
+                            // for them
+                            // (so we don't have to wait to iterate through
+                            //  the db, which wouldn't send them CU
+                            //  update messsages anyway)
+                            
+                            for( int p=0; p<players.size(); p++ ) {
+                                LiveObject *otherToForgive =
+                                    players.getElement( p );
+                                
+                                if( isCursed( nextPlayer->email, 
+                                              otherToForgive->email ) ) {
+                                    
+                                    clearDBCurse( nextPlayer->id, 
+                                                  nextPlayer->email, 
+                                                  otherToForgive->email );
+                            
+                                    char *message = 
+                                        autoSprintf( 
+                                            "CU\n%d 0 %s_%s\n#", 
+                                            otherToForgive->id,
+                                            getCurseWord( 
+                                                nextPlayer->email,
+                                                otherToForgive->email, 0 ),
+                                            getCurseWord( 
+                                                nextPlayer->email,
+                                                otherToForgive->email, 1 ) );
+                                    sendMessageToPlayer( 
+                                        nextPlayer,
+                                        message, strlen( message ) );
+                                    delete [] message;
+                                    }
+                                }
+                            }
+                        
+
+
+                        LiveObject *otherToTrust = NULL;
+                        
+                        if( isYouTrustingSay( m.saidText ) ) {
+                            otherToTrust = 
+                                getClosestOtherPlayer( nextPlayer );
+                            }
+                        else {
+                            char *trustName = isNamedTrustingSay( m.saidText );
+                            if( trustName != NULL ) {
+                                otherToTrust =
+                                    getPlayerByName( trustName, nextPlayer );
+                                
+                                }
+                            }
+                        
+                        if( otherToTrust != NULL ) {
+                            setDBTrust( nextPlayer->id,
+                                        nextPlayer->email, 
+                                        otherToTrust->email );
+                            }
+
                         
                         
                         LiveObject *otherToFollow = NULL;
@@ -29145,11 +29360,24 @@ int main() {
 
                                 int curseFlag =
                                     newSpeechCurseFlags.getElementDirect( u );
+                                
+                                const char *trustMarkerStart = "";
+                                const char *trustMarkerEnd = "";
+                                
+                                if( speakerID != listenerID &&
+                                    isTrusted( nextPlayer->email,
+                                               speakerObj->email ) ) {
+                                    trustMarkerStart = "+ ";
+                                    trustMarkerEnd = " +";
+                                    }
+                                
 
-                                char *line = autoSprintf( "%d/%d %s\n", 
+                                char *line = autoSprintf( "%d/%d %s%s%s\n", 
                                                           speakerID,
                                                           curseFlag,
-                                                          translatedPhrase );
+                                                          trustMarkerStart,
+                                                          translatedPhrase,
+                                                          trustMarkerEnd );
                                 delete [] translatedPhrase;
                                 delete [] trimmedPhrase;
                                 
