@@ -1,4 +1,4 @@
-int versionNumber = 374;
+int versionNumber = 379;
 int dataVersionNumber = 0;
 
 int binVersionNumber = versionNumber;
@@ -98,6 +98,7 @@ CustomRandomSource randSource( 34957197 );
 #include "TwinPage.h"
 #include "PollPage.h"
 #include "GeneticHistoryPage.h"
+#include "ServicesPage.h"
 //#include "TestPage.h"
 
 #include "ServerActionPage.h"
@@ -155,6 +156,7 @@ ReviewPage *reviewPage;
 TwinPage *twinPage;
 PollPage *pollPage;
 GeneticHistoryPage *geneticHistoryPage;
+ServicesPage *servicesPage;
 //TestPage *testPage = NULL;
 
 
@@ -664,6 +666,8 @@ void initFrameDrawer( int inWidth, int inHeight, int inTargetFrameRate,
     
     geneticHistoryPage = new GeneticHistoryPage();
     
+    servicesPage = new ServicesPage();
+    
 
     // 0 music headroom needed, because we fade sounds before playing music
     setVolumeScaling( 10, 0 );
@@ -752,7 +756,8 @@ void freeFrameDrawer() {
     delete twinPage;
     delete pollPage;
     delete geneticHistoryPage;
-    
+    delete servicesPage;
+
     //if( testPage != NULL ) {
     //    delete testPage;
     //    testPage = NULL;
@@ -1753,6 +1758,13 @@ void drawFrame( char inUpdate ) {
                 startConnecting();
                 }
             }
+        else if( currentGamePage == servicesPage ) {
+            if( servicesPage->checkSignal( "back" ) ) {
+                existingAccountPage->setStatus( NULL, false );
+                currentGamePage = existingAccountPage;
+                currentGamePage->base_makeActive( true );
+                }
+            }
         else if( currentGamePage == existingAccountPage ) {    
             if( existingAccountPage->checkSignal( "quit" ) ) {
                 quitGame();
@@ -1775,6 +1787,10 @@ void drawFrame( char inUpdate ) {
                 }
             else if( existingAccountPage->checkSignal( "friends" ) ) {
                 currentGamePage = twinPage;
+                currentGamePage->base_makeActive( true );
+                }
+            else if( existingAccountPage->checkSignal( "services" ) ) {
+                currentGamePage = servicesPage;
                 currentGamePage->base_makeActive( true );
                 }
             else if( existingAccountPage->checkSignal( "done" )

@@ -10,7 +10,15 @@ void freeCurseDB();
 void setDBCurse( int inSenderID, 
                  const char *inSenderEmail, const char *inReceiverEmail );
 
-void clearDBCurse( const char *inSenderEmail, const char *inReceiverEmail );
+void clearDBCurse( int inSenderID,
+                   const char *inSenderEmail, const char *inReceiverEmail );
+
+
+// one player forgiving everyone in one move
+// this doesn't happen instantly, but instead is spread over our
+// incremental culling operation
+void clearAllDBCurse( int inSenderID, const char *inSenderEmail );
+
 
 
 char isCursed( const char *inSenderEmail, const char *inReceiverEmail );

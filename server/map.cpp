@@ -5406,7 +5406,22 @@ int checkDecayObject( int inX, int inY, int inID ) {
                         }
                     if( t->move == 2 ) {
                         // flee
-                        stayInBiome = true;
+                        
+                        if( t->target > 0 ) {
+                            ObjectRecord *targetObject = 
+                                getObject( t->target );
+                            
+                            if( targetObject->numBiomes > 0 &&
+                                targetObject->biomes[0] != 0 ) {
+                            
+                                // object has biomes specified
+                                // stay in biome when fleeing
+                                stayInBiome = true;
+                                }
+                            }
+                        // else can flee to any biome
+                        
+
                         dir = mult( dir, -1 );
                         }
                     }
@@ -5462,8 +5477,21 @@ int checkDecayObject( int inX, int inY, int inID ) {
 
                 if( dir.x == 0 && dir.y == 0 ) {
                     // random instead
-                    
-                    stayInBiome = true;
+
+                    if( t->target > 0 ) {
+                        ObjectRecord *targetObject = 
+                            getObject( t->target );
+                        
+                        if( targetObject->numBiomes > 0 &&
+                            targetObject->biomes[0] != 0 ) {
+                            
+                            // object has biomes specified
+                            // stay in biome when moving randomly
+                            stayInBiome = true;
+                            }
+                        }
+                    // else can move randomly to any biome
+
                     
                     dir.x = 1;
                     dir.y = 0;
@@ -7074,6 +7102,25 @@ static int applyTapoutGradientRotate( int inX, int inY,
 
 
 
+extern void removeOwnership( int inX, int inY );
+
+
+
+static char isOwnedAtAll( int inObjectID ) {
+    ObjectRecord *o = getObject( inObjectID );
+    
+    if( o == NULL ) {
+        return false;
+        }
+
+    if( o->isOwned ||
+        o->isFollowerOwned ) {
+        return true;
+        }
+    return false;
+    }
+
+
 
 // returns true if tapout-triggered a +primaryHomeland object
 static char runTapoutOperation( int inX, int inY, 
@@ -7154,6 +7201,14 @@ static char runTapoutOperation( int inX, int inY,
             
             if( newTarget != -1 ) {
                 setMapObjectRaw( x, y, newTarget );
+
+                if( newTarget != id &&
+                    isOwnedAtAll( id ) &&
+                    ! isOwnedAtAll( newTarget ) ) {
+                    
+                    // was owned, but no longer
+                    removeOwnership( x, y );
+                    }    
                 }
             }
         }
@@ -8636,10 +8691,12 @@ extern char doesEveLineExist( int inEveID );
 
 
 
-void getEvePosition( const char *inEmail, int inID, int *outX, int *outY, 
+char getEvePosition( const char *inEmail, int inID, int *outX, int *outY, 
                      SimpleVector<GridPos> *inOtherPeoplePos,
                      char inAllowRespawn,
                      char inIncrementPosition ) {
+
+    char didEveRespawn = false;
 
     int currentEveRadius = eveRadius;
 
@@ -8662,6 +8719,7 @@ void getEvePosition( const char *inEmail, int inID, int *outX, int *outY,
         ave.x = pX;
         ave.y = pY;
         currentEveRadius = pR;
+        didEveRespawn = true;
         }
     else if( SettingsManager::getIntSetting( "useEveMovingGrid", 0 ) ) {
         printf( "Placing new Eve:  "
@@ -9006,7 +9064,7 @@ void getEvePosition( const char *inEmail, int inID, int *outX, int *outY,
                 *outX += v.x;
                 *outY += v.y;
                 
-                return;
+                return didEveRespawn;
                 }
             else {
                 AppLog::info( "Unable to find location for Eve "
@@ -9261,6 +9319,9 @@ void getEvePosition( const char *inEmail, int inID, int *outX, int *outY,
     // later
 
     clearRecentPlacements();
+
+    
+    return didEveRespawn;
     }
 
 
