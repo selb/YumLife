@@ -46,9 +46,12 @@ class SettingsPage : public GamePage, public ActionListener {
         TextButton mRestartButton;
         TextButton mRedetectButton;
 
+        CheckboxButton mVsyncBox;
         CheckboxButton mFullscreenBox;
         CheckboxButton mBorderlessBox;
-        
+
+        TextField mTargetFrameRateField;
+
 
         ValueSlider mMusicLoudnessSlider;
         ValueSlider mSoundEffectsLoudnessSlider;
@@ -66,5 +69,8 @@ class SettingsPage : public GamePage, public ActionListener {
         RadioButtonSet *mCursorModeSet;
         
         ValueSlider mCursorScaleSlider;
+        
 
+        void checkRestartButtonVisibility();
+        
     };

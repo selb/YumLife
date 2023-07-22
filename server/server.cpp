@@ -2846,6 +2846,7 @@ typedef enum messageType {
     LEAD,
     UNFOL,
     PROP,
+    ORDR,
     FLIP,
     UNKNOWN
     } messageType;
@@ -3274,6 +3275,9 @@ ClientMessage parseMessage( LiveObject *inPlayer, char *inMessage ) {
         }
     else if( strcmp( nameBuffer, "PROP" ) == 0 ) {
         m.type = PROP;
+        }
+    else if( strcmp( nameBuffer, "ORDR" ) == 0 ) {
+        m.type = ORDR;
         }
     else if( strcmp( nameBuffer, "FLIP" ) == 0 ) {
         m.type = FLIP;
@@ -6340,7 +6344,11 @@ static void makePlayerSay( LiveObject *inPlayer, char *inToSay ) {
     if( dbCurseTargetEmail != NULL && usePersonalCurses ) {
         LiveObject *targetP = getPlayerByEmail( dbCurseTargetEmail );
         
-        if( targetP != NULL ) {
+        if( targetP != NULL &&
+            // don't send CU messages with curse
+            // words to Donkeytown players
+            inPlayer->curseStatus.curseLevel == 0 ) {
+
             char *message = autoSprintf( "CU\n%d 1 %s_%s\n#", targetP->id,
                                          getCurseWord( inPlayer->email,
                                                        targetP->email, 0 ),
@@ -6396,6 +6404,8 @@ static void makePlayerSay( LiveObject *inPlayer, char *inToSay ) {
 
 
     SimpleVector<int> pipesIn;
+    SimpleVector<GridPos> pipesInPos;
+
     GridPos playerPos = getPlayerPos( inPlayer );
     
     
@@ -6408,21 +6418,29 @@ static void makePlayerSay( LiveObject *inPlayer, char *inToSay ) {
             }
         }
     
-    getSpeechPipesIn( playerPos.x, playerPos.y, &pipesIn );
+    getSpeechPipesIn( playerPos.x, playerPos.y, &pipesIn, &pipesInPos );
     
     if( pipesIn.size() > 0 ) {
+
+        double maxDist = SettingsManager::getDoubleSetting( "maxRadioDistance",
+                                                            100000 );
         for( int p=0; p<pipesIn.size(); p++ ) {
             int pipeIndex = pipesIn.getElementDirect( p );
-
+            GridPos inPos = pipesInPos.getElementDirect( p );
+            
             SimpleVector<GridPos> *pipesOut = getSpeechPipesOut( pipeIndex );
 
             for( int i=0; i<pipesOut->size(); i++ ) {
                 GridPos outPos = pipesOut->getElementDirect( i );
+             
                 
-                newLocationSpeech.push_back( stringDuplicate( inToSay ) );
+                if( distance( outPos, inPos ) <= maxDist ) {
                 
-                ChangePosition outChangePos = { outPos.x, outPos.y, false };
-                newLocationSpeechPos.push_back( outChangePos );
+                    newLocationSpeech.push_back( stringDuplicate( inToSay ) );
+                
+                    ChangePosition outChangePos = { outPos.x, outPos.y, false };
+                    newLocationSpeechPos.push_back( outChangePos );
+                    }
                 }
             }
         }
@@ -15952,11 +15970,7 @@ static LiveObject *getPlayerByName( char *inName,
 
 
 static void findExpertForPlayer( LiveObject *inPlayer, 
-                                 ObjectRecord *inTouchedObject ) {
-    
-    if( ! specialBiomesActive() ) {
-        return;
-        }
+                                 ObjectRecord *inTouchedObject ) {    
 
     int race = getSpecialistRace( inTouchedObject );
     
@@ -15992,6 +16006,12 @@ static void findExpertForPlayer( LiveObject *inPlayer,
         for( int i=0; i<players.size(); i++ ) {
             LiveObject *p = players.getElement( i );
             
+            if( p->isTutorial || p->curseStatus.curseLevel > 0 ) {
+                // skip tutorial or donkeytown players
+                continue;
+                }
+            
+
             if( getObject( p->displayID )->race == race ) {
                 GridPos pos = getPlayerPos( p );            
                 double d = distance( pos, playerPos );
@@ -16972,6 +16992,43 @@ static char *translatePhraseFromSpeaker( char *inPhrase,
 
 
 
+static void sendCurrentOrderNotificationToPlayer( LiveObject *inPlayer ) {
+    if( inPlayer->currentOrder == NULL ) {
+        return;
+        }
+    
+    // everything after first ** should be translated
+                        
+    char *fullOrder = stringDuplicate( inPlayer->currentOrder );
+                        
+    char *messageStart = strstr( fullOrder, "**" );
+    
+    if( messageStart != NULL ) {
+        // terminate here
+        messageStart[0] = '\0';
+        
+        messageStart = &( messageStart[2] );
+        
+        char *transOrder = translatePhraseFromSpeaker( 
+            messageStart,
+            getLiveObject( inPlayer->currentOrderOriginatorID ),
+            inPlayer );
+        
+        char *fullTransOrder = autoSprintf( "%s**%s",
+                                            fullOrder,
+                                            transOrder );
+        delete [] transOrder;
+        delete [] fullOrder;
+        fullOrder = fullTransOrder;
+        }
+                                
+
+    sendGlobalMessage( fullOrder, inPlayer );
+    delete [] fullOrder;
+    }
+
+
+
 static int orderDistance = 10;
 
 
@@ -17033,34 +17090,8 @@ static void checkOrderPropagation() {
                     // but don't actually deliver message to them if exiled
                     if( ! exiled ) {
                         
-                        // everything after first ** should be translated
+                        sendCurrentOrderNotificationToPlayer( o );
                         
-                        char *fullOrder = stringDuplicate( l->currentOrder );
-                        
-                        char *messageStart = strstr( fullOrder, "**" );
-                        
-                        if( messageStart != NULL ) {
-                            // terminate here
-                            messageStart[0] = '\0';
-                            
-                            messageStart = &( messageStart[2] );
-                            
-                            char *transOrder = translatePhraseFromSpeaker( 
-                                messageStart,
-                                getLiveObject( l->currentOrderOriginatorID ),
-                                o );
-                            
-                            char *fullTransOrder = autoSprintf( "%s**%s",
-                                                                fullOrder,
-                                                                transOrder );
-                            delete [] transOrder;
-                            delete [] fullOrder;
-                            fullOrder = fullTransOrder;
-                            }
-                                
-
-                        sendGlobalMessage( fullOrder, o );
-                        delete [] fullOrder;
 
                         LiveObject *leaderO = 
                             getLiveObject( l->currentOrderOriginatorID );
@@ -17890,8 +17921,33 @@ int main() {
             apocalypseStep();
             monumentStep();
             
-            updateSpecialBiomes( players.size() );
+            char specialBiomeStatusChanged = 
+                updateSpecialBiomes( players.size() );
             
+            if( specialBiomeStatusChanged ) {
+                for( int i=0; i< players.size(); i++ ) {
+                    LiveObject *nextPlayer = players.getElement( i );
+                    if( nextPlayer->connected &&
+                        ! nextPlayer->error && 
+                        ! nextPlayer->isTutorial &&
+                        ! nextPlayer->forceSpawn ) {
+                        
+                        // not skipping vog mode here, b/c it's never
+                        // enabled until after first message sent
+                        // so VOG mode hears about bad biomes
+
+                        // tell them about their own bad biomes
+                        char *bbMessage = 
+                            getBadBiomeMessage( nextPlayer->displayID );
+                        sendMessageToPlayer( nextPlayer, bbMessage, 
+                                             strlen( bbMessage ) );
+                    
+                        delete [] bbMessage;
+                        }
+                    }
+                }
+            
+
             //checkBackup();
 
             stepFoodLog();
@@ -20378,6 +20434,9 @@ int main() {
                                          psMessage, strlen( psMessage ) );
                     delete [] psMessage;
                     }
+                else if( m.type == ORDR ) {
+                    sendCurrentOrderNotificationToPlayer( nextPlayer );
+                    }
                 else if( m.type == FLIP ) {
                     
                     if( currentTime - nextPlayer->lastFlipTime > 1.75 ) {
@@ -21681,17 +21740,25 @@ int main() {
                                           nextPlayer->email, 
                                           otherToForgive->email );
                             
-                            char *message = 
-                                autoSprintf( 
-                                    "CU\n%d 0 %s_%s\n#", 
-                                    otherToForgive->id,
-                                    getCurseWord( nextPlayer->email,
-                                                  otherToForgive->email, 0 ),
-                                    getCurseWord( nextPlayer->email,
-                                                  otherToForgive->email, 1 ) );
-                            sendMessageToPlayer( nextPlayer,
-                                                 message, strlen( message ) );
-                            delete [] message;
+                            // don't send CU messages with curse
+                            // words to Donkeytown players
+                            if( nextPlayer->curseStatus.curseLevel == 0 ) {
+                                
+                                char *message = 
+                                    autoSprintf( 
+                                        "CU\n%d 0 %s_%s\n#", 
+                                        otherToForgive->id,
+                                        getCurseWord( nextPlayer->email,
+                                                      otherToForgive->email, 
+                                                      0 ),
+                                        getCurseWord( nextPlayer->email,
+                                                      otherToForgive->email, 
+                                                      1 ) );
+                                sendMessageToPlayer( nextPlayer,
+                                                     message, 
+                                                     strlen( message ) );
+                                delete [] message;
+                                }
                             }
 
                         
@@ -21724,20 +21791,27 @@ int main() {
                                                   nextPlayer->email, 
                                                   otherToForgive->email );
                             
-                                    char *message = 
-                                        autoSprintf( 
-                                            "CU\n%d 0 %s_%s\n#", 
-                                            otherToForgive->id,
-                                            getCurseWord( 
-                                                nextPlayer->email,
-                                                otherToForgive->email, 0 ),
-                                            getCurseWord( 
-                                                nextPlayer->email,
-                                                otherToForgive->email, 1 ) );
-                                    sendMessageToPlayer( 
-                                        nextPlayer,
-                                        message, strlen( message ) );
-                                    delete [] message;
+                                    // don't send CU messages with curse
+                                    // words to Donkeytown players
+                                    if( nextPlayer->
+                                        curseStatus.curseLevel == 0 ) {
+                                        
+                                        char *message = 
+                                            autoSprintf( 
+                                                "CU\n%d 0 %s_%s\n#", 
+                                                otherToForgive->id,
+                                                getCurseWord( 
+                                                    nextPlayer->email,
+                                                    otherToForgive->email, 0 ),
+                                                getCurseWord( 
+                                                    nextPlayer->email,
+                                                    otherToForgive->email, 
+                                                    1 ) );
+                                        sendMessageToPlayer( 
+                                            nextPlayer,
+                                            message, strlen( message ) );
+                                        delete [] message;
+                                        }
                                     }
                                 }
                             }
@@ -25549,7 +25623,11 @@ int main() {
                         }
                     
                     if( isCursed( otherPlayer->email, 
-                                  nextPlayer->email ) ) {
+                                  nextPlayer->email ) &&
+                        // don't send CU messages with curse
+                        // words to Donkeytown players
+                        otherPlayer->curseStatus.curseLevel == 0 ) {
+
                         char *message = autoSprintf( 
                             "CU\n%d 1 %s_%s\n#",
                             nextPlayer->id,
@@ -25739,7 +25817,12 @@ int main() {
 
 
                 // both tutorial and non-tutorial players
-                logFitnessDeath( nextPlayer );
+                // but NOT Donkeytown players
+                
+                if( nextPlayer->curseStatus.curseLevel == 0 ) {
+                    logFitnessDeath( nextPlayer );
+                    }
+                
                 
 
                 if( ! nextPlayer->isTutorial && age < shortLifeAge ) {
@@ -28127,7 +28210,11 @@ int main() {
                 
                 cursesWorking.push_back( '#' );
             
-                if( numAdded > 0 ) {
+                if( numAdded > 0 &&
+                    // don't send CU messages with curse
+                    // words to Donkeytown players
+                    nextPlayer->curseStatus.curseLevel == 0 ) {
+                    
                     char *cursesMessage = cursesWorking.getElementString();
 
 
@@ -29595,7 +29682,11 @@ int main() {
 
 
                 // EVERYONE gets curse info
-                if( cursesMessage != NULL && nextPlayer->connected ) {
+                // except d-town players
+                
+                if( cursesMessage != NULL && nextPlayer->connected &&
+                    nextPlayer->curseStatus.curseLevel == 0 ) {
+
                     int numSent = 
                         nextPlayer->sock->send( 
                             cursesMessage, 

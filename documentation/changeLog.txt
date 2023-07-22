@@ -5,6 +5,69 @@ http://onehouronelife.com/updateLog.php
 
 
 
+Version 381    2023-July-21
+
+--Moved tool tip and status message up slightly, and split warning about
+  editing a Steam account onto two lines (to avoid overlapping with Tutorial
+  and Services buttons).  Fixes #870
+
+--Fixed typo in name of setStatusPosition.
+
+--Category editor now allows copying a category list to clipboard as CSV
+  (for examining pattern-based transitions in a spreadsheet).
+
+--When a useable object has vanishing sprites (as object gets used up), we now
+  make sure full object and one-less-than-full object have a different number
+  of vanishing sprites (so object changes visually when it goes from full to
+  one less than full).  Fixes jasonrohrer/OneLifeData7#869
+
+--Can now toggle vsync from Settings screen.  Part of #875
+
+--Can now manually type in a custom frame rate on Settings screen when vsync
+  is disabled.  Fixes #875
+
+--New /ORDER command that allows you to review the most recent oder received
+  from your leader, in case you missed it or what to re-read it.  Fixes #881
+
+
+
+Server Fixes
+
+--New maxRadioDistance setting, set to 100,000 tiles.  Fixes #871
+
+--Donkeytown players are never sent CU status messages (CURSES), so they can't
+  identfy each other using globally-assigned curse status words.  Fixes #873
+
+--No genetic fitness information logged for Donkeytown players.  Fixes #874
+
+--Server now re-sends BAD_BIOMES (BB) message whenever bad biomes are turned on
+  or off (due to player count changes).  This causes client-side tool tips to
+  match the current biome status (only displaying the bad biome name, like
+  FRIGID ARCTIC, when it's actually inhospitable).  Before, if player count
+  dropped during your life, the inhospitable tool-tips would still be
+  displayed.  Fixes #876
+
+--No longer consider Donkeytown or tutorial players as possible experts when
+  someone touches a speciatly biome expert waystone.  Part of #877
+
+--Biome expert waystones now function the same way whether specialty biomes
+  are active or not.  For one thing, the active player threshold for languages
+  and specilty biomes is different (15 and 30), so there was a gap in which
+  you still might need a language expert, but the waystones wouldn't help you
+  find one.  But also, waystone behavior might as well be consistent.
+  Fixes #877
+ 
+--When we drop down below 30 players and make specialty biomes inactive, we
+  now wait until we rise back up to 40 players before making them active again.
+  This 10-player buffer prevents flip-flopping between active and inactive
+  specialty biomes when the player population hovers around 30 in the wee
+  hours.  Fixes #878
+
+
+
+
+
+
 Version 379    2023-July-14
 
 --Editor now supports importing temporary test map (so you can work on and
