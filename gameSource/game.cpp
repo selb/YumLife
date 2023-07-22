@@ -1885,7 +1885,7 @@ void drawFrame( char inUpdate ) {
                				existingAccountPage->setStatusDirect( message, true );
                 			delete [] message;
                 
-                			existingAccountPage->setStatusPositiion( true );
+                			existingAccountPage->setStatusPosition( true );
                 			currentGamePage->base_makeActive( true );
 						}
                         else if( SettingsManager::getIntSetting( 
