@@ -25994,6 +25994,10 @@ void LivingLifePage::keyDown( unsigned char inASCII ) {
                                                    "propertyCommand" ) ) {
                                 sendToServerSocket( (char*)"PROP 0 0#" );
                                 }
+                            else if( commandTyped( typedText, 
+                                                   "orderCommand" ) ) {
+                                sendToServerSocket( (char*)"ORDR 0 0#" );
+                                }
                             else {
                                 // filter hints
                                 char *filterString = 
