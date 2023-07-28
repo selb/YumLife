@@ -1127,7 +1127,7 @@ void HetuwMod::initSettings() {
 	ofs << endl;
 	ofs << "chat_delay = " << to_string((int)(sayDelay*10)) << " // wait atleast X time before sending the next text (10 = 1 second) - set it to 0 to deactivate it" << endl;
 	ofs << endl;
-	ofs << "remap_start_enabled = " << (char)(bRemapStart+48) << endl;
+	ofs << "remap_start_enabled = " << (char)(bRemapStart+48) << " // enable mushroom effect" << endl;
 
 	ofs.close();
 }
