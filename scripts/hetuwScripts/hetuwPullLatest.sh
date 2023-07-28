@@ -76,15 +76,19 @@ then
 	fi
 fi
 
+ONELIFE_BRANCH=${ONELIFE_BRANCH:-master}
+ONELIFE_REPO=${ONELIFE_REPO:-https://github.com/hetuw/OneLife.git}
+MINORGEMS_BRANCH=${MINORGEMS_BRANCH:-master}
+MINORGEMS_REPO=${MINORGEMS_REPO:-https://github.com/hetuw/minorGems.git}
 
 if [ ! -e minorGems ]
 then
-	git clone https://github.com/selb/YumLifeMinorGems minorGems
+	git clone -b $MINORGEMS_BRANCH $MINORGEMS_REPO minorGems
 fi
 
 if [ ! -e OneLife ]
 then
-	git clone https://github.com/selb/YumLife OneLife
+	git clone -b $ONELIFE_BRANCH $ONELIFE_REPO OneLife
 fi
 
 

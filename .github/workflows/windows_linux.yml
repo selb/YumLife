@@ -12,6 +12,7 @@ jobs:
         os: [ubuntu-latest]
       fail-fast: true
     runs-on: ${{ matrix.os }}
+    environment: master
     steps:
       - uses: actions/checkout@v2
       - name: packages
@@ -24,6 +25,11 @@ jobs:
           ./hetuwPullLatest.sh linux 1 
           ./hetuwPullLatest.sh windows 3 
           ./hetuwCompileAll.sh
+        env:
+          ONELIFE_BRANCH: ${{ vars.ONELIFE_BRANCH }}
+          ONELIFE_REPO: ${{ vars.ONELIFE_REPO }}
+          MINORGEMS_BRANCH: ${{ vars.MINORGEMS_BRANCH }}
+          MINORGEMS_REPO: ${{ vars.MINORGEMS_REPO }}
       - name: test dir
         run: |
           cd scripts/hetuwScripts
