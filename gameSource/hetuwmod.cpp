@@ -251,6 +251,7 @@ int HetuwMod::serverPort = 0;
 bool HetuwMod::addBabyCoordsToList = false;
 
 bool HetuwMod::bRemapStart = true;
+bool HetuwMod::bDrawHungerWarning = false;
 
 std::vector<HetuwMod::HttpRequest*> HetuwMod::httpRequests;
 
@@ -990,6 +991,10 @@ bool HetuwMod::setSetting( const char* name, const char* value ) {
 		bRemapStart = bool(value[0]-'0');
 		return true;
 	}
+	if (strstr(name, "draw_hunger_warning")) {
+		bDrawHungerWarning = bool(value[0]-'0');
+		return true;
+	}
 
 	return false;
 }
@@ -1128,6 +1133,7 @@ void HetuwMod::initSettings() {
 	ofs << "chat_delay = " << to_string((int)(sayDelay*10)) << " // wait atleast X time before sending the next text (10 = 1 second) - set it to 0 to deactivate it" << endl;
 	ofs << endl;
 	ofs << "remap_start_enabled = " << (char)(bRemapStart+48) << " // enable mushroom effect" << endl;
+	ofs << "draw_hunger_warning = " << (char)(bDrawHungerWarning+48) << endl;
 
 	ofs.close();
 }
@@ -2112,6 +2118,7 @@ void HetuwMod::livingLifeDraw() {
 	//drawRect( debugRecPos2, 10, 10 );
 
 	if (bDrawBiomeInfo) drawBiomeIDs();
+	if (bDrawHungerWarning) drawHungerWarning();
 }
 
 void HetuwMod::drawCoordsHelpA() {
@@ -5037,5 +5044,14 @@ void HetuwMod::drawHelp() {
 		drawPos.y += viewHeight/2 - 30*guiScale;
 		sprintf(str, "MAP RUNNING SINCE: %s", getArcTimeStr().c_str());
 		livingLifePage->hetuwDrawScaledHandwritingFont( str, drawPos, guiScale );
+	}
+}
+
+void HetuwMod::drawHungerWarning() {
+	if ( ourLiveObject->foodStore + livingLifePage->mYumBonus <= 2 && ourLiveObject->maxFoodCapacity > 8) {
+		float alpha = ( 1 - (ourLiveObject->foodStore / 8.0) ) * 0.3;
+		doublePair startPos = livingLifePage->hetuwGetLastScreenViewCenter();
+		setDrawColor( 1, 0, 0, alpha );
+		drawRect( startPos, viewWidth * guiScale, viewHeight * guiScale );
 	}
 }
