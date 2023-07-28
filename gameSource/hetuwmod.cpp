@@ -5048,7 +5048,7 @@ void HetuwMod::drawHelp() {
 }
 
 void HetuwMod::drawHungerWarning() {
-	if ( ourLiveObject->foodStore + livingLifePage->mYumBonus <= 2 && ourLiveObject->maxFoodCapacity > 8) {
+	if ( ourLiveObject->foodStore + livingLifePage->hetuwGetYumBonus() <= 2 && ourLiveObject->maxFoodCapacity > 8) {
 		float alpha = ( 1 - (ourLiveObject->foodStore / 8.0) ) * 0.3;
 		doublePair startPos = livingLifePage->hetuwGetLastScreenViewCenter();
 		setDrawColor( 1, 0, 0, alpha );

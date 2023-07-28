@@ -572,6 +572,7 @@ class LivingLifePage : public GamePage, public ActionListener {
 		void hetuwSetTakingPhoto(bool takingPhoto);
 		bool hetuwIsVogMode();
 		doublePair hetuwGetVogPos();
+        int hetuwGetYumBonus();
 		char getTransHintable( TransRecord *inTrans ); // hetuw mod - changed from static and made visible to public
 		
         virtual void actionPerformed( GUIComponent *inTarget );
