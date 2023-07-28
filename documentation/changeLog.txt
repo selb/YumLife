@@ -5,6 +5,40 @@ http://onehouronelife.com/updateLog.php
 
 
 
+Version 383    2023-July-28
+
+--Moved [@] button down to avoid overlap with genetic fitness.  Part of #885
+
+--You can now process photograph negatives into positives and view both
+  photograph positives and negatives inside the game (before, you had to go
+  out to the website to see photographs... now they can exist in the world to
+  be treasured and discovered by future generations).  Fixes #888
+
+--Fixed bug that was causing abstract pattern objects to appear in crafting
+  hints.
+
+--Fixed so that blue crafting hint arrow doesn't point to a partially-used
+  object if the current crafting hint only applies to a fully-unused version
+  of that object.  For example, you can only dump full bowls into bottles, but
+  before, the blue arrow would point to a partially-empty bowl if you were
+  looking at a hint about how to fill the bottle.
+
+
+
+
+
+Server Fixes
+
+--Added missing fflush for name logging in lifeLog.  Fixes #880
+
+--Deciding to spawn new Eves to create special biome families now correctly
+  observes the 10-player buffer implemented in the fix for #878.  Fixes #887
+
+--Life log now correctly records cause of death.  Fixes #891
+
+
+
+
 Version 381    2023-July-21
 
 --Moved tool tip and status message up slightly, and split warning about

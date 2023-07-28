@@ -813,6 +813,12 @@ class LivingLifePage : public GamePage, public ActionListener {
         int mNextHintIndex;
 
         int mCurrentHintTargetObject[2];
+        
+        // true if only FULL or FRESH objects should be pointed to
+        // (if minUseFraction is 1.0 for either actor or target of
+        //  current hint transition)
+        char mCurrentHintTargetObjectFull[2];
+        
 
         double mCurrentHintTargetPointerBounce[2];
         float mCurrentHintTargetPointerFade[2];
@@ -973,6 +979,22 @@ class LivingLifePage : public GamePage, public ActionListener {
         SpriteHandle mTeaserArrowVeryShortSprite;
         SpriteHandle mLineSegmentSprite;
         
+
+        SpriteHandle mPhotoDisplaySprites[ NUM_HINT_SHEETS ];
+        
+        char *mPhotoToShowIDs[ NUM_HINT_SHEETS ];
+        char mPhotoToShowAreNegative[ NUM_HINT_SHEETS ];
+        
+        SpriteHandle mPhotoToShowSprites[ NUM_HINT_SHEETS ];
+
+        doublePair mPhotoDisplayHideOffset[ NUM_HINT_SHEETS ];
+        doublePair mPhotoDisplayPosOffset[ NUM_HINT_SHEETS ];
+        doublePair mPhotoDisplayPosTargetOffset[ NUM_HINT_SHEETS ];
+        
+        double mPhotoDisplayStartTime[ NUM_HINT_SHEETS ];
+        
+        int mLivePhotoSheetIndex;        
+
         
         // not visible, but used for its text filtering
         // capabilities
@@ -1145,6 +1167,8 @@ class LivingLifePage : public GamePage, public ActionListener {
 
         int getBadgeObjectID( LiveObject *inPlayer );
 
+
+        void displayPhoto( const char *inPhotoID, char inNegative );
     };
 
 
