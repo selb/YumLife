@@ -293,6 +293,8 @@ public:
 
 	static std::string forceChannel;
 
+	static bool bSendFakeLife;
+
 	static constexpr char hexDigits[16] = { '0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f' };
 
 	static void init();
@@ -324,6 +326,7 @@ public:
 	static void chatCmdHELP(std::vector<std::string> input);
 	static void chatCmdNAME(std::vector<std::string> input);
 	static void chatCmdLIST(std::vector<std::string> input);
+	static void chatCmdLIFE(std::vector<std::string> input);
 	static void chatCmdTEST(std::vector<std::string> input);
 
 	static void setArray(float arrDst[], const float arrSrc[], int size);
@@ -351,7 +354,7 @@ public:
 
 	static void sendFirstMessage();
 	static void joinChannel(std::string inChannelName);
-	static void sendServerLife();
+	static void sendServerLife(int life);
 
 	static void setInputRecDrawData();
 	static void drawInputRec();

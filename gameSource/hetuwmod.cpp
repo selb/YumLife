@@ -250,6 +250,9 @@ int HetuwMod::serverPort = 0;
 
 bool HetuwMod::addBabyCoordsToList = false;
 
+bool HetuwMod::bRemapStart = true;
+bool HetuwMod::bDrawHungerWarning = false;
+
 std::vector<HetuwMod::HttpRequest*> HetuwMod::httpRequests;
 
 bool HetuwMod::connectedToMainServer = false;
@@ -907,6 +910,10 @@ bool HetuwMod::setSetting( const char* name, const char* value ) {
 		Phex::forceChannel = string(value);
 		return true;
 	}
+	if (strstr(name, "phex_send_fake_life")) {
+		Phex::bSendFakeLife = bool(value[0]-'0');
+		return true;
+	}
 	if (strstr(name, "send_keyevents")) {
 		sendKeyEvents = bool(value[0]-48);
 		return true;
@@ -976,9 +983,16 @@ bool HetuwMod::setSetting( const char* name, const char* value ) {
 		bWriteLogs = bool(value[0]-48);
 		return true;
 	}
-
 	if (strstr(name, "chat_delay")) {
 		sayDelay = stoi(value)/10.0f;
+		return true;
+	}
+	if (strstr(name, "remap_start_enabled")) {
+		bRemapStart = bool(value[0]-'0');
+		return true;
+	}
+	if (strstr(name, "draw_hunger_warning")) {
+		bDrawHungerWarning = bool(value[0]-'0');
 		return true;
 	}
 
@@ -1089,6 +1103,7 @@ void HetuwMod::initSettings() {
 	ofs << "phex_port = " << phexPort << endl;
 	ofs << "phex_coords = " << (char)(Phex::allowServerCoords+48) << endl;
 	if (Phex::forceChannel.length() > 1) ofs << "phex_channel = " << Phex::forceChannel << endl;
+	if (Phex::bSendFakeLife) ofs << "phex_send_fake_life = " << (char)(Phex::bSendFakeLife+48) << endl;
 	if (debugPhex) ofs << "phex_debug = " << (char)(debugPhex+48) << endl;
 	if (sendKeyEvents) {
 		ofs << endl;
@@ -1116,6 +1131,9 @@ void HetuwMod::initSettings() {
 	ofs << "hetuw_log = " << (char)(bWriteLogs+48) << " // will create a log file '" << hetuwLogFileName << "' which resets at the beginning of each life - logs different events" << endl;
 	ofs << endl;
 	ofs << "chat_delay = " << to_string((int)(sayDelay*10)) << " // wait atleast X time before sending the next text (10 = 1 second) - set it to 0 to deactivate it" << endl;
+	ofs << endl;
+	ofs << "remap_start_enabled = " << (char)(bRemapStart+48) << " // enable mushroom effect" << endl;
+	ofs << "draw_hunger_warning = " << (char)(bDrawHungerWarning+48) << endl;
 
 	ofs.close();
 }
@@ -1173,6 +1191,8 @@ void HetuwMod::initOnBirth() { // will be called from LivingLifePage.cpp
 	writeLineToLogs("my_birth", getTimeStamp());
 	writeLineToLogs("my_id", to_string(ourLiveObject->id));
 	writeLineToLogs("my_age", to_string((int)livingLifePage->hetuwGetAge(ourLiveObject)));
+
+	Phex::onBirth();
 }
 
 void HetuwMod::initOnServerJoin() { // will be called from LivingLifePage.cpp and hetuwmod.cpp
@@ -2098,6 +2118,7 @@ void HetuwMod::livingLifeDraw() {
 	//drawRect( debugRecPos2, 10, 10 );
 
 	if (bDrawBiomeInfo) drawBiomeIDs();
+	if (bDrawHungerWarning) drawHungerWarning();
 }
 
 void HetuwMod::drawCoordsHelpA() {
@@ -5023,5 +5044,14 @@ void HetuwMod::drawHelp() {
 		drawPos.y += viewHeight/2 - 30*guiScale;
 		sprintf(str, "MAP RUNNING SINCE: %s", getArcTimeStr().c_str());
 		livingLifePage->hetuwDrawScaledHandwritingFont( str, drawPos, guiScale );
+	}
+}
+
+void HetuwMod::drawHungerWarning() {
+	if ( ourLiveObject->foodStore + livingLifePage->hetuwGetYumBonus() <= 2 && ourLiveObject->maxFoodCapacity > 8) {
+		float alpha = ( 1 - (ourLiveObject->foodStore / 8.0) ) * 0.3;
+		doublePair startPos = livingLifePage->hetuwGetLastScreenViewCenter();
+		setDrawColor( 1, 0, 0, alpha );
+		drawRect( startPos, viewWidth * guiScale, viewHeight * guiScale );
 	}
 }

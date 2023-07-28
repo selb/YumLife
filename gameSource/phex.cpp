@@ -88,6 +88,8 @@ bool Phex::allowServerCoords = true;
 
 std::string Phex::forceChannel = "";
 
+bool Phex::bSendFakeLife = false;
+
 bool Phex::sendBiomeDataActive = false;
 char Phex::biomeChunksSent[biomeChunksSentSize][biomeChunksSentSize];
 HetuwMod::IntervalTimed Phex::intervalSendBiomeData = HetuwMod::IntervalTimed(1.0);
@@ -504,6 +506,9 @@ void Phex::initChatCommands() {
 	chatCommands["LIST"].func = chatCmdLIST;
 	chatCommands["LIST"].minWords = 1;
 	chatCommands["LIST"].helpStr = "Lists all online players";
+	chatCommands["LIFE"].func = chatCmdLIFE;
+	chatCommands["LIFE"].minWords = 1;
+	chatCommands["LIFE"].helpStr = "Sends your real life ID to server";
 	chatCommands["TEST"].func = chatCmdTEST;
 	chatCommands["TEST"].minWords = 1;
 	chatCommands["TEST"].helpStr = "For testing - dont use";
@@ -512,7 +517,7 @@ void Phex::initChatCommands() {
 void Phex::chatCmdHELP(std::vector<std::string> input) {
 	for (std::pair<std::string, ChatCommand> element : chatCommands) {
 		strToLower(element.first);
-		if (strEquals(element.first, "test")) continue;
+		if (strEquals(element.first, "test") || (strEquals(element.first, "life") && !bSendFakeLife)) continue;
 		addCmdMessageToChatWindow(strCmdChar+element.first);
 		addCmdMessageToChatWindow(element.second.helpStr);
 	}
@@ -541,6 +546,12 @@ void Phex::chatCmdLIST(std::vector<std::string> input) {
 		}
 
 		addCmdMessageToChatWindow(str);
+	}
+}
+
+void Phex::chatCmdLIFE(std::vector<std::string> input) {
+	if (bSendFakeLife) {
+		sendServerLife(HetuwMod::ourLiveObject->id);
 	}
 }
 
@@ -938,13 +949,17 @@ void Phex::joinChannel(std::string inChannelName) {
 	tcp.send("JOIN "+channelName);
 	mainChatWindow.clear();
 	tcp.send("GETLAST "+channelName+" 30");
-	sendServerLife();
+	if (bSendFakeLife) {
+		sendServerLife(1);
+	} else {
+		sendServerLife(HetuwMod::ourLiveObject->id);
+	}
 }
 
-void Phex::sendServerLife() {
+void Phex::sendServerLife(int life) {
 	std::string msg = "SERVER_LIFE ";
 	msg += std::string(HetuwMod::serverIP)+" ";
-	msg += std::to_string(HetuwMod::ourLiveObject->id);
+	msg += std::to_string(life);
 	tcp.send(msg);
 }
 
@@ -1235,11 +1250,17 @@ void Phex::onRingApoc(int x, int y) {
 }
 
 void Phex::onBirth() {
+	if (tcp.status == TCPConnection::ONLINE) {
+		if (forceChannel.length() > 1) joinChannel(forceChannel);
+		else joinChannel(string(HetuwMod::serverIP));
+	}
+	/*
 	for (int x=0; x<biomeChunksSentSize; x++) {
 		for (int y=0; y<biomeChunksSentSize; y++) {
 			biomeChunksSent[x][y] = 0;
 		}
 	}
+	*/
 }
 
 void Phex::sendBiomeChunk(int chunkX, int chunkY) {

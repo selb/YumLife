@@ -172,6 +172,7 @@ static char vogPickerOn = false;
 bool LivingLifePage::hetuwIsVogMode() { return vogMode; }
 doublePair LivingLifePage::hetuwGetVogPos() { return vogPos; }
     
+int LivingLifePage::hetuwGetYumBonus() { return mYumBonus; }
 
 extern float musicLoudness;
 
@@ -17410,7 +17411,8 @@ void LivingLifePage::step() {
                                 otherSoundPlayed = true;
                                 }
                             if( strstr( ateObj->description, "remapStart" )
-                                != NULL ) {
+                                != NULL &&
+                                HetuwMod::bRemapStart ) {
                                 
                                 if( mRemapPeak == 0 ) {
                                     // reseed
