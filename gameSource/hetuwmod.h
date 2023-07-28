@@ -799,6 +799,8 @@ private:
 	static void drawBiomeIDs();
 
 	static void initCustomFont();
+
+	static void drawHungerWarning();
 };
 
 
