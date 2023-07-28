@@ -250,6 +250,8 @@ int HetuwMod::serverPort = 0;
 
 bool HetuwMod::addBabyCoordsToList = false;
 
+bool HetuwMod::bRemapStart = true;
+
 std::vector<HetuwMod::HttpRequest*> HetuwMod::httpRequests;
 
 bool HetuwMod::connectedToMainServer = false;
@@ -976,9 +978,12 @@ bool HetuwMod::setSetting( const char* name, const char* value ) {
 		bWriteLogs = bool(value[0]-48);
 		return true;
 	}
-
 	if (strstr(name, "chat_delay")) {
 		sayDelay = stoi(value)/10.0f;
+		return true;
+	}
+	if (strstr(name, "remap_start_enabled")) {
+		bRemapStart = bool(value[0]-'0');
 		return true;
 	}
 
@@ -1116,6 +1121,8 @@ void HetuwMod::initSettings() {
 	ofs << "hetuw_log = " << (char)(bWriteLogs+48) << " // will create a log file '" << hetuwLogFileName << "' which resets at the beginning of each life - logs different events" << endl;
 	ofs << endl;
 	ofs << "chat_delay = " << to_string((int)(sayDelay*10)) << " // wait atleast X time before sending the next text (10 = 1 second) - set it to 0 to deactivate it" << endl;
+	ofs << endl;
+	ofs << "remap_start_enabled = " << (char)(bRemapStart+48) << endl;
 
 	ofs.close();
 }

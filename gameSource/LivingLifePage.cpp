@@ -17410,7 +17410,8 @@ void LivingLifePage::step() {
                                 otherSoundPlayed = true;
                                 }
                             if( strstr( ateObj->description, "remapStart" )
-                                != NULL ) {
+                                != NULL &&
+                                HetuwMod::bRemapStart ) {
                                 
                                 if( mRemapPeak == 0 ) {
                                     // reseed
