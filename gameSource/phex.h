@@ -354,7 +354,7 @@ public:
 
 	static void sendFirstMessage();
 	static void joinChannel(std::string inChannelName);
-	static void sendServerLife();
+	static void sendServerLife(int life);
 
 	static void setInputRecDrawData();
 	static void drawInputRec();
