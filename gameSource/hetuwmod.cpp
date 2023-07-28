@@ -1186,7 +1186,7 @@ void HetuwMod::initOnBirth() { // will be called from LivingLifePage.cpp
 	writeLineToLogs("my_id", to_string(ourLiveObject->id));
 	writeLineToLogs("my_age", to_string((int)livingLifePage->hetuwGetAge(ourLiveObject)));
 
-	Phex::onBirth()
+	Phex::onBirth();
 }
 
 void HetuwMod::initOnServerJoin() { // will be called from LivingLifePage.cpp and hetuwmod.cpp
