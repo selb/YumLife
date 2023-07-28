@@ -1250,11 +1250,17 @@ void Phex::onRingApoc(int x, int y) {
 }
 
 void Phex::onBirth() {
+	if (tcp.status == TCPConnection::ONLINE) {
+		if (forceChannel.length() > 1) joinChannel(forceChannel);
+		else joinChannel(string(HetuwMod::serverIP));
+	}
+	/*
 	for (int x=0; x<biomeChunksSentSize; x++) {
 		for (int y=0; y<biomeChunksSentSize; y++) {
 			biomeChunksSent[x][y] = 0;
 		}
 	}
+	*/
 }
 
 void Phex::sendBiomeChunk(int chunkX, int chunkY) {
