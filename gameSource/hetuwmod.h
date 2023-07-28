@@ -581,6 +581,7 @@ public:
 	static bool bxRay;
 	static bool bHidePlayers;
 	static char ourGender;
+	static bool bRemapStart;
 
 	static bool bFoundFamilyName;
 	static std::vector<FamilyInRange*> familiesInRange;
