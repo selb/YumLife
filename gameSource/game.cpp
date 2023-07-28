@@ -1,4 +1,4 @@
-int versionNumber = 381;
+int versionNumber = 383;
 int dataVersionNumber = 0;
 
 int binVersionNumber = versionNumber;
@@ -82,6 +82,7 @@ CustomRandomSource randSource( 34957197 );
 
 #include "emotion.h"
 #include "photos.h"
+#include "photoCache.h"
 #include "lifeTokens.h"
 #include "fitnessScore.h"
 
@@ -781,6 +782,7 @@ void freeFrameDrawer() {
     freeMusicPlayer();
     freeEmotion();
     
+    freePhotoCache();
     freePhotos();
     freeLifeTokens();
     freeFitnessScore();
@@ -1692,6 +1694,7 @@ void drawFrame( char inUpdate ) {
 
                     initEmotion();
                     initPhotos();
+                    initPhotoCache();
                     
                     initLifeTokens();
                     initFitnessScore();
