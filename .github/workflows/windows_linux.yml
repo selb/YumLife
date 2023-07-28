@@ -1,10 +1,12 @@
 name: CI
 
 on: 
-  #schedule:
-  #  - cron: '0 10 * * * '
-  #  - cron: '0 * * * * '
-  push:
+  workflow_dispatch:
+    inputs:
+      release_name:
+        description: Release Name
+        required: true
+        type: string
 jobs:
   build:
     strategy:
@@ -12,6 +14,7 @@ jobs:
         os: [ubuntu-latest]
       fail-fast: true
     runs-on: ${{ matrix.os }}
+    environment: master
     steps:
       - uses: actions/checkout@v2
       - name: packages
@@ -24,6 +27,11 @@ jobs:
           ./hetuwPullLatest.sh linux 1 
           ./hetuwPullLatest.sh windows 3 
           ./hetuwCompileAll.sh
+        env:
+          ONELIFE_BRANCH: ${{ vars.ONELIFE_BRANCH }}
+          ONELIFE_REPO: ${{ vars.ONELIFE_REPO }}
+          MINORGEMS_BRANCH: ${{ vars.MINORGEMS_BRANCH }}
+          MINORGEMS_REPO: ${{ vars.MINORGEMS_REPO }}
       - name: test dir
         run: |
           cd scripts/hetuwScripts
@@ -41,8 +49,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: OneLife_v372
-          release_name: OneLife_v372
+          tag_name: ${{ inputs.release_name }}
+          release_name: ${{ inputs.release_name }}
           body: |
             In order to install, you already need to have the normal version of the game.
             Then download the binary "OneLifeApp_H_windows" and place it inside your One Hour One Life folder.
