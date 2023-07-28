@@ -1,10 +1,12 @@
 name: CI
 
 on: 
-  #schedule:
-  #  - cron: '0 10 * * * '
-  #  - cron: '0 * * * * '
-  push:
+  workflow_dispatch:
+    inputs:
+      release_name:
+        description: Release Name
+        required: true
+        type: string
 jobs:
   build:
     strategy:
@@ -47,8 +49,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: OneLife_v372
-          release_name: OneLife_v372
+          tag_name: ${{ inputs.release_name }}
+          release_name: ${{ inputs.release_name }}
           body: |
             In order to install, you already need to have the normal version of the game.
             Then download the binary "OneLifeApp_H_windows" and place it inside your One Hour One Life folder.
