@@ -23,6 +23,10 @@ void initEmotion() {
     
     for( int i=0; i<numParts; i++ ) {
         if( strcmp( parts[i], "" ) != 0 ) {
+            // YumLife: drop bonus CR when using Linux client with Steam data
+            char &end = parts[i][strlen(parts[i])-1];
+            if (end == '\r')
+                end = '\0';
             
             Emotion e = { stringToUpperCase( parts[i] ), 0, 0, 0 };
 
