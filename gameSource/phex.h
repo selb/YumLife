@@ -326,6 +326,7 @@ public:
 	static void chatCmdHELP(std::vector<std::string> input);
 	static void chatCmdNAME(std::vector<std::string> input);
 	static void chatCmdLIST(std::vector<std::string> input);
+	static void chatCmdLIFE(std::vector<std::string> input);
 	static void chatCmdTEST(std::vector<std::string> input);
 
 	static void setArray(float arrDst[], const float arrSrc[], int size);

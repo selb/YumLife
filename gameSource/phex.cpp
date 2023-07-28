@@ -506,6 +506,9 @@ void Phex::initChatCommands() {
 	chatCommands["LIST"].func = chatCmdLIST;
 	chatCommands["LIST"].minWords = 1;
 	chatCommands["LIST"].helpStr = "Lists all online players";
+	chatCommands["LIFE"].func = chatCmdLIFE;
+	chatCommands["LIFE"].minWords = 1;
+	chatCommands["LIFE"].helpStr = "Sends your real life ID to server";
 	chatCommands["TEST"].func = chatCmdTEST;
 	chatCommands["TEST"].minWords = 1;
 	chatCommands["TEST"].helpStr = "For testing - dont use";
@@ -514,7 +517,7 @@ void Phex::initChatCommands() {
 void Phex::chatCmdHELP(std::vector<std::string> input) {
 	for (std::pair<std::string, ChatCommand> element : chatCommands) {
 		strToLower(element.first);
-		if (strEquals(element.first, "test")) continue;
+		if (strEquals(element.first, "test") || (strEquals(element.first, "life") && !bSendFakeLife)) continue;
 		addCmdMessageToChatWindow(strCmdChar+element.first);
 		addCmdMessageToChatWindow(element.second.helpStr);
 	}
@@ -543,6 +546,12 @@ void Phex::chatCmdLIST(std::vector<std::string> input) {
 		}
 
 		addCmdMessageToChatWindow(str);
+	}
+}
+
+void Phex::chatCmdLIFE(std::vector<std::string> input) {
+	if (bSendFakeLife) {
+		sendServerLife(HetuwMod::ourLiveObject->id);
 	}
 }
 
