@@ -88,6 +88,8 @@ bool Phex::allowServerCoords = true;
 
 std::string Phex::forceChannel = "";
 
+bool Phex::bSendFakeLife = false;
+
 bool Phex::sendBiomeDataActive = false;
 char Phex::biomeChunksSent[biomeChunksSentSize][biomeChunksSentSize];
 HetuwMod::IntervalTimed Phex::intervalSendBiomeData = HetuwMod::IntervalTimed(1.0);
@@ -938,13 +940,17 @@ void Phex::joinChannel(std::string inChannelName) {
 	tcp.send("JOIN "+channelName);
 	mainChatWindow.clear();
 	tcp.send("GETLAST "+channelName+" 30");
-	sendServerLife();
+	if (bSendFakeLife) {
+		sendServerLife(1);
+	} else {
+		sendServerLife(HetuwMod::ourLiveObject->id);
+	}
 }
 
-void Phex::sendServerLife() {
+void Phex::sendServerLife(int life) {
 	std::string msg = "SERVER_LIFE ";
 	msg += std::string(HetuwMod::serverIP)+" ";
-	msg += std::to_string(HetuwMod::ourLiveObject->id);
+	msg += std::to_string(life);
 	tcp.send(msg);
 }
 

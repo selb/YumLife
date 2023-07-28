@@ -909,6 +909,10 @@ bool HetuwMod::setSetting( const char* name, const char* value ) {
 		Phex::forceChannel = string(value);
 		return true;
 	}
+	if (strstr(name, "phex_send_fake_life")) {
+		Phex::bSendFakeLife = bool(value[0]-'0');
+		return true;
+	}
 	if (strstr(name, "send_keyevents")) {
 		sendKeyEvents = bool(value[0]-48);
 		return true;
@@ -1094,6 +1098,7 @@ void HetuwMod::initSettings() {
 	ofs << "phex_port = " << phexPort << endl;
 	ofs << "phex_coords = " << (char)(Phex::allowServerCoords+48) << endl;
 	if (Phex::forceChannel.length() > 1) ofs << "phex_channel = " << Phex::forceChannel << endl;
+	if (Phex::bSendFakeLife) ofs << "phex_send_fake_life = " << (char)(Phex::bSendFakeLife+48) << endl;
 	if (debugPhex) ofs << "phex_debug = " << (char)(debugPhex+48) << endl;
 	if (sendKeyEvents) {
 		ofs << endl;
