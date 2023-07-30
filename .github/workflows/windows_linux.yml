@@ -14,7 +14,6 @@ jobs:
         os: [ubuntu-latest]
       fail-fast: true
     runs-on: ${{ matrix.os }}
-    environment: master
     steps:
       - uses: actions/checkout@v2
       - name: packages
