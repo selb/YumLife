@@ -27,7 +27,7 @@ jobs:
           ./hetuwPullLatest.sh windows 3 
           ./hetuwCompileAll.sh
         env:
-          ONELIFE_BRANCH: ${{ vars.ONELIFE_BRANCH }}
+          ONELIFE_BRANCH: ${{ github.ref_name }}
           ONELIFE_REPO: ${{ vars.ONELIFE_REPO }}
           MINORGEMS_BRANCH: ${{ vars.MINORGEMS_BRANCH }}
           MINORGEMS_REPO: ${{ vars.MINORGEMS_REPO }}
