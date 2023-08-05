@@ -17,11 +17,12 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: packages
-        run: sudo apt-get install git g++ imagemagick xclip libsdl1.2-dev libglu1-mesa-dev libgl1-mesa-dev mingw-w64
+        run: |
+          sudo apt-get update
+          sudo apt-get install git g++ make imagemagick xclip libsdl1.2-dev libglu1-mesa-dev libgl1-mesa-dev mingw-w64
       - name: scripts
         run: |
           cd scripts/hetuwScripts
-          sudo apt-get install git g++ make imagemagick xclip libsdl1.2-dev libglu1-mesa-dev libgl1-mesa-dev 
           chmod +x hetuwPullLatest.sh 
           ./hetuwPullLatest.sh linux 1 
           ./hetuwPullLatest.sh windows 3 
