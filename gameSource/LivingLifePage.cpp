@@ -25966,7 +25966,7 @@ void LivingLifePage::keyDown( unsigned char inASCII ) {
                 setSignal( "twinCancel" );
                 }
             else if( ! mSayField.isFocused() ) {
-                mXKeyDown = false; // hetuw mod disable click through player function - confuses people
+                mXKeyDown = true;
                 }
             break;
         /*
