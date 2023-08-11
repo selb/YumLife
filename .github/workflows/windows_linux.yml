@@ -14,21 +14,21 @@ jobs:
         os: [ubuntu-latest]
       fail-fast: true
     runs-on: ${{ matrix.os }}
-    environment: master
     steps:
       - uses: actions/checkout@v2
       - name: packages
-        run: sudo apt-get install git g++ imagemagick xclip libsdl1.2-dev libglu1-mesa-dev libgl1-mesa-dev mingw-w64
+        run: |
+          sudo apt-get update
+          sudo apt-get install git g++ make imagemagick xclip libsdl1.2-dev libglu1-mesa-dev libgl1-mesa-dev mingw-w64
       - name: scripts
         run: |
           cd scripts/hetuwScripts
-          sudo apt-get install git g++ make imagemagick xclip libsdl1.2-dev libglu1-mesa-dev libgl1-mesa-dev 
           chmod +x hetuwPullLatest.sh 
           ./hetuwPullLatest.sh linux 1 
           ./hetuwPullLatest.sh windows 3 
           ./hetuwCompileAll.sh
         env:
-          ONELIFE_BRANCH: ${{ vars.ONELIFE_BRANCH }}
+          ONELIFE_BRANCH: ${{ github.ref_name }}
           ONELIFE_REPO: ${{ vars.ONELIFE_REPO }}
           MINORGEMS_BRANCH: ${{ vars.MINORGEMS_BRANCH }}
           MINORGEMS_REPO: ${{ vars.MINORGEMS_REPO }}

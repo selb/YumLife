@@ -25866,7 +25866,7 @@ void LivingLifePage::keyDown( unsigned char inASCII ) {
 	}
 	if (!vogMode) {
 		if (Phex::hasFocus && mSayField.isFocused()) mSayField.unfocusAll();
-		if (HetuwMod::livingLifeKeyDown(inASCII)) return;
+		if (HetuwMod::livingLifeKeyDown(inASCII) && inASCII != 'z') return;
 	}
 
     switch( inASCII ) {
@@ -25966,7 +25966,7 @@ void LivingLifePage::keyDown( unsigned char inASCII ) {
                 setSignal( "twinCancel" );
                 }
             else if( ! mSayField.isFocused() ) {
-                mXKeyDown = false; // hetuw mod disable click through player function - confuses people
+                mXKeyDown = true;
                 }
             break;
         /*

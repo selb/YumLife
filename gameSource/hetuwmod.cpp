@@ -674,6 +674,7 @@ bool HetuwMod::strContainsDangerousAnimal(const char* str) {
 	if (strstr( str, "Skinned Wolf") != NULL) return false;
 	if (strstr( str, "Skinless Wolf") != NULL) return false;
 	if (strstr( str, "Dead Wolf") != NULL) return false;
+	if (strstr( str, "Buried Wolf") != NULL) return false;
 	if (strstr( str, "Shot Domestic Boar with Piglet") != NULL) return false;
 	if (strstr( str, "Shot Wild Boar with Piglet") != NULL) return false;
 	if (strstr( str, "Dead Grizzly Bear") != NULL) return false;
@@ -710,6 +711,7 @@ void HetuwMod::initDangerousAnimals() {
 	int a = -1;
 
 	a++; dangerousAnimals[a] = 2156; // Mosquito swarm
+	a++; dangerousAnimals[a] = 2157; // Mosquito swarm - just bit
 
 	a++; dangerousAnimals[a] = 764; // Rattle Snake
 	a++; dangerousAnimals[a] = 1385; // Attacking Rattle Snake
@@ -3832,15 +3834,23 @@ bool HetuwMod::tileHasNoDangerousAnimals(int x, int y) {
 	int objId = livingLifePage->hetuwGetObjId( x, y);
 	if (objId <= 0) return true;
 	if (ourLiveObject->holdingID > 0 && getObject(ourLiveObject->holdingID)->rideable) {
-		if (ourLiveObject->holdingID == 2395 || // Crude Car with Empty Tank
-			ourLiveObject->holdingID == 2400 || // Crude Car with Empty Tank#driven
-			ourLiveObject->holdingID == 2396 || // Running Crude Car
-			ourLiveObject->holdingID == 2394) { // Unpowered Crude Car
+		if (ourLiveObject->holdingID == 2396 || // Running Crude Car
+			ourLiveObject->holdingID == 4655 || // Deliver Truck - +slotsInvis driving
+			ourLiveObject->holdingID == 4660 || // Red Sports Car $30 - driving +varNumeral
+			ourLiveObject->holdingID == 4681 || // Blue Sports Car $30 - driving +varNumeral
+			ourLiveObject->holdingID == 4690 || // Green Sports Car $30 - driving +varNumeral
+			ourLiveObject->holdingID == 4699 || // Yellow Sports Car $30 - driving +varNumeral
+			ourLiveObject->holdingID == 4708 || // Black Sports Car $30 - driving +varNumeral
+			ourLiveObject->holdingID == 4719) { // White Sports Car $30 - driving +varNumeral
 				return true; // no dangerous animals for cars
 		}
 		// check dangerous animals for horses
 		if (objId == 764) return false; // Rattle Snake	
 		if (objId == 1385) return false; // Attacking Rattle Snake
+		if (objId == 631) return false; // Hungry Grizzly Bear
+		if (objId == 628) return false; // Grizzly Bear
+		if (objId == 645) return false; // Fed Grizzly Bear
+		if (objId == 4762) return false; // Sleepy Grizzly Bear
 	} else { // moving by walking / not riding
 		if (objId < maxObjects && isDangerousAnimal[objId]) return false;
 	}
