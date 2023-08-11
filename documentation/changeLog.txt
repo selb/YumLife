@@ -5,6 +5,58 @@ http://onehouronelife.com/updateLog.php
 
 
 
+Version 385    2023-July-11
+
+--Added new SWAP protocol message to differentiate between right-clicking on
+  the bare ground around an object and right-clicking the object itself.  This
+  allows right-clicking the ground around a container to swap the held item
+  with the container itself, instead of putting/swapping held object into the
+  container.  You now have to right-click directly on a container to put/swap
+  held item into container.  This also fixes weird behavior when right-clicking
+  the ground around a blocking container, like a wooden box (it would swap held
+  item with a nearby item or even put held item into a nearby non-blocking
+  container).  Now right-clicking the ground always puts held object on the
+  ground (and may cause you to pick up something else in its place, depending
+  on the situation).  Fixes #896
+
+--Avoid downloading updates if there's a minorGems hg/git checkout present,
+  since that means we're compiling from source.  Part of jasonrohrer/OneLife#899
+
+--Fixed display of numbers of years above 1000, which didn't zero-pad
+  correctly, and displayed 1,054 as 1,54.  Fixes #904
+
+--New +nearPop_30_10000 tag, which prevents an object from being created if
+  less than 30% of the active player population is within a 10000 tile radius
+  of the creation location.  Part of #905
+
+
+
+
+Server Fixes
+
+--Saying GOODBYE FOREVER as part of your final utterance when dying of old age
+  blocks you from getting reborn to your descendants.  Fixes #892
+
+--Donkeytown players get a DING message explaining their situation.  Fixes #893
+
+--Life logs now include race label for each birth.  Fixes #897
+
+--Fixed an obscure bug that allowed an EVE last name to be reused within 5
+  minutes of the death of a previous EVE that used that same last name, if no
+  other living players were using that last name, which blocked the ability to
+  curse the previous EVE during the 5-minute window after her death.
+
+--Fixed so that we track separate death position for each name that player had,
+  instead of just their most recent death position, when deciding whether a
+  curse is close enough during the 5-minute post-death cursing window.  Before,
+  their next death position would override their last, and if they were reborn
+  and still alive, the curse would land regardless of the curser's distance
+  from the death position associated with the name they cursed.  This fixes
+  several bugs in behavior during post-death cursing.  Fixes #902
+  
+
+
+
 Version 383    2023-July-28
 
 --Moved [@] button down to avoid overlap with genetic fitness.  Part of #885
