@@ -2823,6 +2823,7 @@ typedef enum messageType {
     REMV,
     SREMV,
     DROP,
+    SWAP,
     KILL,
     SAY,
     EMOT,
@@ -3169,6 +3170,16 @@ ClientMessage parseMessage( LiveObject *inPlayer, char *inMessage ) {
                           nameBuffer, &( m.x ), &( m.y ), &( m.c ) );
         
         if( numRead != 4 ) {
+            m.type = UNKNOWN;
+            }
+        }
+    else if( strcmp( nameBuffer, "SWAP" ) == 0 ) {
+        m.type = SWAP;
+        numRead = sscanf( inMessage, 
+                          "%99s %d %d", 
+                          nameBuffer, &( m.x ), &( m.y ) );
+        
+        if( numRead != 3 ) {
             m.type = UNKNOWN;
             }
         }
@@ -3790,7 +3801,19 @@ double computeAge( LiveObject *inPlayer ) {
             lineageID = inPlayer->parentID;
             }
         
-        trackOffspring( inPlayer->email, lineageID );
+        if( inPlayer->lastSay == NULL ||
+            strstr( inPlayer->lastSay, "GOODBYE FOREVER" ) == NULL ) {
+            
+            // don't let them get reborn to their descendants if
+            // they say GOODBYE FOREVER as part of their final words
+            // For example, if they say
+            //    GOODBYE FOREVER MY DARLINGS
+            // That counts.
+            // Likewise:
+            //    I LOVE YOU ALL.  GOODBYE FOREVER
+
+            trackOffspring( inPlayer->email, lineageID );
+            }
         }
     return age;
     }
@@ -10834,6 +10857,7 @@ int processLoggedInPlayer( int inAllowOrForceReconnect,
               newObject.parentID,
               parentEmail,
               ! getFemale( &newObject ),
+              getObject( newObject.displayID )->race, 
               newObject.xd,
               newObject.yd,
               players.size(),
@@ -13427,6 +13451,19 @@ char *getUniqueCursableName( char *inPlayerName, char *outSuffixAdded,
                             }
                         }
                     
+                    if( ! dup ) {
+                        // not used by any living family
+                        // however, was this a recent EVE last name
+                        // that is still cursable?
+                        
+                        char *testName = autoSprintf( "EVE %s", tempLastName );
+                        
+                        dup = isNameDuplicateForCurses( testName );
+                        
+                        delete [] testName;
+                        }
+                    
+
                     if( dup ) {
                         i = nextI;
                         }
@@ -15917,6 +15954,67 @@ char isHungryWorkBlocked( LiveObject *inPlayer,
         }
 
     // not hungry work at all
+    return false;
+    }
+
+
+
+
+void sendNearPopSpeech( LiveObject *inPlayer ) {
+    // tell player about it with private speech
+    char *message = autoSprintf( 
+        "PS\n"
+        "%d/0 +TOO FAR FROM EVERYONE+\n#",
+        inPlayer->id );
+    
+    sendMessageToPlayer( 
+        inPlayer, 
+        message, 
+        strlen( message ) );
+    delete [] message;
+    }
+
+
+
+
+char isNearPopBlocked( LiveObject *inPlayer, 
+                       int inNewTarget ) {
+
+    ObjectRecord *o = getObject( inNewTarget );
+    
+    if( ! o->nearPop ) {
+        return false;
+        }
+    
+    GridPos pos = getPlayerPos( inPlayer );
+    int countNear = 0;
+    int totalCount = 0;
+    
+    for( int j=0; j<players.size(); j++ ) {
+        LiveObject *otherPlayer = players.getElement( j );
+        
+        if( ! otherPlayer->error &&
+            ! otherPlayer->isTutorial &&
+            otherPlayer->curseStatus.curseLevel == 0 ) {
+            
+            totalCount++;
+                        
+            double d = distance( pos, getPlayerPos( otherPlayer ) );
+
+            if( d <= o->nearPopDistance ) {
+                countNear++;
+                }
+            }
+        }
+
+    
+    float fractionNear = (float)countNear / (float)totalCount;
+    
+    if( fractionNear < o->nearPopFraction ) {
+        return true;
+        }
+    
+    // else enough of the population are close, not blocked
     return false;
     }
 
@@ -22861,9 +22959,22 @@ int main() {
                                             &hCost );
                                         }
                                     
+                                    // and if blocked by nearPop constraint
+                                    char nearPopBlocked = false;
+                                    
+                                    if( ! insertion &&
+                                        r->newTarget > 0 ) {
+                                        nearPopBlocked =
+                                            isNearPopBlocked( nextPlayer,
+                                                              r->newTarget );
+                                        }
+                                    
+                                    
+                                    
 
                                     if( ! insertion &&
                                         ! hungBlocked &&
+                                        ! nearPopBlocked &&
                                         ! transformation &&
                                         ! nonTransformTarget && 
                                         ! canPlayerUseOrLearnTool( 
@@ -23114,6 +23225,13 @@ int main() {
                                         r = NULL;
                                         
                                         sendHungryWorkSpeech( nextPlayer );
+                                        }
+                                    else if( isNearPopBlocked( 
+                                            nextPlayer,
+                                            r->newTarget ) ) {
+                                        r = NULL;
+                                        
+                                        sendNearPopSpeech( nextPlayer );
                                         }
                                     }
 
@@ -24867,7 +24985,8 @@ int main() {
                                 }
                             }
                         }                    
-                    else if( m.type == DROP ) {
+                    else if( m.type == DROP ||
+                             m.type == SWAP ) {
                         //Thread::staticSleep( 2000 );
                         
                         // send update even if action fails (to let them
@@ -25094,7 +25213,8 @@ int main() {
                                         
                                         char canGoIn = false;
                                         
-                                        if( canDrop &&
+                                        if( m.type != SWAP && 
+                                            canDrop &&
                                             droppedObj->containable &&
                                             targetSlotSize >=
                                             droppedObj->containSize &&
@@ -25103,7 +25223,10 @@ int main() {
                                                 droppedObj->id ) ) {
                                             canGoIn = true;
                                             }
-                                        
+                                        // if SWAP specified, never
+                                        // try to put item in.
+
+
                                         char forceUse = false;
                                         
                                         if( canDrop && 
@@ -25654,6 +25777,7 @@ int main() {
                     logDeath( nextPlayer->id,
                               nextPlayer->email,
                               nextPlayer->isEve,
+                              nextPlayer->name,
                               computeAge( nextPlayer ),
                               getSecondsPlayed( 
                                   nextPlayer ),
@@ -25685,6 +25809,11 @@ int main() {
                 
                 if( nextPlayer->curseStatus.curseLevel > 0 ) {
                     playerIndicesToSendCursesAbout.push_back( i );
+                    
+                    // tell the donkeytown player about their status
+                    
+                    sendGlobalMessage( (char*)"WELCOME TO DONKEYTOWN.",
+                                       nextPlayer );
                     }
                 
                 if( usePersonalCurses ) {
@@ -26031,6 +26160,7 @@ int main() {
                         logDeath( nextPlayer->id,
                                   nextPlayer->email,
                                   nextPlayer->isEve,
+                                  nextPlayer->name,
                                   age,
                                   getSecondsPlayed( nextPlayer ),
                                   male,
@@ -27130,6 +27260,7 @@ int main() {
                             logDeath( decrementedPlayer->id,
                                       decrementedPlayer->email,
                                       decrementedPlayer->isEve,
+                                      decrementedPlayer->name,
                                       computeAge( decrementedPlayer ),
                                       getSecondsPlayed( decrementedPlayer ),
                                       ! getFemale( decrementedPlayer ),

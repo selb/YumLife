@@ -13,14 +13,17 @@ void freeLifeLog();
 void logBirth( int inPlayerID, char *inPlayerEmail,
                int inParentID, char *inParentEmail,
                char inIsMale,
+               int inRace,
                int inMapX, int inMapY,
                int inTotalPopulation,
                int inParentChainLength );
 
 
+// inName can be NULL if player has no name
 // killer email NULL if died of natural causes
 void logDeath( int inPlayerID, char *inPlayerEmail,
                char inEve,
+               char *inName,
                double inAge,
                int inSecPlayed,
                char inIsMale,
