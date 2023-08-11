@@ -705,7 +705,7 @@ void HetuwMod::initDangerousAnimals() {
 		}
 	}
 
-	dangerousAnimalsLength = 6;
+	dangerousAnimalsLength = 7;
 	dangerousAnimals = new int[dangerousAnimalsLength];
 
 	int a = -1;
