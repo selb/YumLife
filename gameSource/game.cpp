@@ -9,7 +9,7 @@ const char *yumSubVersion = "";
 // Please use this tag to describe your client honestly and uniquely
 // client_official is reserved for the unmodded client
 // do not include whitespace in your tag
-const char *clientTag = "client_hetuw";
+const char *clientTag = "client_yumlife";
 
 
 
