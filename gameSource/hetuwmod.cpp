@@ -106,8 +106,6 @@ int HetuwMod::currentEmote = -1;
 time_t HetuwMod::lastEmoteTime;
 time_t HetuwMod::lastSpecialEmote = 0;
 
-int* HetuwMod::dangerousAnimals;
-int HetuwMod::dangerousAnimalsLength;
 bool *HetuwMod::isDangerousAnimal = NULL;
 
 int* HetuwMod::closedDoorIDs;
@@ -688,79 +686,24 @@ bool HetuwMod::strContainsDangerousAnimal(const char* str) {
 }
 
 void HetuwMod::initDangerousAnimals() {
-	if (dangerousAnimals != NULL) {
-		delete[] dangerousAnimals;
-		dangerousAnimals = NULL;
-	}
-
-    SimpleVector<int> vecAnimalIds;
-
-	for (int i = 0; i < maxObjects; i++) {
-		ObjectRecord* obj = getObject(i);
-		if (!obj) continue;
-		//printf("hetuw obj %i. %s\n", i, obj->description);
-		if (obj->description && strContainsDangerousAnimal(obj->description)) {
-			//printf("hetuw obj %i. %s\n", i, obj->description);
-			vecAnimalIds.push_back(i);
-		}
-	}
-
-	dangerousAnimalsLength = 7;
-	dangerousAnimals = new int[dangerousAnimalsLength];
-
-	int a = -1;
-
-	a++; dangerousAnimals[a] = 2156; // Mosquito swarm
-	a++; dangerousAnimals[a] = 2157; // Mosquito swarm - just bit
-
-	a++; dangerousAnimals[a] = 764; // Rattle Snake
-	a++; dangerousAnimals[a] = 1385; // Attacking Rattle Snake
-
-	a++; dangerousAnimals[a] = 1789; // Abused Pit Bull
-	a++; dangerousAnimals[a] = 1747; // Mean Pit Bull
-	a++; dangerousAnimals[a] = 1712; // Attacking Pit Bull
-
-	a++;
-	if (a != dangerousAnimalsLength) {
-		printf("hetuw ERROR: a != dangerousAnimalsLength\n");
-		printf("hetuw ERROR: %i != %i\n", a, dangerousAnimalsLength);
-	}
-
-	for (int b = 0; b < dangerousAnimalsLength; b++) {
-		int animalId = dangerousAnimals[b];
-		bool exist = false;
-		for (int i = 0; i < vecAnimalIds.size(); i++) {
-			if (*(vecAnimalIds.getElement(i)) == animalId) {
-				exist = true;
-				break;
-			}
-		}
-		if (!exist) {
-			//printf("hetuw %i. %s\n", animalId, getObject(animalId)->description);
-			vecAnimalIds.push_back(animalId);
-		}
-	}
-	//printf("hetuw %i dangerous animals found\n", vecAnimalIds.size());
-
-	delete[] dangerousAnimals;
-	dangerousAnimalsLength = vecAnimalIds.size();
-	dangerousAnimals = new int[dangerousAnimalsLength];
-
-	for (int i = 0; i < vecAnimalIds.size(); i++) {
-		int k = *(vecAnimalIds.getElement(i));
-		dangerousAnimals[i] = k;
-		//printf("hetuw %i. %s\n", k, getObject(k)->description);
-	}
-
 	if (isDangerousAnimal) delete[] isDangerousAnimal;
 	isDangerousAnimal = new bool[maxObjects];
-	for (int k=0; k<maxObjects; k++) {
-		isDangerousAnimal[k] = false;
-		for (int i = 0; i < dangerousAnimalsLength; i++) {
-			if (k == dangerousAnimals[i]) {
-				isDangerousAnimal[k] = true;
-				break;
-			}
+
+	for (int i=0; i<maxObjects; i++) {
+		ObjectRecord* obj = getObject(i);
+		if (obj && obj->description && strContainsDangerousAnimal(obj->description)) {
+			isDangerousAnimal[i] = true;
+		} else if (   i == 2156 // Mosquito swarm
+		           || i == 2157 // Mosquito swarm - just bit
+		           || i == 764  // Rattle Snake
+		           || i == 1385 // Attacking Rattle Snake
+		           || i == 1789 // Abused Pit Bull
+		           || i == 1747 // Mean Pit Bull
+		           || i == 1712 // Attacking Pit Bull
+		          ) {
+			isDangerousAnimal[i] = true;
+		} else {
+			isDangerousAnimal[i] = false;
 		}
 	}
 }
