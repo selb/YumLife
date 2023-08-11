@@ -769,6 +769,7 @@ void ExistingAccountPage::draw( doublePair inViewCenter,
 
         // YumLife: show window title with version info
         pos = mServicesButton.getPosition();
+        pos.y += 35;
         pos.x = 0;
         setDrawColor( 1, 1, 1, 1.0 );
         mainFont->drawString( getWindowTitle(), pos, alignCenter );
