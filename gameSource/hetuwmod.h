@@ -293,9 +293,6 @@ public:
 
 	static int maxObjects;
 
-	static int dangerousAnimalsLength;
-	static int* dangerousAnimals;
-
 	static int closedDoorIDsLength;
 	static int* closedDoorIDs;
 
