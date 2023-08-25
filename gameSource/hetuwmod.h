@@ -444,6 +444,7 @@ public:
 	
 	static void actionAlphaRelativeToMe( int x, int y );
 	static void actionBetaRelativeToMe( int x, int y );
+	static void actionGammaRelativeToMe( int x, int y );
 
 	static void setOurSendPosXY(int &x, int &y);
 	static void useBackpack(bool replace=false);
