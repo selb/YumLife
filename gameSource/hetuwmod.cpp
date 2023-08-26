@@ -2952,6 +2952,18 @@ void HetuwMod::actionBetaRelativeToMe( int x, int y ) {
 	if (!remove) livingLifePage->hetuwSetNextActionDropping( true );
 }
 
+void HetuwMod::actionGammaRelativeToMe( int x, int y ) {
+	x += ourLiveObject->xd;
+	y += ourLiveObject->yd;
+
+	x = livingLifePage->sendX(x);
+	y = livingLifePage->sendY(y);
+	char msg[32];
+	sprintf( msg, "SWAP %d %d#", x, y);
+	livingLifePage->hetuwSetNextActionMessage( msg, x, y );
+	livingLifePage->hetuwSetNextActionDropping( true );
+}
+
 void HetuwMod::setOurSendPosXY(int &x, int &y) {
 	x = round( ourLiveObject->xd );
 	y = round( ourLiveObject->yd );
@@ -3145,6 +3157,8 @@ bool HetuwMod::livingLifeKeyDown(unsigned char inASCII) {
 	// player is not trying to say something
 
 	bool commandKey = isCommandKeyDown();
+	bool controlKey = isControlKeyDown();
+	bool altKey = isAltKeyDown();
 	bool shiftKey = isShiftKeyDown();
 
 	//printf("hetuw key pressed %c, value: %i, shiftKey %i, commandKey %i\n", inASCII, (int)inASCII, (int)shiftKey, (int)commandKey);
@@ -3405,9 +3419,14 @@ bool HetuwMod::livingLifeKeyDown(unsigned char inASCII) {
 		return true;
 	}
 
-	if (commandKey) {
+	if (controlKey) {
 		if (isCharKey(inASCII, charKey_TileStandingOn)) {
 			actionBetaRelativeToMe( 0, 0 );
+			return true;
+		}
+	} else if (altKey) {
+		if (isCharKey(inASCII, charKey_TileStandingOn)) {
+			actionGammaRelativeToMe( 0, 0);
 			return true;
 		}
 	} else {
@@ -3438,7 +3457,7 @@ bool HetuwMod::livingLifeKeyDown(unsigned char inASCII) {
 			stopAutoRoadRun = true;
 			return true;
 		}
-	} else if (commandKey) {
+	} else if (controlKey) {
 		if (inASCII+64 == toupper(charKey_Up)) {
 			actionBetaRelativeToMe( 0, 1 );
 			return true;
@@ -3453,6 +3472,23 @@ bool HetuwMod::livingLifeKeyDown(unsigned char inASCII) {
 		}
 		if (inASCII+64 == toupper(charKey_Right)) {
 			actionBetaRelativeToMe( 1, 0 );
+			return true;
+		}
+    } else if (altKey) {
+		if (inASCII == charKey_Up || inASCII == toupper(charKey_Up)) {
+			actionGammaRelativeToMe( 0, 1 );
+			return true;
+		}
+		if (inASCII == charKey_Left || inASCII == toupper(charKey_Left)) {
+			actionGammaRelativeToMe( -1, 0 );
+			return true;
+		}
+		if (inASCII == charKey_Down || inASCII == toupper(charKey_Down)) {
+			actionGammaRelativeToMe( 0, -1 );
+			return true;
+		}
+		if (inASCII == charKey_Right || inASCII == toupper(charKey_Right)) {
+			actionGammaRelativeToMe( 1, 0 );
 			return true;
 		}
 	} else if (shiftKey) {
