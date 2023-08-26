@@ -283,6 +283,12 @@ void toggleKeyMapping( char inMappingOn );
 // used for implementing platform-independent keyboard shortcuts (ctrl-z, etc)
 char isCommandKeyDown();
 
+// returns true if Control key is down
+char isControlKeyDown();
+
+// returns true if Alt key is down
+char isAltKeyDown();
+
 // returns true if either right or left shift key is down
 char isShiftKeyDown();
 
