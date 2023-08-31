@@ -57,8 +57,8 @@ int HetuwMod::magnetMoveDir = -1;
 int HetuwMod::magnetWrongMoveDir = -1;
 int HetuwMod::magnetMoveCount = 0;
 
-int HetuwMod::cfgVersionNumber = 3;
-int HetuwMod::cfgVersionRead = 3;
+int HetuwMod::cfgVersionNumber = 4;
+int HetuwMod::cfgVersionRead = 4;
 
 unsigned char HetuwMod::charKey_Up;
 unsigned char HetuwMod::charKey_Down;
@@ -127,7 +127,7 @@ doublePair HetuwMod::playerNamePos;
 bool HetuwMod::bDrawCords;
 bool HetuwMod::bDrawHostileTiles = true;
 
-bool HetuwMod::bWriteLogs = false;
+bool HetuwMod::bWriteLogs = true;
 int HetuwMod::lastLoggedId = -1;
 
 double HetuwMod::curStepTime;
@@ -982,6 +982,9 @@ void HetuwMod::initSettings() {
 	if (cfgVersionRead < 3) {
 		charKey_ShowDeathMessages = 254;
 	}
+	if (cfgVersionRead < 4) {
+		bWriteLogs = true;
+	}
 
 	ofstream ofs( hetuwSettingsFileName, ofstream::out );
 
@@ -1073,7 +1076,7 @@ void HetuwMod::initSettings() {
 	ofs << "add_baby_coords_to_list = " << (char)(addBabyCoordsToList+48) << endl;
 	ofs << endl;
 	ofs << "automatic_data_update = " << (char)(bAutoDataUpdate+48) << endl;
-	ofs << "hetuw_log = " << (char)(bWriteLogs+48) << " // will create a log file '" << hetuwLogFileName << "' which resets at the beginning of each life - logs different events" << endl;
+	ofs << "hetuw_log = " << (char)(bWriteLogs+48) << " // will create a log file '" << hetuwLogFileName << "' that logs different events" << endl;
 	ofs << endl;
 	ofs << "chat_delay = " << to_string((int)(sayDelay*10)) << " // wait atleast X time before sending the next text (10 = 1 second) - set it to 0 to deactivate it" << endl;
 	ofs << endl;
