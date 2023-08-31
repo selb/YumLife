@@ -20601,6 +20601,7 @@ void LivingLifePage::step() {
                                     existing->lastCurseTagDisplayTime = curTime;
                                     existing->speechIsOverheadLabel = false;
                                     }
+                                HetuwMod::onCurseUpdate(existing);
                                 }
                             break;
                             }

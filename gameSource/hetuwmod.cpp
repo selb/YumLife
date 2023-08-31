@@ -1299,7 +1299,7 @@ string HetuwMod::getTimeStamp(time_t t) {
 
 void HetuwMod::createNewLogFile() {
 	if (!bWriteLogs) return;
-	ofstream ofs( hetuwLogFileName, ofstream::out );
+	ofstream ofs( hetuwLogFileName, ofstream::app );
 	ofs.close();
 }
 
@@ -4363,6 +4363,21 @@ void HetuwMod::onNameUpdate(LiveObject* o) {
 		else if (strstr(o->name, "EVE METH") != NULL) sendEmote("/LOVE");
 		else if (strstr(o->name, "EVE UNO") != NULL) sendEmote("/LOVE");
 	}
+}
+
+void HetuwMod::onCurseUpdate(LiveObject* o) {
+	string type = "forgive";
+	if ( o->curseLevel ) {
+		type = "curse";
+	}
+	string data = to_string(o->id);
+	if ( o->name ) {
+        data += " " + string(o->name);
+	}
+	if ( o->curseName ) {
+    	data += hetuwLogSeperator + string(o->curseName);
+	}
+	HetuwMod::writeLineToLogs(type, data);
 }
 
 void HetuwMod::drawDeathMessages() {
