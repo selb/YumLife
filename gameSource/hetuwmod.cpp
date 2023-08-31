@@ -991,9 +991,6 @@ void HetuwMod::initSettings() {
 	ofs << "// this file will be created whenever you start the mod" << endl;
 	ofs << "// if you want to reset this file, just delete it" << endl;
 	ofs << endl;
-	ofs << "// if you want to support me and the hetuw mod you can send bitcoin to the address below, thank you" << endl;
-	ofs << "// bitcoin address: " << hetuwBitcoinWallet << endl;
-	ofs << endl;
 
 	ofs << "cfg_version = " << cfgVersionNumber << endl;
 	ofs << endl;
