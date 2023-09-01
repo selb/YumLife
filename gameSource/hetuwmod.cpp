@@ -5013,7 +5013,7 @@ void HetuwMod::drawHelp() {
 	else sprintf(str, "CTRL+%c - DROP / PICK ITEM FROM CONTAINER", toupper(charKey_TileStandingOn));
 	livingLifePage->hetuwDrawScaledHandwritingFont( str, drawPos, guiScale );
 	drawPos.y -= lineHeight;
-	if (charKey_TileStandingOn == ' ') sprintf(str, "ALt+SPACE - SWAP ITEM (WITH CONTAINER)");
+	if (charKey_TileStandingOn == ' ') sprintf(str, "ALT+SPACE - SWAP ITEM (WITH CONTAINER)");
 	else sprintf(str, "ALT+%c - SWAP ITEM (WITH CONTAINER)", toupper(charKey_TileStandingOn));
 	livingLifePage->hetuwDrawScaledHandwritingFont( str, drawPos, guiScale );
 	drawPos.y -= lineHeight;
