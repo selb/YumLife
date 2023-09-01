@@ -26,7 +26,8 @@ cd gameSource
 
 echo "Building OneLife..."
 
-make || exit 1
+NPROC=${NPROC:-4}
+make -j$NPROC || exit 1
 
 
 
