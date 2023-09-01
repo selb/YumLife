@@ -2,11 +2,10 @@
 #define HETUWMOD_H
 
 #define hetuwWaitingText "press %c in game for help"
-#define hetuwSettingsFileName "hetuw.cfg"
-#define hetuwLogFileName "hetuwlog.txt"
+#define hetuwSettingsFileName "yumlife.cfg"
+#define hetuwLogFileName "yumlog.txt"
 #define hetuwLogSeperator " | " // needs to be 3 char long
 #define hetuwFakeCoord 1977
-#define hetuwBitcoinWallet "bc1q66jzg06xxd8uup0svwhhwum23d3mqlrnsccf2j" // donate something :)  (this donates to hetuw, not selb/YumLife, to be clear)
 #define hetuwGetNewestVersionFromGithub "get newest version from github https://github.com/selb/YumLife/releases"
 #define hetuwPhotoSize 400
 
@@ -15,6 +14,7 @@
 
 #include <vector>
 #include <string>
+#include <fstream>
 
 #include "LivingLifePage.h"
 #include "hetuwFont.h"
@@ -699,6 +699,7 @@ private:
 	
 	static void initDangerousAnimals();
 	static void initClosedDoorIDs();
+	static void writeSettings(ofstream &);
 	static void initSettings();
 
 	static void move(); // called only once on frame - dont use

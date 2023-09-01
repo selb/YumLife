@@ -954,41 +954,7 @@ void HetuwMod::writeCharKeyToStream( ofstream &ofs, const char* keyName, char ke
 	ofs << endl;
 }
 
-void HetuwMod::initSettings() {
-	ifstream ifs( hetuwSettingsFileName );
-	if (ifs.good()) { // file exists
-		string line;
-		while (getline(ifs, line)) {
-			//printf("hetuw read line: %s\n", line.c_str());
-			if (line.length() < 3) continue;
-			if (line[0] == '/' && line[1] == '/') continue;
-			char name[64];
-			char value[64];
-			getSettingsFileLine( name, value, line );
-			if (strlen(name) < 1) continue;
-			//printf("hetuw name: %s, value: %s\n", name, value);
-			try {
-				if (!setSetting( name, value ))
-					printf("hetuw WARNING invalid %s line: %s\n", hetuwSettingsFileName, line.c_str());
-			} catch (...) {
-				printf("hetuw WARNING %s, exception thrown at line: %s\n", hetuwSettingsFileName, line.c_str());
-			}
-		}
-	}
-	ifs.close();
-
-	if (cfgVersionRead < 2) {
-		Phex::allowServerCoords = true;
-	}
-	if (cfgVersionRead < 3) {
-		charKey_ShowDeathMessages = 254;
-	}
-	if (cfgVersionRead < 4) {
-		bWriteLogs = true;
-	}
-
-	ofstream ofs( hetuwSettingsFileName, ofstream::out );
-
+void HetuwMod::writeSettings(ofstream &ofs) {
 	ofs << "// this file will be created whenever you start the mod" << endl;
 	ofs << "// if you want to reset this file, just delete it" << endl;
 	ofs << endl;
@@ -1080,8 +1046,76 @@ void HetuwMod::initSettings() {
 	ofs << endl;
 	ofs << "remap_start_enabled = " << (char)(bRemapStart+48) << " // enable mushroom effect" << endl;
 	ofs << "draw_hunger_warning = " << (char)(bDrawHungerWarning+48) << endl;
+}
 
+void HetuwMod::initSettings() {
+	bool migrating = false;
+
+	ifstream ifs;
+	ifs.open( hetuwSettingsFileName );
+	if (!ifs.good()) {
+		// try opening an existing hetuw.cfg instead
+		migrating = true;
+		ifs.open("hetuw.cfg");
+	}
+	if (ifs.good()) { // file exists
+		string line;
+		while (getline(ifs, line)) {
+			//printf("hetuw read line: %s\n", line.c_str());
+			if (line.length() < 3) continue;
+			if (line[0] == '/' && line[1] == '/') continue;
+			char name[64];
+			char value[64];
+			getSettingsFileLine( name, value, line );
+			if (strlen(name) < 1) continue;
+			//printf("hetuw name: %s, value: %s\n", name, value);
+			try {
+				if (!setSetting( name, value ))
+					printf("hetuw WARNING invalid %s line: %s\n", hetuwSettingsFileName, line.c_str());
+			} catch (...) {
+				printf("hetuw WARNING %s, exception thrown at line: %s\n", hetuwSettingsFileName, line.c_str());
+			}
+		}
+	} else {
+		// just a new install, neither file existed
+		migrating = false;
+	}
+	ifs.close();
+
+	if (cfgVersionRead < 2) {
+		Phex::allowServerCoords = true;
+	}
+	if (cfgVersionRead < 3) {
+		charKey_ShowDeathMessages = 254;
+	}
+	if (cfgVersionRead < 4) {
+		bWriteLogs = true;
+	}
+
+	ofstream ofs( hetuwSettingsFileName, ofstream::out );
+	writeSettings(ofs);
 	ofs.close();
+
+	if (migrating) {
+		ofs.open("hetuw.cfg", ofstream::out);
+		ofs << "// +------------------------------------------------+" << endl;
+		ofs << "// | !!  WARNING: YumLife now uses yumlife.cfg.  !! |" << endl;
+		ofs << "// |                                                |" << endl;
+		ofs << "// | Changes made here will not affect YumLife.     |" << endl;
+		ofs << "// | Your settings have been preserved below in     |" << endl;
+		ofs << "// | case you need to use hetuw in the future.      |" << endl;
+		ofs << "// |                                                |" << endl;
+		ofs << "// +------------------------------------------------+" << endl;
+		for (int i = 0; i < 20; ++i) {
+			ofs << endl;
+		}
+		ofs << "// This file does not affect YumLife! Use yumlife.cfg." << endl;
+		ofs << endl;
+		writeSettings(ofs);
+		ofs << endl;
+		ofs << "// This file does not affect YumLife! Use yumlife.cfg." << endl;
+		ofs.close();
+	}
 }
 
 void HetuwMod::onGotServerAddress(char inUsingCustomServer, char *inServerIP, int inServerPort) {
