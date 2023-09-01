@@ -24,6 +24,7 @@ constexpr int HetuwMod::OBJID_SharpStone;
 constexpr int HetuwMod::OBJID_Fire;
 constexpr int HetuwMod::OBJID_HotCoals;
 constexpr int HetuwMod::OBJID_ClayBowl;
+constexpr int HetuwMod::OBJID_ClayPlate;
 constexpr int HetuwMod::OBJID_HotAdobeOven;
 
 int HetuwMod::maxObjects;
@@ -1928,6 +1929,7 @@ int HetuwMod::becomesFood( int objectID, int depth ) {
 
 	if (objectID == OBJID_SharpStone) return -1;
 	if (objectID == OBJID_ClayBowl) return -1;
+	if (objectID == OBJID_ClayPlate) return -1;
 	if (objectID == OBJID_HotAdobeOven) return -1;
 	if (objectID == OBJID_Fire) return -1;
 	if (objectID == OBJID_HotCoals) return -1;
@@ -1974,7 +1976,7 @@ int HetuwMod::becomesFood( int objectID, int depth ) {
 
             //int actorEdible = becomesFood( t->newActor, 0 );
             //if( actorEdible > 0 ) return actorEdible;
-			if ((t->actor <= 0 || t->actor == OBJID_ClayBowl || t->actor == OBJID_SharpStone) && t->newActor > 0) { // becomes food when using empty hand, clay bowl or sharp stone on it
+			if ((t->actor <= 0 || t->actor == OBJID_ClayBowl || t->actor == OBJID_ClayPlate || t->actor == OBJID_SharpStone) && t->newActor > 0) { // becomes food when using empty hand, clay bowl, clay plate, or sharp stone on it
 				int returnID = becomesFood(t->newActor, depth - 1);
 				if (returnID > 0) return returnID;
 				returnID = becomesFood(t->newTarget, depth - 1);

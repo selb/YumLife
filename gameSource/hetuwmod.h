@@ -276,6 +276,7 @@ public:
 	static constexpr int OBJID_Fire = 82;
 	static constexpr int OBJID_HotCoals = 85;
 	static constexpr int OBJID_ClayBowl = 235;
+	static constexpr int OBJID_ClayPlate = 236;
 	static constexpr int OBJID_HotAdobeOven = 250;
 
 	static constexpr int OBJID_BellTowerSound = 839;
