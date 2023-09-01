@@ -3091,7 +3091,7 @@ HoldingPos drawObjectAnim( int inObjectID, int inDrawBehindSlots,
                         f = false;
                         }
                     
-                    drawSprite( sh, pos, 1.0, rot, 
+                    drawSprite( sh, pos, scale, rot, // hetuw mod added scale
                                 logicalXOR( f, obj->spriteHFlip[i] ) );
                     }
                 }

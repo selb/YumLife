@@ -276,6 +276,7 @@ public:
 	static constexpr int OBJID_Fire = 82;
 	static constexpr int OBJID_HotCoals = 85;
 	static constexpr int OBJID_ClayBowl = 235;
+	static constexpr int OBJID_ClayPlate = 236;
 	static constexpr int OBJID_HotAdobeOven = 250;
 
 	static constexpr int OBJID_BellTowerSound = 839;
@@ -536,6 +537,7 @@ public:
 	static void onOurDeath();
 	static void onPlayerUpdate( LiveObject* o, const char* line );
 	static void onNameUpdate(LiveObject* o);
+	static void onCurseUpdate(LiveObject* o);
 	static void removeLastName(char *newName, const char* name );
 	static void getLastName( char* lastName, const char* name );
 	static void setLastNameColor( const char* lastName, float alpha );

@@ -24,6 +24,7 @@ constexpr int HetuwMod::OBJID_SharpStone;
 constexpr int HetuwMod::OBJID_Fire;
 constexpr int HetuwMod::OBJID_HotCoals;
 constexpr int HetuwMod::OBJID_ClayBowl;
+constexpr int HetuwMod::OBJID_ClayPlate;
 constexpr int HetuwMod::OBJID_HotAdobeOven;
 
 int HetuwMod::maxObjects;
@@ -57,8 +58,8 @@ int HetuwMod::magnetMoveDir = -1;
 int HetuwMod::magnetWrongMoveDir = -1;
 int HetuwMod::magnetMoveCount = 0;
 
-int HetuwMod::cfgVersionNumber = 3;
-int HetuwMod::cfgVersionRead = 3;
+int HetuwMod::cfgVersionNumber = 4;
+int HetuwMod::cfgVersionRead = 4;
 
 unsigned char HetuwMod::charKey_Up;
 unsigned char HetuwMod::charKey_Down;
@@ -127,7 +128,7 @@ doublePair HetuwMod::playerNamePos;
 bool HetuwMod::bDrawCords;
 bool HetuwMod::bDrawHostileTiles = true;
 
-bool HetuwMod::bWriteLogs = false;
+bool HetuwMod::bWriteLogs = true;
 int HetuwMod::lastLoggedId = -1;
 
 double HetuwMod::curStepTime;
@@ -982,14 +983,14 @@ void HetuwMod::initSettings() {
 	if (cfgVersionRead < 3) {
 		charKey_ShowDeathMessages = 254;
 	}
+	if (cfgVersionRead < 4) {
+		bWriteLogs = true;
+	}
 
 	ofstream ofs( hetuwSettingsFileName, ofstream::out );
 
 	ofs << "// this file will be created whenever you start the mod" << endl;
 	ofs << "// if you want to reset this file, just delete it" << endl;
-	ofs << endl;
-	ofs << "// if you want to support me and the hetuw mod you can send bitcoin to the address below, thank you" << endl;
-	ofs << "// bitcoin address: " << hetuwBitcoinWallet << endl;
 	ofs << endl;
 
 	ofs << "cfg_version = " << cfgVersionNumber << endl;
@@ -1073,7 +1074,7 @@ void HetuwMod::initSettings() {
 	ofs << "add_baby_coords_to_list = " << (char)(addBabyCoordsToList+48) << endl;
 	ofs << endl;
 	ofs << "automatic_data_update = " << (char)(bAutoDataUpdate+48) << endl;
-	ofs << "hetuw_log = " << (char)(bWriteLogs+48) << " // will create a log file '" << hetuwLogFileName << "' which resets at the beginning of each life - logs different events" << endl;
+	ofs << "hetuw_log = " << (char)(bWriteLogs+48) << " // will create a log file '" << hetuwLogFileName << "' that logs different events" << endl;
 	ofs << endl;
 	ofs << "chat_delay = " << to_string((int)(sayDelay*10)) << " // wait atleast X time before sending the next text (10 = 1 second) - set it to 0 to deactivate it" << endl;
 	ofs << endl;
@@ -1299,7 +1300,7 @@ string HetuwMod::getTimeStamp(time_t t) {
 
 void HetuwMod::createNewLogFile() {
 	if (!bWriteLogs) return;
-	ofstream ofs( hetuwLogFileName, ofstream::out );
+	ofstream ofs( hetuwLogFileName, ofstream::app );
 	ofs.close();
 }
 
@@ -1928,6 +1929,7 @@ int HetuwMod::becomesFood( int objectID, int depth ) {
 
 	if (objectID == OBJID_SharpStone) return -1;
 	if (objectID == OBJID_ClayBowl) return -1;
+	if (objectID == OBJID_ClayPlate) return -1;
 	if (objectID == OBJID_HotAdobeOven) return -1;
 	if (objectID == OBJID_Fire) return -1;
 	if (objectID == OBJID_HotCoals) return -1;
@@ -1974,7 +1976,7 @@ int HetuwMod::becomesFood( int objectID, int depth ) {
 
             //int actorEdible = becomesFood( t->newActor, 0 );
             //if( actorEdible > 0 ) return actorEdible;
-			if ((t->actor <= 0 || t->actor == OBJID_ClayBowl || t->actor == OBJID_SharpStone) && t->newActor > 0) { // becomes food when using empty hand, clay bowl or sharp stone on it
+			if ((t->actor <= 0 || t->actor == OBJID_ClayBowl || t->actor == OBJID_ClayPlate || t->actor == OBJID_SharpStone) && t->newActor > 0) { // becomes food when using empty hand, clay bowl, clay plate, or sharp stone on it
 				int returnID = becomesFood(t->newActor, depth - 1);
 				if (returnID > 0) return returnID;
 				returnID = becomesFood(t->newTarget, depth - 1);
@@ -4365,6 +4367,21 @@ void HetuwMod::onNameUpdate(LiveObject* o) {
 	}
 }
 
+void HetuwMod::onCurseUpdate(LiveObject* o) {
+	string type = "forgive";
+	if ( o->curseLevel ) {
+		type = "curse";
+	}
+	string data = to_string(o->id);
+	if ( o->name ) {
+        data += " " + string(o->name);
+	}
+	if ( o->curseName ) {
+    	data += hetuwLogSeperator + string(o->curseName);
+	}
+	HetuwMod::writeLineToLogs(type, data);
+}
+
 void HetuwMod::drawDeathMessages() {
 	if ( deathMessages.size() <= 0 ) return;
 
@@ -4869,6 +4886,8 @@ void HetuwMod::drawHelp() {
 	drawPos.y -= lineHeight;
 	drawPos.y -= lineHeight;
 	drawPos.y -= lineHeight;
+	drawPos.y -= lineHeight;
+	drawPos.y -= lineHeight;
 	sprintf(str, "YOU CAN CHANGE KEYS AND SETTINGS BY MODIFYING THE HETUW.CFG FILE");
 	livingLifePage->hetuwDrawScaledHandwritingFont( str, drawPos, guiScale );
 	drawPos.y -= lineHeight;
@@ -4983,12 +5002,19 @@ void HetuwMod::drawHelp() {
 	sprintf(str, "CTRL+%c%c%c%c - DROP / PICK ITEM FROM CONTAINER", toupper(charKey_Up), toupper(charKey_Left), toupper(charKey_Down), toupper(charKey_Right));
 	livingLifePage->hetuwDrawScaledHandwritingFont( str, drawPos, guiScale );
 	drawPos.y -= lineHeight;
+	sprintf(str, "ALT+%c%c%c%c - SWAP ITEM (WITH CONTAINER)", toupper(charKey_Up), toupper(charKey_Left), toupper(charKey_Down), toupper(charKey_Right));
+	livingLifePage->hetuwDrawScaledHandwritingFont( str, drawPos, guiScale );
+	drawPos.y -= lineHeight;
 	if (charKey_TileStandingOn == ' ') sprintf(str, "SPACE - USE/PICK UP ITEM ON THE TILE YOU ARE STANDING ON");
 	else sprintf(str, "%c - USE/PICK UP ITEM ON THE TILE YOU ARE STANDING ON", toupper(charKey_TileStandingOn));
 	livingLifePage->hetuwDrawScaledHandwritingFont( str, drawPos, guiScale );
 	drawPos.y -= lineHeight;
 	if (charKey_TileStandingOn == ' ') sprintf(str, "CTRL+SPACE - DROP / PICK ITEM FROM CONTAINER");
 	else sprintf(str, "CTRL+%c - DROP / PICK ITEM FROM CONTAINER", toupper(charKey_TileStandingOn));
+	livingLifePage->hetuwDrawScaledHandwritingFont( str, drawPos, guiScale );
+	drawPos.y -= lineHeight;
+	if (charKey_TileStandingOn == ' ') sprintf(str, "ALT+SPACE - SWAP ITEM (WITH CONTAINER)");
+	else sprintf(str, "ALT+%c - SWAP ITEM (WITH CONTAINER)", toupper(charKey_TileStandingOn));
 	livingLifePage->hetuwDrawScaledHandwritingFont( str, drawPos, guiScale );
 	drawPos.y -= lineHeight;
 	livingLifePage->hetuwDrawScaledHandwritingFont( "LEFTARROWKEY ZOOM IN", drawPos, guiScale );
