@@ -1905,7 +1905,8 @@ void ScreenGL::start() {
                                 asciiKey = (u & 0x7F);
                                 scanCodeMap[event.key.keysym.scancode] = asciiKey;
                                 }
-                            } else {
+                            }
+                        else {
                                 asciiKey = scanCodeMap[event.key.keysym.scancode];
                             }
 
