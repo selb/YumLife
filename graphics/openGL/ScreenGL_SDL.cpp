@@ -1900,11 +1900,14 @@ void ScreenGL::start() {
 
                         if (event.type == SDL_KEYDOWN) {
                             unsigned short u = event.key.keysym.unicode;
-                            // Ignore anything outside of 7-bit ASCII.
-                            if ((u & 0xFF80) == 0) {
-                                asciiKey = (u & 0x7F);
-                                scanCodeMap[event.key.keysym.scancode] = asciiKey;
+                            if (event.key.keysym.sym == SDLK_SPACE) {
+                                // On Linux, ctrl+space is ambiguously 0.
+                                asciiKey = ' ';
                                 }
+                            else if ((u & 0xFF80) == 0) { // Ignore anything outside of 7-bit ASCII.
+                                asciiKey = (u & 0x7F);
+                                }
+                            scanCodeMap[event.key.keysym.scancode] = asciiKey;
                             }
                         else {
                                 asciiKey = scanCodeMap[event.key.keysym.scancode];
