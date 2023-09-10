@@ -9383,15 +9383,8 @@ void LivingLifePage::draw( doublePair inViewCenter,
                        &subjectIDs,
                        &subjectNames );
             
-            takingPhoto = false;
-			HetuwMod::setTakingPhoto(takingPhoto);
-            delete [] photoSig;
-            photoSig = NULL;
-            photoSequenceNumber = -1;
-            waitingForPhotoSig = false;
-
-			HetuwMod::setZoom( currentZoom );
             waitingForPhotoID = true;
+            HetuwMod::setZoom( currentZoom );
             }
         else if( waitingForPhotoID ) {
             // is our photo ID ready yet?
@@ -9422,6 +9415,7 @@ void LivingLifePage::draw( doublePair inViewCenter,
                 waitingForPhotoID = false;
                 
                 takingPhoto = false;
+                HetuwMod::setTakingPhoto(takingPhoto);
                 }
             }
         }
