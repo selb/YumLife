@@ -1705,14 +1705,14 @@ void HetuwMod::objectDrawScaleStep() {
 }
 
 void HetuwMod::SayStep() {
-	if (sayBuffer.size() < 1) return;
-
 	if (clearSayBuffer) {
 		sayBuffer.clear();
 		sayBuffer.shrink_to_fit();
 		clearSayBuffer = false;
 		return;
 	}
+
+	if (sayBuffer.size() < 1) return;
 
 	double curTime = game_getCurrentTime();
 	if (curTime-timeLastSay < sayDelay) return;
