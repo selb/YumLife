@@ -25,9 +25,11 @@ then
 	fi
 fi
 
+DATA7_BRANCH=${DATA7_BRANCH:-master}
+DATA7_REPO=${DATA7_REPO:-https://github.com/jasonrohrer/OneLifeData7.git}
 if [ ! -e OneLifeData7 ]
 then
-	git clone https://github.com/jasonrohrer/OneLifeData7	
+	git clone -b $DATA7_BRANCH $DATA7_REPO OneLifeData7
 fi
 
 cd OneLifeData7
