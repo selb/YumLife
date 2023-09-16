@@ -1341,7 +1341,7 @@ void HetuwMod::createNewLogFile() {
 void HetuwMod::writeLineToLogs(string name, string data) {
 	if (!bWriteLogs) return;
 	ofstream ofs( hetuwLogFileName, ofstream::out | ofstream::app );
-	ofs << to_string((int)game_getCurrentTime()) << hetuwLogSeperator << name << hetuwLogSeperator << data << endl;
+	ofs << time(NULL) << hetuwLogSeperator << name << hetuwLogSeperator << data << endl;
 	ofs.close();
 }
 
