@@ -555,7 +555,7 @@ public:
 
 	static GridPos cordOffset;
 
-	static void getSettingsFileLine( char* name, char* value, string line );
+	static void getSettingsFileLine( char* name, size_t nameSize, char* value, size_t valueSize, string line );
 	static bool setSetting( const char* name, const char* value );
 	static bool setCharKey( unsigned char &key, const char *value );
 
