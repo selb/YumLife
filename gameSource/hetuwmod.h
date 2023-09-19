@@ -279,8 +279,9 @@ public:
 	static constexpr int OBJID_ClayPlate = 236;
 	static constexpr int OBJID_HotAdobeOven = 250;
 
-	static constexpr int OBJID_BellTowerSound = 839;
-	static constexpr int OBJID_EndTowerSound = 2481;
+	static constexpr int OBJID_EndTower2 = 2486;
+	static constexpr int OBJID_EndTower3 = 2484;
+	static constexpr int OBJID_EndTower4 = 2481;
 
 	static constexpr int OBJID_TarrMonument = 3112;
 
