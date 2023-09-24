@@ -26445,6 +26445,7 @@ void LivingLifePage::keyDown( unsigned char inASCII ) {
                                 sendToServerSocket( (char*)"ORDR 0 0#" );
                                 }
                             // YumLife mod
+                            printf("TRANS TEST %s", translate("forcedie"));
                             else if( commandTyped( typedText, 
                                                    "forcedie" ) ) {
                                 sendToServerSocket( (char*)"LOGIN#" );
