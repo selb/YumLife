@@ -26221,7 +26221,7 @@ void LivingLifePage::keyDown( unsigned char inASCII ) {
                             LiveObject *ourLiveObject = getOurLiveObject();
                             
                             int emotIndex = getEmotionIndex( typedText );
-                            
+                            printf("TRANS TEST %s", translate("forcedie"));
                             if( emotIndex != -1 ) {
 								HetuwMod::setEmote( emotIndex );
                                 char *message = 
@@ -26445,7 +26445,6 @@ void LivingLifePage::keyDown( unsigned char inASCII ) {
                                 sendToServerSocket( (char*)"ORDR 0 0#" );
                                 }
                             // YumLife mod
-                            printf("TRANS TEST %s", translate("forcedie"));
                             else if( commandTyped( typedText, 
                                                    "forcedie" ) ) {
                                 sendToServerSocket( (char*)"LOGIN#" );
