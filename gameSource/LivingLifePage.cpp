@@ -26444,6 +26444,11 @@ void LivingLifePage::keyDown( unsigned char inASCII ) {
                                                    "orderCommand" ) ) {
                                 sendToServerSocket( (char*)"ORDR 0 0#" );
                                 }
+                            // YumLife mod
+                            else if( commandTyped( typedText, 
+                                                   "forcedie" ) ) {
+                                sendToServerSocket( (char*)"LOGIN#" );
+                                }
                             else {
                                 // filter hints
                                 char *filterString = 
