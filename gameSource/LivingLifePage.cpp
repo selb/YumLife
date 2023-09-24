@@ -26446,7 +26446,7 @@ void LivingLifePage::keyDown( unsigned char inASCII ) {
                                 }
                             // YumLife mod
                             else if( commandTyped( typedText, 
-                                                   "FORCEDIE" ) ) {
+                                                   "/FORCEDIE" ) ) {
                                 sendToServerSocket( (char*)"LOGIN#" );
                                 }
                             else {
