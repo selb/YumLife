@@ -584,6 +584,7 @@ public:
 	static char ourGender;
 	static bool bRemapStart;
 	static bool bDrawHungerWarning;
+	static bool bForceDie;
 
 	static bool bFoundFamilyName;
 	static std::vector<FamilyInRange*> familiesInRange;

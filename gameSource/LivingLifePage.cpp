@@ -6628,7 +6628,7 @@ void LivingLifePage::draw( doublePair inViewCenter,
             drawMessage( "waitingArrival", pos );
 			HetuwMod::drawWaitingText(pos);
             }
-        else if( userTwinCode == NULL ) {
+        else if( userTwinCode == NULL || userTwinCount == 1 ) {
             drawMessage( "waitingBirth", pos );
 			HetuwMod::drawWaitingText(pos);
             }
@@ -26447,7 +26447,8 @@ void LivingLifePage::keyDown( unsigned char inASCII ) {
                             // YumLife mod
                             else if( commandTyped( typedText, 
                                                    "/FORCEDIE" ) ) {
-                                sendToServerSocket( (char*)"LOGIN#" );
+                                HetuwMod::bForceDie = true;
+                                forceDisconnect = true;
                                 }
                             else {
                                 // filter hints

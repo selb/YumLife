@@ -251,6 +251,7 @@ bool HetuwMod::addBabyCoordsToList = false;
 
 bool HetuwMod::bRemapStart = true;
 bool HetuwMod::bDrawHungerWarning = false;
+bool HetuwMod::bForceDie = false;
 
 std::vector<HetuwMod::HttpRequest*> HetuwMod::httpRequests;
 

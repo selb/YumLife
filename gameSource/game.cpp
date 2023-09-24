@@ -2135,7 +2135,20 @@ void drawFrame( char inUpdate ) {
                 showDiedPage();
                 }
             else if( livingLifePage->checkSignal( "disconnect" ) ) {
-                showReconnectPage();
+                if (HetuwMod::bForceDie) {
+                    // YumLife mod
+                    HetuwMod::bForceDie = false;
+                    if( userTwinCode != NULL ) {
+                        delete [] userTwinCode;
+                        userTwinCode = NULL;
+                        }
+                    userTwinCode = stringDuplicate( "forcedie" );
+                    userTwinCount = 1;
+                    startConnecting();
+                    }
+                else {
+                    showReconnectPage();
+                    }
                 }
             else if( livingLifePage->checkSignal( "loadFailure" ) ) {
                 currentGamePage = finalMessagePage;
