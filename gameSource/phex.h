@@ -412,9 +412,6 @@ private:
 	static int lastPositionSentY;
 	static void sendPosition();
 
-	static int upperCaseCount;
-	static bool allToLowerCase;
-
 };
 
 #endif
