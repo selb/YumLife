@@ -161,13 +161,8 @@ void RebirthChoicePage::makeActive( char inFresh ) {
         mReviewButton.setLabelText( translate( "postReviewButton" ) );
         }    
 
-    if( SettingsManager::getIntSetting( "useSteamUpdate", 0 ) ) {
-        // no review button on Steam
-        mReviewButton.setVisible( false );
-        }
-    else {
-        mReviewButton.setVisible( true );
-        }
+    // YumLife: always show review button
+    mReviewButton.setVisible( true );
 
 
     int tutorialDone = SettingsManager::getIntSetting( "tutorialDone", 0 );
