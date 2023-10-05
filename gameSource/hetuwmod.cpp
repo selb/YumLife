@@ -48,7 +48,7 @@ int HetuwMod::tutMessageOffsetX2;
 HetuwMod::RainbowColor *HetuwMod::colorRainbow;
 
 LivingLifePage *HetuwMod::livingLifePage;
-LiveObject *HetuwMod::ourLiveObject;
+LiveObject *HetuwMod::ourLiveObject = NULL;
 
 bool HetuwMod::bDrawHelp;
 
@@ -251,6 +251,8 @@ bool HetuwMod::addBabyCoordsToList = false;
 
 bool HetuwMod::bRemapStart = true;
 bool HetuwMod::bDrawHungerWarning = false;
+
+int HetuwMod::delayReduction = 0;
 
 std::vector<HetuwMod::HttpRequest*> HetuwMod::httpRequests;
 
@@ -943,6 +945,14 @@ bool HetuwMod::setSetting( const char* name, const char* value ) {
 		bDrawHungerWarning = bool(value[0]-'0');
 		return true;
 	}
+	if (strstr(name, "reduce_delay")) {
+		delayReduction = stoi(value);
+		if (delayReduction < 0)
+			delayReduction = 0;
+		if (delayReduction > 50)
+			delayReduction = 50;
+		return true;
+	}
 
 	return false;
 }
@@ -1048,6 +1058,10 @@ void HetuwMod::writeSettings(ofstream &ofs) {
 	ofs << endl;
 	ofs << "remap_start_enabled = " << (char)(bRemapStart+48) << " // enable mushroom effect" << endl;
 	ofs << "draw_hunger_warning = " << (char)(bDrawHungerWarning+48) << endl;
+	ofs << endl;
+	ofs << "// Reduce action delay by the given percentage, 0-50." << endl;
+	ofs << "// Higher values may cause server disconnects." << endl;
+	ofs << "reduce_delay = " << delayReduction << endl;
 }
 
 void HetuwMod::initSettings() {

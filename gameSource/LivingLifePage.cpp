@@ -22387,6 +22387,16 @@ void LivingLifePage::step() {
             }
         
         
+        double delay = 0.166;
+        // Don't apply delay reduction for baby pickup. These are other
+        // players, not in-game objects, so they are more likely to be annoyed
+        // by being juggled extra fast. It is also possible (but rare) for
+        // excessive baby juggling to cause a client-side desync, and delay
+        // reduction might increase the odds of accidentally triggering this.
+        if (0 != strncmp("BABY ", nextActionMessageToSend, 5)) {
+            delay = delay * (100 - HetuwMod::delayReduction) / 100;
+            }
+
         // wait until 
         // we've stopped moving locally
         // AND animation has played for a bit
@@ -22395,7 +22405,7 @@ void LivingLifePage::step() {
         // AND server agrees with our position
         if( ! ourLiveObject->inMotion && 
             currentTime - ourLiveObject->pendingActionAnimationStartTime > 
-            0.166 - ourLiveObject->lastResponseTimeDelta &&
+            delay - ourLiveObject->lastResponseTimeDelta &&
             ourLiveObject->xd == ourLiveObject->xServer &&
             ourLiveObject->yd == ourLiveObject->yServer ) {
  
