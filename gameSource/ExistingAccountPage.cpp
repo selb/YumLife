@@ -309,11 +309,10 @@ void ExistingAccountPage::makeActive( char inFresh ) {
         mReviewButton.setLabelText( translate( "postReviewButton" ) );
         }
 
+    // YumLife: always show review button
+    mReviewButton.setVisible( true );
 
     if( SettingsManager::getIntSetting( "useSteamUpdate", 0 ) ) {
-        // no review button on Steam
-        mReviewButton.setVisible( false );
-        
         if( ! loginEditOverride ) {
             mEmailField.setVisible( false );
             mKeyField.setVisible( false );
@@ -343,7 +342,6 @@ void ExistingAccountPage::makeActive( char inFresh ) {
         }
     else {
         mHideAccount = false;
-        mReviewButton.setVisible( true );
         mViewAccountButton.setVisible( false );
         }
     }

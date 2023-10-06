@@ -14844,7 +14844,14 @@ void LivingLifePage::step() {
                     
                     if( d > 32 ) {
                         addAncientHomeLocation( posX, posY );
-						HetuwMod::addHomeLocation( posX, posY, (monumentID == HetuwMod::OBJID_EndTowerSound) ? HetuwMod::hpt_apoc : HetuwMod::hpt_bell );
+                        // YumLife mod
+                        HetuwMod::homePosType hpt = HetuwMod::hpt_bell;
+                        if ( monumentID == HetuwMod::OBJID_EndTower2 ||
+                             monumentID == HetuwMod::OBJID_EndTower3 ||
+                             monumentID == HetuwMod::OBJID_EndTower4 ) {
+                                hpt = HetuwMod::hpt_apoc;
+                            }
+                        HetuwMod::addHomeLocation( posX, posY, hpt );
                         isAncientHomePosHell = false;
                         
                         // play sound in distance
@@ -19884,6 +19891,7 @@ void LivingLifePage::step() {
                                 
                                 existing->currentSpeech = 
                                     stringDuplicate( &( firstSpace[1] ) );
+                                HetuwMod::decodeDigits( existing->currentSpeech );  // YumLife mod
                                 
 
                                 double curTime = game_getCurrentTime();

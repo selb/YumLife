@@ -102,9 +102,6 @@ int Phex::lastPositionSentY = -9999;
 
 constexpr char Phex::hexDigits[];
 
-int Phex::upperCaseCount = 0;
-bool Phex::allToLowerCase = false;
-
 extern doublePair lastScreenViewCenter;
 extern char *userEmail;
 extern int versionNumber;
@@ -905,18 +902,6 @@ void Phex::sendInputStr() {
 }
 
 bool Phex::addToInputStr(unsigned char c) {
-	if (!allToLowerCase) { // force lowercase after a user typed too many chars in upper
-		if (isupper(c)) {
-			upperCaseCount++;
-			if (upperCaseCount > 3) {
-				allToLowerCase = true;
-				c = tolower(c);
-			}
-		} else upperCaseCount = 0;
-	} else {
-		c = tolower(c);
-	}
-
 	if (c == 13) { // enter
 		if (tcp.status != TCPConnection::ONLINE) return true;
 		sendInputStr();
@@ -1190,9 +1175,8 @@ bool Phex::onMouseDown(float x, float y) {
 	if (!HetuwMod::phexIsEnabled) return false;
 	HetuwMod::pointFromMapToPercentCoords(x, y);
 	if (!HetuwMod::pointIsInsideRec(recBckgr, x, y)) {
-		onUpdateFocus(false);
-		return false;
-	}
+        return false;
+    }
 	for(unsigned k=0; k<buttons.size(); k++) {
 		if (buttons[k]->onMouseDown(x, y)) return true;
 	}
