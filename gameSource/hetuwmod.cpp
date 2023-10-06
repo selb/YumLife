@@ -1730,9 +1730,58 @@ void HetuwMod::SayStep() {
 void HetuwMod::Say(const char *text) {
 	if (bTeachLanguage) bTeachLanguage = false;
 
-	char *msg = new char[strlen(text)+1];
-	strcpy(msg, text);
+	char *msg = new char[strlen(text)*2+1];
+	encodeDigits(text, msg);
 	sayBuffer.push_back(msg);
+}
+
+// Encode digits using 0 = ?A, 1 = ?B, 2 = ?C, etc. due to server restrictions
+void HetuwMod::encodeDigits(const char *plain, char *encoded) {
+	bool questionMark = false;
+	int j = 0;
+	size_t len = strlen(plain);
+	for (size_t i=0; i<len; i++) {
+		if (isdigit(plain[i])) {
+			if (!questionMark) {
+				questionMark = true;
+				encoded[j++] = '?';
+			}
+			encoded[j++] = 'A' + plain[i] - '0';
+		} else {
+			questionMark = false;
+			encoded[j++] = plain[i];
+		}
+	}
+	encoded[j] = '\0';
+}
+
+void HetuwMod::decodeDigits(const char *encoded, char *plain) {
+	bool questionMark = false;
+	bool overwritten = false;
+	int j = 0;
+	size_t len = strlen(encoded);
+	for (size_t i=0; i<len; i++) {
+		char c = encoded[i];
+		if (questionMark) {
+			int n = c - 'A';
+			if (n >= 0 && n < 10) {
+				if (!overwritten) {
+					overwritten = true;
+					j--;
+				}
+				plain[j++] = n + '0';
+				continue;
+			} else {
+				questionMark = false;
+				overwritten = false;
+			}
+		}
+		plain[j++] = c;
+		if (c == '?') {
+			questionMark = true;
+		}
+	}
+	plain[j] = '\0';
 }
 
 void HetuwMod::teachLanguage() {
