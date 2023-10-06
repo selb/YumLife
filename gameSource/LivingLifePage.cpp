@@ -513,6 +513,8 @@ static int getLocationKeyPriority( const char *inPersonKey ) {
         strcmp( inPersonKey, "expt" ) == 0 ||
         // explicitly touched a locked gate
         strcmp( inPersonKey, "owner" ) == 0 ||
+        // manually requested mother location
+        strcmp( inPersonKey, "mother" ) == 0 ||
         // manually-requested leader arrow
         ( leaderCommandTyped && strcmp( inPersonKey, "lead" ) == 0 ) ) {
         
@@ -5062,10 +5064,12 @@ ObjectAnimPack LivingLifePage::drawLiveObject(
         ( inObj->lastHoldingID > 0 && 
           getObject( inObj->lastHoldingID )->rideable ) ) {
     
-        if( curType == ground2 || curType == moving ) {
+        if( curType == ground2 || curType == moving ||
+            curType == extra || curType == extraB ) {
             frozenArmType = moving;
             }
-        if( fadeTargetType == ground2 || fadeTargetType == moving ) {
+        if( fadeTargetType == ground2 || fadeTargetType == moving ||
+            fadeTargetType == extra || fadeTargetType == extraB ) {
             frozenArmFadeTargetType = moving;
             }
         }
@@ -13610,7 +13614,7 @@ void LivingLifePage::step() {
     
     
 
-    if( ourObject != NULL ) {
+    if( ourObject != NULL && areLiveTriggersEnabled() ) {
         char newTrigger = false;
         
         AnimType anim = stepLiveTriggers( &newTrigger );
@@ -16968,6 +16972,8 @@ void LivingLifePage::step() {
                 o.currentEmot = NULL;
                 o.emotClearETATime = 0;
                 
+                o.extraAnimType = extraB;
+
                 o.killMode = false;
                 o.killWithID = -1;
                 o.chasingUs = false;
@@ -20089,6 +20095,24 @@ void LivingLifePage::step() {
                                                 personKey = "visitor";
                                                 }
                                             }
+
+
+                                        if( ! person ) {
+                                            char *motherPos = 
+                                                strstr( 
+                                                    existing->currentSpeech, 
+                                                    " *mother" );
+                                            
+                                            if( motherPos != NULL ) {
+                                                person = true;
+                                                sscanf( motherPos, 
+                                                        " *mother %d", 
+                                                        &personID );
+
+                                                motherPos[0] = '\0';
+                                                personKey = "mother2";
+                                                }
+                                            }
                                         
 
                                         if( ! person ) {
@@ -20390,6 +20414,49 @@ void LivingLifePage::step() {
                                 if( oldEmot != existing->currentEmot &&
                                     existing->currentEmot != NULL ) {
                                     newEmotPlaySound = existing->currentEmot;
+                                    
+                                    }
+                                
+                                if( existing->currentEmot != NULL ) {
+                                    if( existing->currentEmot->extraAnimIndex
+                                        > -1 
+                                        &&
+                                        computeCurrentAge( existing ) >= 1 ) {
+                                        
+                                        // don't allow extra animations
+                                        // for emotes for people who
+                                        // are less that 1 year old
+                                        // since they can revert back
+                                        // to crying at any time
+                                        // and we don't want to interfere
+                                        // with their crying animaton
+
+
+                                        // toggle back and forth
+                                        // between extra slots so that
+                                        // extra animations can transition
+                                        // smoothly
+                                        if( existing->extraAnimType ==
+                                            extraB ) {
+                                            
+                                            setExtraIndex( 
+                                                existing->
+                                                currentEmot->extraAnimIndex );
+                                        
+                                            addNewAnimPlayerOnly( existing, 
+                                                                  extra );
+                                            existing->extraAnimType = extra;
+                                            }
+                                        else {
+                                            setExtraIndexB( 
+                                                existing->
+                                                currentEmot->extraAnimIndex );
+                                        
+                                            addNewAnimPlayerOnly( existing, 
+                                                                  extraB );
+                                            existing->extraAnimType = extraB;
+                                            }
+                                        }
                                     }
                                 }
                             
@@ -26342,6 +26409,11 @@ void LivingLifePage::keyDown( unsigned char inASCII ) {
                                     showPlayerLabel( leadO, leaderLabel, eta );
                                     }
                                 sendToServerSocket( (char*)"LEAD 0 0#" );
+                                }
+                            else if( commandTyped( typedText, 
+                                                   "motherCommand" ) ) {
+
+                                sendToServerSocket( (char*)"MOTH 0 0#" );
                                 }
                             else if( commandTyped( typedText, 
                                                    "followerCommand" ) ) {
