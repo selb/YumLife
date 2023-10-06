@@ -1769,7 +1769,7 @@ void HetuwMod::encodeDigits(const char *plain, char *encoded) {
 	encoded[j] = '\0';
 }
 
-void HetuwMod::decodeDigits(const char *msg) {
+void HetuwMod::decodeDigits(char *msg) {
 	bool questionMark = false;
 	bool overwritten = false;
 	int j = 0;

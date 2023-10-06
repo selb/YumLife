@@ -605,7 +605,7 @@ public:
 
 	static void Say(const char *text);
 	static void encodeDigits(const char *plain, char *encoded);
-	static void decodeDigits(const char *msg);
+	static void decodeDigits(char *msg);
 	static void causeDisconnect();
 
 	static float colorRainbowFast[3];
