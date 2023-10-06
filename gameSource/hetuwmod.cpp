@@ -1741,7 +1741,7 @@ void HetuwMod::encodeDigits(const char *plain, char *encoded) {
 	int j = 0;
 	size_t len = strlen(plain);
 	for (size_t i=0; i<len; i++) {
-		if (isdigit(plain[i])) {
+		if ('0' <= plain[i] && plain[i] <= '9') {
 			if (!questionMark) {
 				questionMark = true;
 				encoded[j++] = '?';
@@ -1755,13 +1755,13 @@ void HetuwMod::encodeDigits(const char *plain, char *encoded) {
 	encoded[j] = '\0';
 }
 
-void HetuwMod::decodeDigits(const char *encoded, char *plain) {
+void HetuwMod::decodeDigits(const char *msg) {
 	bool questionMark = false;
 	bool overwritten = false;
 	int j = 0;
-	size_t len = strlen(encoded);
+	size_t len = strlen(msg);
 	for (size_t i=0; i<len; i++) {
-		char c = encoded[i];
+		char c = msg[i];
 		if (questionMark) {
 			int n = c - 'A';
 			if (n >= 0 && n < 10) {
@@ -1769,19 +1769,19 @@ void HetuwMod::decodeDigits(const char *encoded, char *plain) {
 					overwritten = true;
 					j--;
 				}
-				plain[j++] = n + '0';
+				msg[j++] = n + '0';
 				continue;
 			} else {
 				questionMark = false;
 				overwritten = false;
 			}
 		}
-		plain[j++] = c;
+		msg[j++] = c;
 		if (c == '?') {
 			questionMark = true;
 		}
 	}
-	plain[j] = '\0';
+	msg[j] = '\0';
 }
 
 void HetuwMod::teachLanguage() {
