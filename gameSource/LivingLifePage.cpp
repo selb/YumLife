@@ -174,6 +174,7 @@ bool LivingLifePage::hetuwIsVogMode() { return vogMode; }
 doublePair LivingLifePage::hetuwGetVogPos() { return vogPos; }
     
 int LivingLifePage::hetuwGetYumBonus() { return mYumBonus; }
+bool LivingLifePage::hetuwIsAutoClick() { return isAutoClick; }
 
 extern float musicLoudness;
 
