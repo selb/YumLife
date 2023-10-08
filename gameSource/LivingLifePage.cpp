@@ -22284,9 +22284,11 @@ void LivingLifePage::step() {
                                 // avoid clicks on self and objects
                                 // when walking on road
                                 mForceGroundClick = true;
+                                isAutoClick = true; // YumLife: make this an auto click to stop interfering with Phex while on road
                                 pointerDown( nextStep.x * CELL_D, 
                                              nextStep.y * CELL_D );
-                                
+                                isAutoClick = false;
+
                                 pointerUp( nextStep.x * CELL_D, 
                                            nextStep.y * CELL_D );
                                 
