@@ -4995,7 +4995,7 @@ void HetuwMod::drawHelp() {
 	SimpleVector<Emotion> emotions = hetuwGetEmotions();
 	int j = 0;
 	for (int i = 0; i < emotions.size(); i++) {
-		char *emote = emotions.getElement(i)->triggerWord
+		char *emote = emotions.getElement(i)->triggerWord;
 		if (strstr(emote, "/")) {
 			if (j < 10) {
 				sprintf(str, " %i: %s", j++, emote);
