@@ -174,7 +174,6 @@ bool LivingLifePage::hetuwIsVogMode() { return vogMode; }
 doublePair LivingLifePage::hetuwGetVogPos() { return vogPos; }
     
 int LivingLifePage::hetuwGetYumBonus() { return mYumBonus; }
-bool LivingLifePage::hetuwIsAutoClick() { return isAutoClick; }
 
 extern float musicLoudness;
 
@@ -2098,6 +2097,8 @@ static int maxChunkDimension = 32;
 
 
 static char isAutoClick = false;
+
+bool LivingLifePage::hetuwIsAutoClick() { return isAutoClick; }
 
 
 static void findClosestPathSpot( LiveObject *inObject ) {
