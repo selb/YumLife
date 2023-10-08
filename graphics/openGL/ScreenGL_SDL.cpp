@@ -1914,18 +1914,6 @@ void ScreenGL::start() {
                             }
 
                         if( asciiKey != 0 ) {
-                            // shift and caps cancel each other
-                            if( ( ( event.key.keysym.mod & KMOD_SHIFT )
-                                  &&
-                                  !( event.key.keysym.mod & KMOD_CAPS ) )
-                                ||
-                                ( !( event.key.keysym.mod & KMOD_SHIFT )
-                                  &&
-                                  ( event.key.keysym.mod & KMOD_CAPS ) ) ) {
-                                
-                                asciiKey = toupper( asciiKey );
-                                }
-                        
                             if( event.type == SDL_KEYDOWN ) {
                                 callbackKeyboard( asciiKey, mouseX, mouseY );
                                 }
