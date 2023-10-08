@@ -584,6 +584,7 @@ class LivingLifePage : public GamePage, public ActionListener {
 		
         virtual void actionPerformed( GUIComponent *inTarget );
         
+        static char isAutoClick;
 
     protected:
 
