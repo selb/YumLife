@@ -3805,6 +3805,36 @@ bool HetuwMod::livingLifeSpecialKeyDown(unsigned char inKeyCode) {
 	        livingLifePage->sendToServerSocket( message );
 			r = true;
 		}
+		if ( inKeyCode == MG_KEY_F5 ) {
+			currentEmote = -1;
+			char message[] = "EMOT 0 0 34#"; // POINT
+	        livingLifePage->sendToServerSocket( message );
+			r = true;
+		}
+		if ( inKeyCode == MG_KEY_F6 ) {
+			currentEmote = -1;
+			char message[] = "EMOT 0 0 35#"; // WAIT
+	        livingLifePage->sendToServerSocket( message );
+			r = true;
+		}
+		if ( inKeyCode == MG_KEY_F7 ) {
+			currentEmote = -1;
+			char message[] = "EMOT 0 0 36#"; // WAVE
+	        livingLifePage->sendToServerSocket( message );
+			r = true;
+		}
+		if ( inKeyCode == MG_KEY_F8 ) {
+			currentEmote = -1;
+			char message[] = "EMOT 0 0 37#"; // HERE
+	        livingLifePage->sendToServerSocket( message );
+			r = true;
+		}
+		if ( inKeyCode == MG_KEY_F9 ) {
+			currentEmote = -1;
+			char message[] = "EMOT 0 0 38#"; // UPYOURS
+	        livingLifePage->sendToServerSocket( message );
+			r = true;
+		}
 	}
 
 	return r;
@@ -4963,18 +4993,18 @@ void HetuwMod::drawHelp() {
 	drawPos.x -= viewWidth/2 - 20*guiScale;
 	drawPos.y += viewHeight/2 - 80*guiScale;
 	SimpleVector<Emotion> emotions = hetuwGetEmotions();
-    for( int i=0; i<emotions.size()-1; i++ ) {
-		if (i == 7 || i == 8) continue;
-		int id = i;
-		if (i > 6) id -= 2;
-
-		if (strstr(emotions.getElement(i)->triggerWord, "/") == NULL) continue;
-
-		if (id < 10) sprintf(str, " %i: %s", id, emotions.getElement(i)->triggerWord);
-		else sprintf(str, "F%i: %s", id-9, emotions.getElement(i)->triggerWord);
-
-		livingLifePage->hetuwDrawScaledHandwritingFont( str, drawPos, guiScale );
-		drawPos.y -= lineHeight;
+	int j = 0;
+	for (int i = 0; i < emotions.size(); i++) {
+		char *emote = emotions.getElement(i)->triggerWord;
+		if (strstr(emote, "/")) {
+			if (j < 10) {
+				sprintf(str, " %i: %s", j++, emote);
+			} else {
+				sprintf(str, "F%i: %s", j++ - 9, emote);
+			}
+			livingLifePage->hetuwDrawScaledHandwritingFont( str, drawPos, guiScale );
+			drawPos.y -= lineHeight;
+		}
 	}
 	drawPos.y -= lineHeight;
 	livingLifePage->hetuwDrawScaledHandwritingFont( "PRESS NUMBER KEY FOR SHORT EMOTE", drawPos, guiScale );
@@ -4982,10 +5012,6 @@ void HetuwMod::drawHelp() {
 	livingLifePage->hetuwDrawScaledHandwritingFont( "WRITE EMOTE FOR PERMANENT EMOTE", drawPos, guiScale );
 	drawPos.y -= lineHeight;
 
-	drawPos.y -= lineHeight;
-	drawPos.y -= lineHeight;
-	drawPos.y -= lineHeight;
-	drawPos.y -= lineHeight;
 	drawPos.y -= lineHeight;
 	sprintf(str, "YOU CAN CHANGE KEYS AND SETTINGS BY MODIFYING THE HETUW.CFG FILE");
 	livingLifePage->hetuwDrawScaledHandwritingFont( str, drawPos, guiScale );
