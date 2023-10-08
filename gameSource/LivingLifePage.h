@@ -580,6 +580,7 @@ class LivingLifePage : public GamePage, public ActionListener {
 		bool hetuwIsVogMode();
 		doublePair hetuwGetVogPos();
         int hetuwGetYumBonus();
+        bool hetuwIsAutoClick();
 		char getTransHintable( TransRecord *inTrans ); // hetuw mod - changed from static and made visible to public
 		
         virtual void actionPerformed( GUIComponent *inTarget );
