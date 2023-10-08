@@ -1173,7 +1173,7 @@ void Phex::onMouseEvent(float x, float y) {
 
 bool Phex::onMouseDown(float x, float y) {
 	if (!HetuwMod::phexIsEnabled) return false;
-	if (LivingLifePage::hetuwIsAutoClick()) return false;
+	if (HetuwMod::livingLifePage->hetuwIsAutoClick()) return false;
 	HetuwMod::pointFromMapToPercentCoords(x, y);
 	if (!HetuwMod::pointIsInsideRec(recBckgr, x, y)) {
 		onUpdateFocus(false);
