@@ -5013,7 +5013,6 @@ void HetuwMod::drawHelp() {
 	drawPos.y -= lineHeight;
 
 	drawPos.y -= lineHeight;
-	drawPos.y -= lineHeight;
 	sprintf(str, "YOU CAN CHANGE KEYS AND SETTINGS BY MODIFYING THE HETUW.CFG FILE");
 	livingLifePage->hetuwDrawScaledHandwritingFont( str, drawPos, guiScale );
 	drawPos.y -= lineHeight;
