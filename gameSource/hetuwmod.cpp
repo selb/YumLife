@@ -17,6 +17,7 @@
 #include "photos.h"
 #include "phex.h"
 #include "hetuwFont.h"
+#include "yumBlob.h"
 
 using namespace std;
 
@@ -290,6 +291,8 @@ float HetuwMod::raceColor_black[] = {0.250980, 0.168627, 0.164706};
 extern doublePair lastScreenViewCenter;
 
 void HetuwMod::init() {
+	blobs::font_32_64_yum.write("graphics/font_32_64_yum.tga");
+
 	mouseRelativeToView = {0, 0};
 
 	viewWidthToHeightFactor = defaultViewWidth/(double)defaultViewHeight;

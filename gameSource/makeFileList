@@ -18,6 +18,7 @@ hetuwmod.cpp \
 hetuwFont.cpp \
 hetuwTCPConnection.cpp \
 phex.cpp \
+yumBlob.cpp \
 game.cpp \
 spriteBank.cpp \
 objectBank.cpp \

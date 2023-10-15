@@ -197,7 +197,7 @@ void Phex::initFont() {
 	int fontCharSpacing = 3; // vanilla main font is 6
 	int fontSpaceWidth = 8; // vanilla main font is 16
 	char fontFixedWidth = false;
-	mainFont = new HetuwFont("font_32_64.tga", fontCharSpacing, fontSpaceWidth, fontFixedWidth, mainFontScaleFactor);
+	mainFont = new HetuwFont(getFontTGAFileName(), fontCharSpacing, fontSpaceWidth, fontFixedWidth, mainFontScaleFactor);
 	mainFont->setMinimumPositionPrecision( 1 );
 	mainFont->hetuwMaxXActive = true;
 	setMainFontScale();
