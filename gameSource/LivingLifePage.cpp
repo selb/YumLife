@@ -26450,7 +26450,7 @@ void LivingLifePage::keyDown( unsigned char inASCII ) {
                                 HetuwMod::bForceDie = true;
                                 mServerSocket = -1;
                                 mDeathReason = stringDuplicate( translate( "reasonDisconnected" ) );
-                                handleOurDeath( true );
+                                setSignal( "disconnect" );
                                 }
                             else {
                                 // filter hints
