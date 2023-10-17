@@ -26448,7 +26448,8 @@ void LivingLifePage::keyDown( unsigned char inASCII ) {
                             else if( commandTyped( typedText, 
                                                    "/FORCEDIE" ) ) {
                                 HetuwMod::bForceDie = true;
-                                forceDisconnect = true;
+                                mDeathReason = stringDuplicate( translate( "reasonDisconnected" ) );
+                                handleOurDeath( true );
                                 }
                             else {
                                 // filter hints

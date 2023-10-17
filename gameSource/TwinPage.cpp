@@ -209,7 +209,7 @@ void TwinPage::actionPerformed( GUIComponent *inTarget ) {
 
         SettingsManager::setSetting( "twinCode", userTwinCode );
 
-        userTwinCount = mPlayerCountRadioButtonSet->getSelectedItem() + 1;
+        userTwinCount = mPlayerCountRadioButtonSet->getSelectedItem() + 2;
 
         setSignal( "done" );
         }
