@@ -13057,7 +13057,7 @@ void LivingLifePage::step() {
         }
     
 
-    if ( mServerSocketOld != -1 && pageLifeTime > 3 ) {
+    if ( mServerSocketOld != -1 && pageLifeTime > 10 ) {
         // YumLife: close old socket after using /forcedie and reconnecting
         closeSocket( mServerSocketOld );
         mServerSocketOld = -1;
