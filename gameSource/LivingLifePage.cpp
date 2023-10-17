@@ -13056,11 +13056,6 @@ void LivingLifePage::step() {
         return;
         }
     
-    if ( mServerSocketOld != -1 ) {
-        closeSocket( mServerSocketOld );
-        mServerSocketOld = -1;
-    }
-    
 
     
     
@@ -13073,6 +13068,10 @@ void LivingLifePage::step() {
     if( serverSocketConnected ) {
         // we've heard from server, not waiting to connect anymore
         setWaiting( false );
+        if ( mServerSocketOld != -1 ) {
+            closeSocket( mServerSocketOld );
+            mServerSocketOld = -1;
+            }
         }
     else {
         
