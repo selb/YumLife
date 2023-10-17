@@ -26448,7 +26448,7 @@ void LivingLifePage::keyDown( unsigned char inASCII ) {
                             else if( commandTyped( typedText, 
                                                    "/FORCEDIE" ) ) {
                                 HetuwMod::bForceDie = true;
-                                mServerSocket = -1
+                                mServerSocket = -1;
                                 mDeathReason = stringDuplicate( translate( "reasonDisconnected" ) );
                                 handleOurDeath( true );
                                 }
