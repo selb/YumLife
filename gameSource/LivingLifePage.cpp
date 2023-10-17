@@ -2769,6 +2769,7 @@ void LivingLifePage::clearMap() {
 
 LivingLifePage::LivingLifePage() 
         : mServerSocket( -1 ), 
+          mServerSocketOld( -1 ),
           mForceRunTutorial( 0 ),
           mTutorialNumber( 0 ),
           mGlobalMessageShowing( false ),
@@ -13054,6 +13055,11 @@ void LivingLifePage::step() {
         
         return;
         }
+    
+    if ( mServerSocketOld != -1 ) {
+        closeSocket( mServerSocketOld );
+        mServerSocketOld = -1;
+    }
     
 
     
@@ -26448,9 +26454,9 @@ void LivingLifePage::keyDown( unsigned char inASCII ) {
                             else if( commandTyped( typedText, 
                                                    "/FORCEDIE" ) ) {
                                 HetuwMod::bForceDie = true;
+                                mServerSocketOld = mServerSocket;
                                 mServerSocket = -1;
-                                mDeathReason = stringDuplicate( translate( "reasonDisconnected" ) );
-                                setSignal( "disconnect" );
+                                handleOurDeath( true );
                                 }
                             else {
                                 // filter hints
