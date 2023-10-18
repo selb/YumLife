@@ -26455,25 +26455,27 @@ void LivingLifePage::keyDown( unsigned char inASCII ) {
                                                    "orderCommand" ) ) {
                                 sendToServerSocket( (char*)"ORDR 0 0#" );
                                 }
-                            else if( commandTyped( typedText, 
-                                                   "/REBORN" ) ) {
+                            else if( commandTyped( typedText, "/REBORN" ) ||
+                                     commandTyped( typedText, "/TUTORIAL" ) ) {
                                 // YumLife mod
-                                if ( mServerSocketOld != -1 ) {
-                                    closeSocket( mServerSocketOld );
+                                if ( computeCurrentAge( ourLiveObject ) < 2 ) {
+                                    char *message = autoSprintf( "DIE 0 0#" );
+                                    sendToServerSocket( message );
+                                    delete [] message;
                                     }
-                                mServerSocketOld = mServerSocket;
-                                mServerSocket = -1;
-                                setSignal( "reborn" );
-                                }
-                            else if( commandTyped( typedText, 
-                                                   "/TUTORIAL" ) ) {
-                                // YumLife mod
-                                if ( mServerSocketOld != -1 ) {
-                                    closeSocket( mServerSocketOld );
+                                else {
+                                    if ( mServerSocketOld != -1 ) {
+                                        closeSocket( mServerSocketOld );
+                                        }
+                                    mServerSocketOld = mServerSocket;
+                                    mServerSocket = -1;
+                                    if( commandTyped( typedText, "/REBORN" ) ) {
+                                        setSignal( "reborn" );
+                                        }
+                                    else {
+                                        setSignal( "tutorial" );
+                                        }
                                     }
-                                mServerSocketOld = mServerSocket;
-                                mServerSocket = -1;
-                                setSignal( "tutorial" );
                                 }
                             else {
                                 // filter hints
