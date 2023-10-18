@@ -3321,6 +3321,11 @@ LivingLifePage::~LivingLifePage() {
         mServerSocket = -1;
         }
     
+    if ( mServerSocketOld != -1 ) {
+        closeSocket( mServerSocketOld );
+        mServerSocketOld = -1;
+        }
+    
     for( int j=0; j<2; j++ ) {
         mPreviousHomeDistStrings[j].deallocateStringElements();
         mPreviousHomeDistFades[j].deleteAll();
@@ -13058,7 +13063,7 @@ void LivingLifePage::step() {
     
 
     if ( mServerSocketOld != -1 && pageLifeTime > 10 ) {
-        // YumLife: close old socket after using /forcedie and reconnecting
+        // YumLife: close old socket after reconnecting due to /reborn or /tutorial
         closeSocket( mServerSocketOld );
         mServerSocketOld = -1;
         }
@@ -26450,13 +26455,25 @@ void LivingLifePage::keyDown( unsigned char inASCII ) {
                                                    "orderCommand" ) ) {
                                 sendToServerSocket( (char*)"ORDR 0 0#" );
                                 }
-                            // YumLife mod
                             else if( commandTyped( typedText, 
-                                                   "/FORCEDIE" ) ) {
-                                HetuwMod::bForceDie = true;
+                                                   "/REBORN" ) ) {
+                                // YumLife mod
+                                if ( mServerSocketOld != -1 ) {
+                                    closeSocket( mServerSocketOld );
+                                    }
                                 mServerSocketOld = mServerSocket;
                                 mServerSocket = -1;
-                                handleOurDeath( true );
+                                setSignal( "reborn" );
+                                }
+                            else if( commandTyped( typedText, 
+                                                   "/TUTORIAL" ) ) {
+                                // YumLife mod
+                                if ( mServerSocketOld != -1 ) {
+                                    closeSocket( mServerSocketOld );
+                                    }
+                                mServerSocketOld = mServerSocket;
+                                mServerSocket = -1;
+                                setSignal( "tutorial" );
                                 }
                             else {
                                 // filter hints

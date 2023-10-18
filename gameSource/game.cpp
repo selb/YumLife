@@ -2135,20 +2135,28 @@ void drawFrame( char inUpdate ) {
                 showDiedPage();
                 }
             else if( livingLifePage->checkSignal( "disconnect" ) ) {
-                if (HetuwMod::bForceDie) {
-                    // YumLife mod
-                    HetuwMod::bForceDie = false;
-                    if( userTwinCode != NULL ) {
-                        delete [] userTwinCode;
-                        userTwinCode = NULL;
-                        }
-                    userTwinCode = stringDuplicate( "forcedie" );
-                    userTwinCount = 1;
-                    startConnecting();
+                showReconnectPage();
+                }
+            else if( livingLifePage->checkSignal( "reborn" ) ) {
+                // YumLife mod
+                if( userTwinCode != NULL ) {
+                    delete [] userTwinCode;
+                    userTwinCode = NULL;
                     }
-                else {
-                    showReconnectPage();
+                userTwinCode = stringDuplicate( "yumlife_reborn" );
+                userTwinCount = 1;
+                startConnecting();
+                }
+            else if( livingLifePage->checkSignal( "tutorial" ) ) {
+                // YumLife mod
+                if( userTwinCode != NULL ) {
+                    delete [] userTwinCode;
+                    userTwinCode = NULL;
                     }
+                userTwinCode = stringDuplicate( "yumlife_tutorial" );
+                userTwinCount = 1;
+                livingLifePage->runTutorial( 1 );
+                startConnecting();
                 }
             else if( livingLifePage->checkSignal( "loadFailure" ) ) {
                 currentGamePage = finalMessagePage;
