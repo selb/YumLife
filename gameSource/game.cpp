@@ -2137,6 +2137,27 @@ void drawFrame( char inUpdate ) {
             else if( livingLifePage->checkSignal( "disconnect" ) ) {
                 showReconnectPage();
                 }
+            else if( livingLifePage->checkSignal( "reborn" ) ) {
+                // YumLife mod
+                if( userTwinCode != NULL ) {
+                    delete [] userTwinCode;
+                    userTwinCode = NULL;
+                    }
+                userTwinCode = stringDuplicate( "yumlife_reborn" );
+                userTwinCount = 1;
+                startConnecting();
+                }
+            else if( livingLifePage->checkSignal( "tutorial" ) ) {
+                // YumLife mod
+                if( userTwinCode != NULL ) {
+                    delete [] userTwinCode;
+                    userTwinCode = NULL;
+                    }
+                userTwinCode = stringDuplicate( "yumlife_tutorial" );
+                userTwinCount = 1;
+                livingLifePage->runTutorial( 1 );
+                startConnecting();
+                }
             else if( livingLifePage->checkSignal( "loadFailure" ) ) {
                 currentGamePage = finalMessagePage;
                         

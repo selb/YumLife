@@ -589,6 +589,7 @@ class LivingLifePage : public GamePage, public ActionListener {
     protected:
 
         int mServerSocket;
+        int mServerSocketOld;
         
         int mRequiredVersion;
 

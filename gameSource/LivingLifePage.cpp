@@ -2773,6 +2773,7 @@ void LivingLifePage::clearMap() {
 
 LivingLifePage::LivingLifePage() 
         : mServerSocket( -1 ), 
+          mServerSocketOld( -1 ),
           mForceRunTutorial( 0 ),
           mTutorialNumber( 0 ),
           mGlobalMessageShowing( false ),
@@ -3322,6 +3323,11 @@ LivingLifePage::~LivingLifePage() {
     if( mServerSocket != -1 ) {
         closeSocket( mServerSocket );
         mServerSocket = -1;
+        }
+    
+    if ( mServerSocketOld != -1 ) {
+        closeSocket( mServerSocketOld );
+        mServerSocketOld = -1;
         }
     
     for( int j=0; j<2; j++ ) {
@@ -6634,7 +6640,7 @@ void LivingLifePage::draw( doublePair inViewCenter,
             drawMessage( "waitingArrival", pos );
 			HetuwMod::drawWaitingText(pos);
             }
-        else if( userTwinCode == NULL ) {
+        else if( userTwinCode == NULL || userTwinCount == 1 ) {
             drawMessage( "waitingBirth", pos );
 			HetuwMod::drawWaitingText(pos);
             }
@@ -13062,6 +13068,11 @@ void LivingLifePage::step() {
         }
     
 
+    if ( mServerSocketOld != -1 && pageLifeTime > 10 ) {
+        // YumLife: close old socket after reconnecting due to /reborn or /tutorial
+        closeSocket( mServerSocketOld );
+        mServerSocketOld = -1;
+        }
     
     
     if( pageLifeTime < 1 ) {
@@ -26530,6 +26541,28 @@ void LivingLifePage::keyDown( unsigned char inASCII ) {
                             else if( commandTyped( typedText, 
                                                    "orderCommand" ) ) {
                                 sendToServerSocket( (char*)"ORDR 0 0#" );
+                                }
+                            else if( commandTyped( typedText, "/REBORN" ) ||
+                                     commandTyped( typedText, "/TUTORIAL" ) ) {
+                                // YumLife mod
+                                if ( computeCurrentAge( ourLiveObject ) < 2 ) {
+                                    char *message = autoSprintf( "DIE 0 0#" );
+                                    sendToServerSocket( message );
+                                    delete [] message;
+                                    }
+                                else {
+                                    if ( mServerSocketOld != -1 ) {
+                                        closeSocket( mServerSocketOld );
+                                        }
+                                    mServerSocketOld = mServerSocket;
+                                    mServerSocket = -1;
+                                    if( commandTyped( typedText, "/REBORN" ) ) {
+                                        setSignal( "reborn" );
+                                        }
+                                    else {
+                                        setSignal( "tutorial" );
+                                        }
+                                    }
                                 }
                             else {
                                 // filter hints
