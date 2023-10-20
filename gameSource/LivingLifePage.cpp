@@ -4841,6 +4841,10 @@ ObjectAnimPack LivingLifePage::drawLiveObject(
     SimpleVector<LiveObject *> *inSpeakers,
     SimpleVector<doublePair> *inSpeakersPos ) {    
 
+    setExtraIndex( inObj->extraAnimIndex );
+    setExtraIndexB( inObj->extraAnimIndexB );
+    
+
     ObjectAnimPack returnPack;
     returnPack.inObjectID = -1;
 
@@ -14621,8 +14625,18 @@ void LivingLifePage::step() {
                             flip = true;
                             }
                         if( flip ) {
+                            
+                            AnimType returnToType = ground2;
+                            
+                            if( o->curAnim == extra ) {
+                                returnToType = extra;
+                                }
+                            else if( o->curAnim == extraB ) {
+                                returnToType = extraB;
+                                }
+                            
                             o->lastAnim = moving;
-                            o->curAnim = ground2;
+                            o->curAnim = returnToType;
                             o->lastAnimFade = 1;
 
                             o->lastHeldAnim = moving;
@@ -16986,6 +17000,8 @@ void LivingLifePage::step() {
                 o.emotClearETATime = 0;
                 
                 o.extraAnimType = extraB;
+                o.extraAnimIndex = 0;
+                o.extraAnimIndexB = 0;
 
                 o.killMode = false;
                 o.killWithID = -1;
@@ -20452,22 +20468,22 @@ void LivingLifePage::step() {
                                         if( existing->extraAnimType ==
                                             extraB ) {
                                             
-                                            setExtraIndex( 
-                                                existing->
-                                                currentEmot->extraAnimIndex );
-                                        
                                             addNewAnimPlayerOnly( existing, 
                                                                   extra );
                                             existing->extraAnimType = extra;
+                                            
+                                            existing->extraAnimIndex =
+                                                existing->currentEmot->
+                                                extraAnimIndex;
                                             }
                                         else {
-                                            setExtraIndexB( 
-                                                existing->
-                                                currentEmot->extraAnimIndex );
-                                        
                                             addNewAnimPlayerOnly( existing, 
                                                                   extraB );
                                             existing->extraAnimType = extraB;
+                                            
+                                            existing->extraAnimIndexB =
+                                                existing->currentEmot->
+                                                extraAnimIndex;
                                             }
                                         }
                                     }
@@ -23957,8 +23973,18 @@ void LivingLifePage::pointerMove( float inX, float inY ) {
             }
 
         if( flip ) {
+            
+            AnimType returnToType = ground2;
+            
+            if( ourLiveObject->curAnim == extra ) {
+                returnToType = extra;
+                }
+            else if( ourLiveObject->curAnim == extraB ) {
+                returnToType = extraB;
+                }
+
             ourLiveObject->lastAnim = moving;
-            ourLiveObject->curAnim = ground2;
+            ourLiveObject->curAnim = returnToType;
             ourLiveObject->lastAnimFade = 1;
             
             ourLiveObject->lastHeldAnim = moving;
@@ -26598,7 +26624,7 @@ void LivingLifePage::keyDown( unsigned char inASCII ) {
                         // actual, spoken text, not a /command
                         
                         if( strstr( typedText,
-                                    translate( "orderCommand" ) ) 
+                                    translate( "orderPrefix" ) ) 
                             == typedText ) {
                             
                             // when issuing an order, place +FOLLOWER+

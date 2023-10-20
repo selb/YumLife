@@ -1878,8 +1878,6 @@ char isPlayerIgnoredForEvePlacement( int inID ) {
 
 
 static double pickBirthCooldownSeconds() {
-    return 0;
-    
     // Kumaraswamy distribution
     // PDF:
     // k(x,a,b) = a * b * x**( a - 1 ) * (1-x**a)**(b-1)
@@ -8586,6 +8584,50 @@ static char nextLogInTwin = false;
 static int firstTwinID = -1;
 
 
+
+
+
+static char isEmailAliveButDisconnected( char *inEmail ) {
+    
+    for( int i=0; i<players.size(); i++ ) {
+        LiveObject *o = players.getElement( i );
+        
+        if( ! o->error && ! o->connected &&
+            strcmp( o->email, inEmail ) == 0 ) {
+            
+            return true;
+            }
+        }
+
+    return false;
+    }
+
+
+
+
+static char isNewPlayer( LiveObject *inPlayerObject,
+                         int inMinLives = -1, int inMinHours = -1 ) {
+    
+    if( inMinLives == -1 ) {
+        inMinLives = SettingsManager::getIntSetting( "newPlayerLifeCount", 5 );
+        }
+    if( inMinHours == -1 ) {
+        inMinHours = SettingsManager::getIntSetting( 
+            "newPlayerLifeTotalSeconds",
+            7200 ) / 3600;
+        }
+            
+    if( isUsingStatsServer() && 
+        ! inPlayerObject->lifeStats.error &&
+        ( inPlayerObject->lifeStats.lifeCount < inMinLives ||
+          inPlayerObject->lifeStats.lifeTotalSeconds < inMinHours * 3600 ) ) {
+        return true;
+        }
+    return false;
+    }
+
+
+
 // inAllowOrForceReconnect is 0 for forbidden reconnect, 1 to allow, 
 // 2 to require
 // returns ID of new player,
@@ -8886,6 +8928,9 @@ int processLoggedInPlayer( int inAllowOrForceReconnect,
 
     newObject.lastOwnedPositionInformed = -1;
     
+    newObject.curseStatus = inCurseStatus;
+    newObject.lifeStats = inLifeStats;
+
 
     newObject.lastGateVisitorNoticeTime = 0;
     newObject.lastNewBabyNoticeTime = 0;
@@ -8950,6 +8995,16 @@ int processLoggedInPlayer( int inAllowOrForceReconnect,
     
     newObject.fitnessScore = inFitnessScore;
     
+
+    if( isNewPlayer( &newObject, 25 ) ) {
+        // if they have lived less than 25 lives, treat their fitness
+        // score as suspect (too few data points, noisy)
+
+        // don't give them any special roles based on a high fitness score
+        newObject.fitnessScore = 0;
+        }
+    
+        
 
 
 
@@ -9468,12 +9523,12 @@ int processLoggedInPlayer( int inAllowOrForceReconnect,
                    "this player's score is %f, max score in window is %f",
                    recentScoresForPickingEve.size(),
                    recentScoreWindowForPickingEve,
-                   inFitnessScore, maxRecentScore );
+                   newObject.fitnessScore, maxRecentScore );
 
     
     // don't consider forced-spawn offspring as candidates for a needed Eve
     if( forceOffspringLineageID == -1 )
-    if( inFitnessScore >= maxRecentScore )
+    if( newObject.fitnessScore >= maxRecentScore )
     if( parentChoices.size() > 0 ) {
         // make sure one race isn't entirely extinct
         
@@ -9490,7 +9545,7 @@ int processLoggedInPlayer( int inAllowOrForceReconnect,
                         "AND player's score (%f) beats/ties "
                         "max score of last %d players (%f), forcing Eve.",
                         races[i],
-                        inFitnessScore,
+                        newObject.fitnessScore,
                         recentScoreWindowForPickingEve,
                         maxRecentScore );
                 
@@ -9505,7 +9560,7 @@ int processLoggedInPlayer( int inAllowOrForceReconnect,
 
     
     if( forceOffspringLineageID == -1 )
-    if( inFitnessScore >= maxRecentScore )
+    if( newObject.fitnessScore >= maxRecentScore )
     if( parentChoices.size() > 0 ) {
         int generationNumber =
             SettingsManager::getIntSetting( "forceEveAfterGenerationNumber",
@@ -9531,7 +9586,7 @@ int processLoggedInPlayer( int inAllowOrForceReconnect,
                         "AND player's score (%f) beats/ties "
                         "max score of last %d players (%f), forcing Eve.",
                         minGen, generationNumber,
-                        inFitnessScore,
+                        newObject.fitnessScore,
                         recentScoreWindowForPickingEve,
                         maxRecentScore );    
             parentChoices.deleteAll();
@@ -9648,7 +9703,6 @@ int processLoggedInPlayer( int inAllowOrForceReconnect,
                 }
             }
         
-        delete [] races;
         delete [] counts;
         
 
@@ -9670,6 +9724,39 @@ int processLoggedInPlayer( int inAllowOrForceReconnect,
         if( femaleID == -1 ) {       
             // all races present, or couldn't find female character
             // to use in weakest race
+
+            // just pick a race at random
+            // since they have been shuffled above, picking the first
+            // race will be a random one
+            int randomRace = races[0];
+            
+            // then pick a random female of that race
+            femaleID = getRandomPersonObjectOfRace( randomRace );
+            
+            int tryCount = 0;
+            while( getObject( femaleID )->male && tryCount < 10 ) {
+                femaleID = getRandomPersonObjectOfRace( randomRace );
+                tryCount++;
+                }
+            if( getObject( femaleID )->male ) {
+                femaleID = -1;
+                }
+            }
+
+
+        delete [] races;
+        
+        
+        if( femaleID == -1 ) {       
+            // above thing where we picked a random race failed
+            // maybe we got unlucky and picked males 10x in a row
+
+            // default here to just picking a random female of any race
+        
+            // note that this results in an uneven distribution of Eves
+            // amoung races, because some races have more female characters
+            // than others (but this is okay in this rare edge case).
+
             femaleID = getRandomFemalePersonObject();
             }
         
@@ -10313,8 +10400,6 @@ int processLoggedInPlayer( int inAllowOrForceReconnect,
     
     newObject.nameHasSuffix = false;
     newObject.lastSay = NULL;
-    newObject.curseStatus = inCurseStatus;
-    newObject.lifeStats = inLifeStats;
     
 
     if( newObject.curseStatus.curseLevel == 0 &&
@@ -10518,13 +10603,7 @@ int processLoggedInPlayer( int inAllowOrForceReconnect,
                 "PLEASE HELP THEM LEARN THE GAME.  THANKS!  -JASON",
                 parent );
             }
-        else if( isUsingStatsServer() && 
-                 ! newObject.lifeStats.error &&
-                 ( newObject.lifeStats.lifeCount < 
-                   SettingsManager::getIntSetting( "newPlayerLifeCount", 5 ) ||
-                   newObject.lifeStats.lifeTotalSeconds < 
-                   SettingsManager::getIntSetting( "newPlayerLifeTotalSeconds",
-                                                   7200 ) ) ) {
+        else if( isNewPlayer( &newObject ) ) {
             // a new player (not at a PAX kiosk)
             // let mother know
             char *motherMessage =  
@@ -10887,7 +10966,7 @@ int processLoggedInPlayer( int inAllowOrForceReconnect,
         &&
         newObject.curseStatus.curseLevel == 0 ) {
         
-        addRecentScore( newObject.email, inFitnessScore );
+        addRecentScore( newObject.email, newObject.fitnessScore );
         }
     
 
@@ -17516,24 +17595,37 @@ static char messageFloodCheck( LiveObject *inPlayer, messageType inType ) {
     
     inPlayer->messageFloodBatchCount[index] ++;
 
+
+    if( inPlayer->messageFloodBatchCount[index] >= maxMessageRate ) {
+        // player has sent more than the max number of messages during
+        // the current time batch
+
+        // cut them off whenever they cross this limit, even if the current
+        // time batch is far from ending
+        
+        // (like if they send 40 messages in the first second, don't
+        //  wait for 5 more seconds to pass before counting them as flooding)
+
+        // start a new batch
+        // (so they have a clean slate if they reconnect)
+        inPlayer->messageFloodBatchStartTime[index] = Time::getCurrentTime();
+        inPlayer->messageFloodBatchCount[index] = 0;
+
+        return true;
+        }
+
+
     double curTime = Time::getCurrentTime();
-
-
-    char flooding = false;
 
     if( curTime - inPlayer->messageFloodBatchStartTime[index] >= 5 ) {
         // a 5-second batch is finished
-
-        if( inPlayer->messageFloodBatchCount[index] >= maxMessageRate ) {
-            flooding = true;
-            }
         
         // start a new batch
         inPlayer->messageFloodBatchStartTime[index] = curTime;
         inPlayer->messageFloodBatchCount[index] = 0;
         }
 
-    return flooding;
+    return false;
     }
 
 
@@ -18853,7 +18945,18 @@ int main() {
                     delete [] nextConnection->clientTag;
                     nextConnection->clientTag = NULL;
                     
+                    if( isEmailAliveButDisconnected( nextConnection->email ) ) {
+                        // don't allow new twin logins from anyone who
+                        // still has an existing life going
+                        
+                        // just ignore their twin request, and connect
+                        // them back to the same life again.
 
+                        // we will delete any twinCode below, since count is 0
+                        nextConnection->twinCount = 0;
+                        }                    
+
+                    
                     if( nextConnection->twinCode != NULL
                         && 
                         nextConnection->twinCount > 0 ) {
@@ -20618,7 +20721,43 @@ int main() {
                             delete [] psMessage;
                             }
                         }
+                    else if( topLeaderO != NULL && topLeaderO == nextPlayer ) {
+                        // they are the top leader themselves
+                        char *topLeaderName = 
+                                getLeadershipName( topLeaderO );
+                        
+                        char *psMessage;
+
+                        if( topLeaderName != NULL ) {
+                            // they have followers and thus a title
+                            psMessage = 
+                                autoSprintf( "PS\n"
+                                             "%d/0 I AM THE %s "
+                                             "OF MY FOLLOWERS\n#",
+                                             nextPlayer->id,
+                                             topLeaderName );
+                            
+                            delete [] topLeaderName;
+                            }
+                        else {
+                            // title NULL means they have no followers
+                            psMessage = 
+                                autoSprintf( "PS\n"
+                                             "%d/0 +NO LEADER+\n#",
+                                             nextPlayer->id );
+                            }
+                        
+                        sendMessageToPlayer( nextPlayer, 
+                                             psMessage, 
+                                             strlen( psMessage ) );
+                        delete [] psMessage;
+                        } 
                     else {
+                        // seems like this case will never happen
+                        // seems like top leader is always player themselves
+                        // if they have no leader, so previous case will
+                        // handle that.
+                        
                         char *psMessage = 
                             autoSprintf( "PS\n"
                                          "%d/0 +NO LEADER+\n#",
@@ -21782,6 +21921,9 @@ int main() {
                         m.saidText = cleanedString;
                         
                         
+                        char somePropertyGivingSay = false;
+                        char givingMessageSent = false;
+                        
                         if( nextPlayer->ownedPositions.size() > 0 ) {
                             // consider phrases that assign ownership
                             SimpleVector<LiveObject*> newOwners;
@@ -21790,6 +21932,8 @@ int main() {
                             char *namedOwner = isNamedGivingSay( m.saidText );
                             
                             if( namedOwner != NULL ) {
+                                somePropertyGivingSay = true;
+                                
                                 LiveObject *o =
                                     getPlayerByName( namedOwner, nextPlayer );
                                 
@@ -21814,6 +21958,8 @@ int main() {
                             if( newOwners.size() == 0 ) {
                                 
                                 if( isYouGivingSay( m.saidText ) ) {
+                                    somePropertyGivingSay = true;
+                                
                                     // find closest other player
                                     LiveObject *newOwnerPlayer = 
                                         getClosestOtherPlayer( nextPlayer );
@@ -21823,6 +21969,8 @@ int main() {
                                         }
                                     }
                                 else if( isFamilyGivingSay( m.saidText ) ) {
+                                    somePropertyGivingSay = true;
+                                
                                     // add all family members
                                     for( int n=0; n<players.size(); n++ ) {
                                         LiveObject *o = players.getElement( n );
@@ -21837,6 +21985,8 @@ int main() {
                                         }
                                     }
                                 else if( isOffspringGivingSay( m.saidText ) ) {
+                                    somePropertyGivingSay = true;
+                                    
                                     // add all offspring
                                     for( int n=0; n<players.size(); n++ ) {
                                         LiveObject *o = players.getElement( n );
@@ -21876,6 +22026,9 @@ int main() {
 
                                 if( minDist < 20 ) {
                                     // found one that's not too far away
+
+                                    int numNewOwners = 0;
+                                    
                                     for( int n=0; n<newOwners.size(); n++ ) {
                                         LiveObject *newOwnerPlayer = 
                                             newOwners.getElementDirect( n );
@@ -21891,11 +22044,75 @@ int main() {
                                                 newOwnerPlayer,
                                                 closePos.x, closePos.y,
                                                 "I WAS GIVEN THE" );
+                                            
+                                            numNewOwners++;
                                             }
                                         }
+                                    
+                                    if( numNewOwners > 0 ) {
+                                        
+                                        const char *numberString = "ONE";
+                                        const char *ownerString = "OWNER";
+
+                                        if( numNewOwners > 1 ) {
+                                            ownerString = "OWNERS";
+
+                                            switch( numNewOwners ) {
+                                                case 2:
+                                                    numberString = "TWO";
+                                                    break;
+                                                case 3:
+                                                    numberString = "THREE";
+                                                    break;
+                                                case 4:
+                                                    numberString = "FOUR";
+                                                    break;
+                                                case 5:
+                                                    numberString = "FIVE";
+                                                    break;
+                                                case 6:
+                                                    numberString = "SIX";
+                                                    break;
+                                                default:
+                                                    numberString = "LOTS OF";
+                                                    break;
+                                                }
+                                            }
+                                        
+                                        
+                                        char *message =
+                                            autoSprintf( 
+                                                "PROPERTY NOW HAS %s NEW %s.",
+                                                numberString, ownerString );
+                                        
+                                        sendGlobalMessage( message, 
+                                                           nextPlayer );
+                                        delete [] message;
+                                        givingMessageSent = true;
+                                        }
+                                    }
+                                else {
+                                    const char *message = 
+                                        "NO PROPERTY IS CLOSE ENOUGH.";
+                                    sendGlobalMessage( (char*)message, 
+                                                       nextPlayer );
+                                    givingMessageSent = true;
                                     }
                                 }
                             }
+                        
+                        if( somePropertyGivingSay && ! givingMessageSent ) {
+                            // tried to give property, but no one received
+                            // it
+                            
+                            const char *message = 
+                                "NO ADDITIONAL PEOPLE FOUND TO "
+                                "RECEIVE PROPERTY.";
+                            sendGlobalMessage( (char*)message, nextPlayer );
+                            
+                            givingMessageSent = true;
+                            }
+                        
 
 
                         // they must be holding something to join a posse
