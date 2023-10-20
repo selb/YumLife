@@ -135,6 +135,11 @@ void setDrawFade( float inA ) {
     }
 
 
+float getDrawFade() {
+    return lastA;
+    }
+
+
 
 
 FloatColor getFloatColor( const char *inHexString ) {
