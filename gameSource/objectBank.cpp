@@ -913,6 +913,18 @@ static void setupHideHead( ObjectRecord *inR ) {
 
 
 
+static void setupHideBody( ObjectRecord *inR ) {
+    inR->hideBody = false;    
+    
+    char *pos = strstr( inR->description, "+hideBody" );
+
+    if( pos != NULL ) {
+        inR->hideBody = true;
+        }
+    }
+
+
+
 static void setupHideRider( ObjectRecord *inR ) {
     inR->hideRider = false;    
     
@@ -1225,6 +1237,7 @@ float initObjectBankStep() {
                 setupBlocksNonFollower( r );
                 setupBadgePos( r );
                 setupHideHead( r );
+                setupHideBody( r );
                 setupHideRider( r );
                 setupNeverDrop( r );
                 setupGiveClue( r );
@@ -4206,6 +4219,7 @@ int addObject( const char *inDescription,
     setupBlocksNonFollower( r );
     setupBadgePos( r );
     setupHideHead( r );
+    setupHideBody( r );
     setupHideRider( r );
     setupNeverDrop( r );
     setupGiveClue( r );

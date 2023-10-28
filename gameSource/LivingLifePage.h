@@ -381,6 +381,8 @@ typedef struct LiveObject {
         
         char isGeneticFamily;
         
+        char isGhost;
+
     } LiveObject;
 
 
