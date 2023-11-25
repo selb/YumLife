@@ -9395,8 +9395,7 @@ void LivingLifePage::draw( doublePair inViewCenter,
             delete [] message;
             }
         else if( photoSig != NULL && ! waitingForPhotoID ) {
-			float currentZoom = HetuwMod::zoomScale;
-			HetuwMod::setZoom( 1.0f );
+			HetuwMod::disableZoom();
 
             doublePair pos;
             
@@ -9472,7 +9471,7 @@ void LivingLifePage::draw( doublePair inViewCenter,
                        &subjectNames );
             
             waitingForPhotoID = true;
-            HetuwMod::setZoom( currentZoom );
+            HetuwMod::enableZoom();
             }
         else if( waitingForPhotoID ) {
             // is our photo ID ready yet?
@@ -9514,6 +9513,8 @@ void LivingLifePage::draw( doublePair inViewCenter,
         // skip gui
         return;
         }    
+
+	HetuwMod::startUIZoom();
         
     if( showFPS ) {
             
@@ -10669,6 +10670,7 @@ void LivingLifePage::draw( doublePair inViewCenter,
         char overTempMeter = false;
         
         doublePair mousePos = { lastMouseX, lastMouseY };
+		HetuwMod::convertPositionForUI(lastScreenViewCenter, mousePos);
         
         if( mousePos.y < tipPos.y + 13 &&
             mousePos.x > tipPos.x + 480 &&
@@ -11312,6 +11314,8 @@ void LivingLifePage::draw( doublePair inViewCenter,
         
         toggleInvertedBlend( false );
         }
+
+	HetuwMod::endUIZoom();
     }
 
 

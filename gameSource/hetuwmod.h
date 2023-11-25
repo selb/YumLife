@@ -288,9 +288,6 @@ public:
 	static const int defaultViewWidth = 1280;
 	static const int defaultViewHeight = 720;
 
-	static constexpr float zoomValueKey = 0.25f;
-	static constexpr float zoomValueScroll = 0.15f;
-
 	static constexpr int spriteBodyWhiteID = 53;
 
 	static int maxObjects;
@@ -306,6 +303,7 @@ public:
 	static doublePair fromViewToMapCoordsVec;
 
 	static float zoomScale;
+	/* Note that guiScale is the scale for the mod UIs, not the game UI. */
 	static float guiScale;
 	static float guiScaleRaw;
 	static int panelOffsetX;
@@ -434,9 +432,17 @@ public:
 	static string getTimeStamp();
 	static string getTimeStamp(time_t t);
 
-	static void zoomIncrease(float value);
-	static void zoomDecrease(float value);
-	static void setZoom(float newZoom);
+	static void zoomIncrease();
+	static void zoomDecrease();
+	static void disableZoom();
+	static void enableZoom();
+	/* Switch to the game UI zoom level / back to the game zoom level. */
+	static void startUIZoom();
+	static void endUIZoom();
+	/* Convert a position in game coordinates to the potentially less scaled
+	 * game UI coordinate system. */
+	static void convertPositionForUI(const doublePair &origin, doublePair &pos);
+	/* Note that guiScale is the scale for the mod UIs, not the game UI. */
 	static void guiScaleIncrease();
 	static void guiScaleDecrease();
 	
@@ -585,6 +591,8 @@ public:
 	static bool bRemapStart;
 	static bool bDrawHungerWarning;
 	static int delayReduction;
+	static int zoomLimit;
+	static int zoomLimitUI;
 
 	static bool bFoundFamilyName;
 	static std::vector<FamilyInRange*> familiesInRange;
@@ -672,7 +680,7 @@ public:
 
 private:
 
-	static void zoomCalc();
+	static void zoomCalc(bool uiMode = false);
 
 	static bool bDrawHelp;
 	static void drawHelp();

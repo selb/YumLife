@@ -38,6 +38,18 @@ double HetuwMod::viewHeightToWidthFactor;
 extern doublePair lastScreenViewCenter;
 doublePair HetuwMod::fromViewToMapCoordsVec;
 
+/* YumLife: hetuw zoom produced inconsistent zoom values when zooming in and
+ * out partially repeatedly. For familiarity, this table encodes the zoom values
+ * produced by hetuw when zooming all the way out once using the mouse wheel
+ * (= powf(1.25, zoomLevel)), rounded to the nearest 0.25 for a more consistent
+ * appearance in terms of the tile grid. */
+static int zoomLevel = 0;
+static bool zoomDisabled = false;
+static const float zoomScales[] = {
+	1.0f, 1.25f, 1.5f, 2.0f, 2.5f, 3.0f, 3.75f, 4.75f, 6.0f, 7.5f, 9.25f, 10.0f
+};
+static const int maxZoomLevel = sizeof(zoomScales)/sizeof(zoomScales[0]) - 1;
+
 float HetuwMod::zoomScale;
 float HetuwMod::guiScaleRaw;
 float HetuwMod::guiScale;
@@ -255,6 +267,11 @@ bool HetuwMod::bDrawHungerWarning = false;
 
 int HetuwMod::delayReduction = 0;
 
+/* hetuw defaulted to the equivalent of 11 here, but many users report routine
+ * crashing on Windows at that level for reasons that are as yet unknown. */
+int HetuwMod::zoomLimit = 10;
+int HetuwMod::zoomLimitUI = 3;
+
 std::vector<HetuwMod::HttpRequest*> HetuwMod::httpRequests;
 
 bool HetuwMod::connectedToMainServer = false;
@@ -298,7 +315,7 @@ void HetuwMod::init() {
 	viewWidthToHeightFactor = defaultViewWidth/(double)defaultViewHeight;
 	viewHeightToWidthFactor = defaultViewHeight/(double)defaultViewWidth;
 
-	zoomScale = 1.5f;
+	zoomLevel = 2;
 	guiScaleRaw = 0.8f;
 	guiScale = guiScaleRaw * zoomScale;
 	zoomCalc();
@@ -956,6 +973,23 @@ bool HetuwMod::setSetting( const char* name, const char* value ) {
 			delayReduction = 50;
 		return true;
 	}
+	if (strstr(name, "zoom_limit")) {
+		zoomLimit = stoi(value);
+		if (zoomLimit < 0)
+			zoomLimit = 0;
+		if (zoomLimit > maxZoomLevel)
+			zoomLimit = maxZoomLevel;
+		return true;
+	}
+	/* stupid name because of strstr... */
+	if (strstr(name, "zoom_ui_limit")) {
+		zoomLimitUI = stoi(value);
+		if (zoomLimitUI < 0)
+			zoomLimitUI = 0;
+		if (zoomLimitUI > maxZoomLevel)
+			zoomLimitUI = maxZoomLevel;
+		return true;
+	}
 
 	return false;
 }
@@ -1065,6 +1099,11 @@ void HetuwMod::writeSettings(ofstream &ofs) {
 	ofs << "// Reduce action delay by the given percentage, 0-50." << endl;
 	ofs << "// Higher values may cause server disconnects." << endl;
 	ofs << "reduce_delay = " << delayReduction << endl;
+	ofs << endl;
+	ofs << "// Set max zoom out for the game and the vanilla UI." << endl;
+	ofs << "// These go to 11." << endl;
+	ofs << "zoom_limit = " << zoomLimit << endl;
+	ofs << "zoom_ui_limit = " << zoomLimitUI << endl;
 }
 
 void HetuwMod::initSettings() {
@@ -1394,7 +1433,17 @@ void HetuwMod::RainbowColor::step() {
 	}
 }
 
-void HetuwMod::zoomCalc() {
+void HetuwMod::zoomCalc(bool uiMode) {
+	if (zoomDisabled) {
+		zoomScale = 1.0f;
+	} else {
+		int level = zoomLevel;
+		if (uiMode && level > zoomLimitUI) {
+			level = zoomLimitUI;
+		}
+		zoomScale = zoomScales[level];
+	}
+
 	int newViewWidth = defaultViewWidth*zoomScale;
 	int newViewHeight = defaultViewHeight*zoomScale;
 	if (viewWidth != 0 && viewHeight != 0) {
@@ -1414,21 +1463,51 @@ void HetuwMod::zoomCalc() {
 	Phex::onZoom();
 }
 
-void HetuwMod::zoomIncrease(float value) {
-	zoomScale *= 1.0f + value;
-	if (zoomScale > 10.0f) zoomScale = 10.0f;
+void HetuwMod::zoomIncrease() {
+	++zoomLevel;
+	if (zoomLevel > zoomLimit)
+		zoomLevel = zoomLimit;
 	zoomCalc();
 }
 
-void HetuwMod::zoomDecrease(float value) {
-	zoomScale *= 1.0f - value;
-	if (!bDrawPhotoRec && zoomScale < 1.0f) zoomScale = 1.0f;
+void HetuwMod::zoomDecrease() {
+	--zoomLevel;
+	if (zoomLevel < 0)
+		zoomLevel = 0;
 	zoomCalc();
 }
 
-void HetuwMod::setZoom(float newZoom) {
-	zoomScale = newZoom;
+void HetuwMod::disableZoom() {
+	zoomDisabled = true;
 	zoomCalc();
+}
+
+void HetuwMod::enableZoom() {
+	zoomDisabled = false;
+	zoomCalc();
+}
+
+void HetuwMod::startUIZoom() {
+	zoomCalc(true);
+}
+
+void HetuwMod::endUIZoom() {
+	zoomCalc(false);
+}
+
+void HetuwMod::convertPositionForUI(const doublePair &origin, doublePair &pos) {
+	if (zoomLevel <= zoomLimitUI)
+		return;
+
+	pos.x -= origin.x;
+	pos.y -= origin.y;
+
+	float scale = zoomScales[zoomLimitUI] / zoomScales[zoomLevel];
+	pos.x *= scale;
+	pos.y *= scale;
+
+	pos.x += origin.x;
+	pos.y += origin.y;
 }
 
 void HetuwMod::guiScaleIncrease() {
@@ -1523,10 +1602,10 @@ void HetuwMod::gameStep() {
 	for (int i = 0; i < mouseBuffer->bufferPos; i++) {
 		switch (mouseBuffer->buffer[i]) {
 			case MouseButton::WHEELUP:
-				zoomDecrease(HetuwMod::zoomValueScroll);
+				zoomDecrease();
 				break;
 			case MouseButton::WHEELDOWN:
-				zoomIncrease(HetuwMod::zoomValueScroll);
+				zoomIncrease();
 				break;
 		}
 	}
@@ -3770,9 +3849,9 @@ bool HetuwMod::livingLifeSpecialKeyDown(unsigned char inKeyCode) {
 
 	if (!isCommandKeyDown() && !isShiftKeyDown()) {
 		if( inKeyCode == MG_KEY_LEFT ) { 
-			zoomDecrease(HetuwMod::zoomValueKey);
+			zoomDecrease();
 		} else if( inKeyCode == MG_KEY_RIGHT ) { 
-			zoomIncrease(HetuwMod::zoomValueKey);
+			zoomIncrease();
 		}
 	}
 	if (isCommandKeyDown()) {

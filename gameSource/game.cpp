@@ -834,6 +834,8 @@ static void drawFrameNoUpdate( char inUpdate );
 
 static void drawPauseScreen() {
 
+	HetuwMod::startUIZoom();
+
     double viewHeight = viewHeightFraction * viewWidth;
 
     setDrawColor( 1, 1, 1, 0.5 * pauseScreenFade );
@@ -1140,6 +1142,8 @@ static void drawPauseScreen() {
 
     mainFont->drawString( translate( quitMessageKey ), 
                           messagePos, alignCenter );
+
+	HetuwMod::endUIZoom();
 
     }
 
