@@ -1103,7 +1103,7 @@ void HetuwMod::writeSettings(ofstream &ofs) {
 	ofs << "// Set max zoom out for the game and the vanilla UI." << endl;
 	ofs << "// These go to 11." << endl;
 	ofs << "zoom_limit = " << zoomLimit << endl;
-	ofs << "zoom_ui_limit = " << zoomLimitUI << endl;
+	ofs << "zoom_ui_limit = " << zoomLimitUI << " // 0 = no UI zoom " << endl;
 }
 
 void HetuwMod::initSettings() {

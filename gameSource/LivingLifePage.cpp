@@ -11290,6 +11290,7 @@ void LivingLifePage::draw( doublePair inViewCenter,
             }
         }
 
+	HetuwMod::endUIZoom();
 	HetuwMod::livingLifeDraw();
 
     if( vogMode ) {
@@ -11314,8 +11315,6 @@ void LivingLifePage::draw( doublePair inViewCenter,
         
         toggleInvertedBlend( false );
         }
-
-	HetuwMod::endUIZoom();
     }
 
 
