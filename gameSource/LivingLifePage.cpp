@@ -9513,8 +9513,6 @@ void LivingLifePage::draw( doublePair inViewCenter,
         // skip gui
         return;
         }    
-
-	HetuwMod::startUIZoom();
         
     if( showFPS ) {
             
@@ -10670,7 +10668,6 @@ void LivingLifePage::draw( doublePair inViewCenter,
         char overTempMeter = false;
         
         doublePair mousePos = { lastMouseX, lastMouseY };
-		HetuwMod::convertPositionForUI(lastScreenViewCenter, mousePos);
         
         if( mousePos.y < tipPos.y + 13 &&
             mousePos.x > tipPos.x + 480 &&
@@ -11290,8 +11287,6 @@ void LivingLifePage::draw( doublePair inViewCenter,
             }
         }
 
-	HetuwMod::livingLifeUIDraw();
-	HetuwMod::endUIZoom();
 	HetuwMod::livingLifeDraw();
 
     if( vogMode ) {

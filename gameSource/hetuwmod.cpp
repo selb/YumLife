@@ -267,10 +267,7 @@ bool HetuwMod::bDrawHungerWarning = false;
 
 int HetuwMod::delayReduction = 0;
 
-/* hetuw defaulted to the equivalent of 11 here, but many users report routine
- * crashing on Windows at that level for reasons that are as yet unknown. */
 int HetuwMod::zoomLimit = 10;
-int HetuwMod::zoomLimitUI = 3;
 
 std::vector<HetuwMod::HttpRequest*> HetuwMod::httpRequests;
 
@@ -981,15 +978,6 @@ bool HetuwMod::setSetting( const char* name, const char* value ) {
 			zoomLimit = maxZoomLevel;
 		return true;
 	}
-	/* stupid name because of strstr... */
-	if (strstr(name, "zoom_ui_limit")) {
-		zoomLimitUI = stoi(value);
-		if (zoomLimitUI < 0)
-			zoomLimitUI = 0;
-		if (zoomLimitUI > maxZoomLevel)
-			zoomLimitUI = maxZoomLevel;
-		return true;
-	}
 
 	return false;
 }
@@ -1099,11 +1087,9 @@ void HetuwMod::writeSettings(ofstream &ofs) {
 	ofs << "// Reduce action delay by the given percentage, 0-50." << endl;
 	ofs << "// Higher values may cause server disconnects." << endl;
 	ofs << "reduce_delay = " << delayReduction << endl;
-	ofs << endl;
-	ofs << "// Set max zoom out for the game and the vanilla UI." << endl;
-	ofs << "// These go to 11." << endl;
+	ofs << "// Set max zoom out. This one goes to 11." << endl;
 	ofs << "zoom_limit = " << zoomLimit << endl;
-	ofs << "zoom_ui_limit = " << zoomLimitUI << " // 0 = no UI zoom " << endl;
+	ofs << endl;
 }
 
 void HetuwMod::initSettings() {
@@ -1433,15 +1419,10 @@ void HetuwMod::RainbowColor::step() {
 	}
 }
 
-void HetuwMod::zoomCalc(bool uiMode) {
+void HetuwMod::zoomCalc() {
+	zoomScale = zoomScales[zoomLevel];
 	if (zoomDisabled) {
 		zoomScale = 1.0f;
-	} else {
-		int level = zoomLevel;
-		if (uiMode && level > zoomLimitUI) {
-			level = zoomLimitUI;
-		}
-		zoomScale = zoomScales[level];
 	}
 
 	int newViewWidth = defaultViewWidth*zoomScale;
@@ -1485,29 +1466,6 @@ void HetuwMod::disableZoom() {
 void HetuwMod::enableZoom() {
 	zoomDisabled = false;
 	zoomCalc();
-}
-
-void HetuwMod::startUIZoom() {
-	zoomCalc(true);
-}
-
-void HetuwMod::endUIZoom() {
-	zoomCalc(false);
-}
-
-void HetuwMod::convertPositionForUI(const doublePair &origin, doublePair &pos) {
-	if (zoomLevel <= zoomLimitUI)
-		return;
-
-	pos.x -= origin.x;
-	pos.y -= origin.y;
-
-	float scale = zoomScales[zoomLimitUI] / zoomScales[zoomLevel];
-	pos.x *= scale;
-	pos.y *= scale;
-
-	pos.x += origin.x;
-	pos.y += origin.y;
 }
 
 void HetuwMod::guiScaleIncrease() {
@@ -2218,6 +2176,7 @@ void HetuwMod::livingLifeDraw() {
 	if (!ourLiveObject) return;
 
 	if (bDrawGrid) drawGrid();
+	drawAge();
 	if (bDrawCords) drawCords();
 	if (iDrawPlayersInRangePanel > 0) drawPlayersInRangePanel();
 	if (searchWordList.size() > 0) drawSearchList();
@@ -2246,15 +2205,6 @@ void HetuwMod::livingLifeDraw() {
 
 	if (bDrawBiomeInfo) drawBiomeIDs();
 	if (bDrawHungerWarning) drawHungerWarning();
-}
-
-void HetuwMod::livingLifeUIDraw() {
-	if (takingPhoto) return; // dont draw special mod stuff while taking a photo
-
- 	ourLiveObject = livingLifePage->getOurLiveObject();
-	if (!ourLiveObject) return;
-
-	drawAge();
 }
 
 void HetuwMod::drawCoordsHelpA() {

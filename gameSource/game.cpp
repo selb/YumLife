@@ -834,7 +834,7 @@ static void drawFrameNoUpdate( char inUpdate );
 
 static void drawPauseScreen() {
 
-	HetuwMod::startUIZoom();
+	HetuwMod::disableZoom();
 
     double viewHeight = viewHeightFraction * viewWidth;
 
@@ -1143,7 +1143,7 @@ static void drawPauseScreen() {
     mainFont->drawString( translate( quitMessageKey ), 
                           messagePos, alignCenter );
 
-	HetuwMod::endUIZoom();
+	HetuwMod::enableZoom();
 
     }
 

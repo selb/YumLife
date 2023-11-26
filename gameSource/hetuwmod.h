@@ -303,7 +303,6 @@ public:
 	static doublePair fromViewToMapCoordsVec;
 
 	static float zoomScale;
-	/* Note that guiScale is the scale for the mod UIs, not the game UI. */
 	static float guiScale;
 	static float guiScaleRaw;
 	static int panelOffsetX;
@@ -436,13 +435,6 @@ public:
 	static void zoomDecrease();
 	static void disableZoom();
 	static void enableZoom();
-	/* Switch to the game UI zoom level / back to the game zoom level. */
-	static void startUIZoom();
-	static void endUIZoom();
-	/* Convert a position in game coordinates to the potentially less scaled
-	 * game UI coordinate system. */
-	static void convertPositionForUI(const doublePair &origin, doublePair &pos);
-	/* Note that guiScale is the scale for the mod UIs, not the game UI. */
 	static void guiScaleIncrease();
 	static void guiScaleDecrease();
 	
@@ -469,7 +461,6 @@ public:
 
 	static void livingLifeStep();
 	static void livingLifeDraw();
-	static void livingLifeUIDraw();
 	static bool livingLifeKeyDown(unsigned char inASCII);
 	static bool livingLifeKeyUp(unsigned char inASCII);
 	static bool livingLifeSpecialKeyDown(unsigned char inKeyCode);
@@ -593,7 +584,6 @@ public:
 	static bool bDrawHungerWarning;
 	static int delayReduction;
 	static int zoomLimit;
-	static int zoomLimitUI;
 
 	static bool bFoundFamilyName;
 	static std::vector<FamilyInRange*> familiesInRange;
@@ -681,7 +671,7 @@ public:
 
 private:
 
-	static void zoomCalc(bool uiMode = false);
+	static void zoomCalc();
 
 	static bool bDrawHelp;
 	static void drawHelp();
