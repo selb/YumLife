@@ -11290,6 +11290,7 @@ void LivingLifePage::draw( doublePair inViewCenter,
             }
         }
 
+	HetuwMod::livingLifeUIDraw();
 	HetuwMod::endUIZoom();
 	HetuwMod::livingLifeDraw();
 

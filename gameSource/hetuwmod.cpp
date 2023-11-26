@@ -2218,7 +2218,6 @@ void HetuwMod::livingLifeDraw() {
 	if (!ourLiveObject) return;
 
 	if (bDrawGrid) drawGrid();
-	drawAge();
 	if (bDrawCords) drawCords();
 	if (iDrawPlayersInRangePanel > 0) drawPlayersInRangePanel();
 	if (searchWordList.size() > 0) drawSearchList();
@@ -2247,6 +2246,15 @@ void HetuwMod::livingLifeDraw() {
 
 	if (bDrawBiomeInfo) drawBiomeIDs();
 	if (bDrawHungerWarning) drawHungerWarning();
+}
+
+void HetuwMod::livingLifeUIDraw() {
+	if (takingPhoto) return; // dont draw special mod stuff while taking a photo
+
+ 	ourLiveObject = livingLifePage->getOurLiveObject();
+	if (!ourLiveObject) return;
+
+	drawAge();
 }
 
 void HetuwMod::drawCoordsHelpA() {

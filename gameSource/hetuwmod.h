@@ -469,6 +469,7 @@ public:
 
 	static void livingLifeStep();
 	static void livingLifeDraw();
+	static void livingLifeUIDraw();
 	static bool livingLifeKeyDown(unsigned char inASCII);
 	static bool livingLifeKeyUp(unsigned char inASCII);
 	static bool livingLifeSpecialKeyDown(unsigned char inKeyCode);
