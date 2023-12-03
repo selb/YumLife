@@ -11298,7 +11298,9 @@ void LivingLifePage::draw( doublePair inViewCenter,
         timeMeasures[2] += game_getCurrentTime() - drawStartTime;
         }
 
-    
+    /* YumLife: Full-screen inversion is a bit painful for players attempting
+     * long ghost lives. invertDrawBodyless in animationBank.cpp is still set
+     * appropriately and will cause ghosts to be inverted.
     if( ourLiveObject->isGhost ) {
         
         // invert the colors on the ghost's view
@@ -11311,6 +11313,7 @@ void LivingLifePage::draw( doublePair inViewCenter,
         
         toggleInvertedBlend( false );
         }
+    */
     }
 
 
