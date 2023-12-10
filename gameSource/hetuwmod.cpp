@@ -71,8 +71,8 @@ int HetuwMod::magnetMoveDir = -1;
 int HetuwMod::magnetWrongMoveDir = -1;
 int HetuwMod::magnetMoveCount = 0;
 
-int HetuwMod::cfgVersionNumber = 4;
-int HetuwMod::cfgVersionRead = 4;
+int HetuwMod::cfgVersionNumber = 5;
+int HetuwMod::cfgVersionRead = 5;
 
 unsigned char HetuwMod::charKey_Up;
 unsigned char HetuwMod::charKey_Down;
@@ -280,7 +280,7 @@ bool HetuwMod::isMovingInVog = false;
 HetuwMod::IntervalTimed HetuwMod::intervalVogMove(0.1);
 
 bool HetuwMod::phexIsEnabled = true;
-std::string HetuwMod::phexIp = "phexonelife.duckdns.org";
+std::string HetuwMod::phexIp = "chat.onelifeglobal.chat";
 int HetuwMod::phexPort = 6567;
 bool HetuwMod::debugPhex = false;
 
@@ -857,7 +857,8 @@ bool HetuwMod::setSetting( const char* name, const char* value ) {
 		phexIsEnabled = bool(value[0]-48);
 		return true;
 	}
-	if (strstr(name, "phex_ip")) {
+	// YumLife: config version 5 migrated from phexonelife.duckdns.org
+	if (strstr(name, "phex_ip") && cfgVersionRead >= 5) {
 		phexIp = string(value);
 		return true;
 	}
