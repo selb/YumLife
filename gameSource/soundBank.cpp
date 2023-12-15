@@ -20,6 +20,11 @@
 
 #include "minorGems/system/Time.h"
 
+#include "minorGems/util/crc32.h"
+
+#include "minorGems/crypto/hashes/sha1.h"
+
+
 #include "binFolderCache.h"
 
 
@@ -50,6 +55,7 @@ static SimpleVector<int> loadedSounds;
 
 static char *loadingFailureFileName = NULL;
 
+static char doComputeSoundHashes = false;
 
 
 static int sampleRate = 44100;
@@ -367,8 +373,11 @@ SimpleVector<SoundRecord*> records;
 
 
 
-int initSoundBankStart( char *outRebuildingCache ) {
+int initSoundBankStart( char *outRebuildingCache,
+                        char inComputeSoundHashes ) {
     
+    doComputeSoundHashes = inComputeSoundHashes;
+
     //printSteps = inPrintSteps;
     
     
@@ -502,6 +511,114 @@ int initSoundBankStart( char *outRebuildingCache ) {
 
 
 
+
+// returned array destroyed by caller
+static unsigned char *getSoundFileData( int inID,
+                                        int *outNumDataBytes ) {
+    File spritesDir( NULL, "sounds" );
+            
+
+    char *fileNameAIFF = autoSprintf( "%d.aiff", inID );
+    char *fileNameOGG = autoSprintf( "%d.ogg", inID );
+        
+
+    File *soundFile = spritesDir.getChildFile( fileNameAIFF );
+    
+    delete [] fileNameAIFF;
+    
+    
+    if( ! soundFile->exists() ) {
+        delete soundFile;
+    
+        soundFile = spritesDir.getChildFile( fileNameOGG );
+        }
+    
+    delete [] fileNameOGG;
+    
+
+    unsigned char *soundBytes = NULL;
+    
+    if( soundFile->exists() ) {
+        soundBytes = soundFile->readFileContents( outNumDataBytes );
+        }
+    
+    delete soundFile;
+
+    return soundBytes;
+    }
+
+
+
+// computes a hash based on data for a sound
+// inSoundFileData destroyed by caller
+static unsigned int computeSoundHash(
+    int inNumSoundBytes,
+    unsigned char *inSoundData ) {
+    
+    // CRC is fine for this purpose
+    // If there is no CRC hit, we KNOW that the same sound doesn't
+    // already exist.  However, if there is a CRC hit, we can
+    // check the actual data directly to make sure it's a match.
+
+    unsigned int hash = crc32( inSoundData, inNumSoundBytes );
+    
+    return hash;
+    }
+
+
+
+static void recomputeSoundHash( SoundRecord *inRecord,
+                                int inNumSoundBytes,
+                                unsigned char *inSoundData,
+                                char inAlsoSHA1 = false  ) {
+    
+    inRecord->hash = computeSoundHash( inNumSoundBytes,
+                                       inSoundData);    
+    
+    char *sha1Hash = NULL;
+    
+    if( inAlsoSHA1 ) {
+        sha1Hash = computeSHA1Digest( inSoundData, inNumSoundBytes );
+        }
+
+    if( inRecord->sha1Hash != NULL ) {
+        delete [] inRecord->sha1Hash;
+        }
+
+    inRecord->sha1Hash = sha1Hash;
+    }
+
+
+
+// updates hash in inRecord based on AIFF or OGG data read from
+// file in sounds directory
+static void recomputeSoundHash( SoundRecord *inRecord ) {
+    
+    int numSoundBytes;
+    
+    unsigned char *soundBytes = getSoundFileData( inRecord->id, 
+                                                  &numSoundBytes );
+    
+    if( soundBytes != NULL ) {
+
+        recomputeSoundHash( inRecord, numSoundBytes, soundBytes );
+        
+        delete [] soundBytes;
+        }
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
 float initSoundBankStep() {
     
     if( currentSoundFile == soundCache.numFiles &&
@@ -531,6 +648,8 @@ float initSoundBankStep() {
             r->liveUseageCount = 0;
             
             r->id = 0;
+            r->hash = 0;
+            r->sha1Hash = NULL;
             
             sscanf( fileName, "%d.", &( r->id ) );
             
@@ -569,6 +688,9 @@ float initSoundBankStep() {
                     
                     r->sound = setSoundSprite( samples, numSamples );
                     
+                    if( doComputeSoundHashes ) {
+                        recomputeSoundHash( r, soundDataLength, soundData );
+                        }
                     
                     records.push_back( r );
                     added = true;
@@ -689,8 +811,6 @@ float initSoundBankStep() {
 
 
 void initSoundBankFinish() {
-    endMultiConvolution( &reverbConvolution );
-    
     freeBinFolderCache( soundCache );
     freeBinFolderCache( reverbCache );
 
@@ -778,6 +898,10 @@ static void freeSoundRecord( int inID ) {
                     }
                 }
             
+            if( idMap[inID]->sha1Hash != NULL ) {
+                delete [] idMap[inID]->sha1Hash;
+                }
+
             delete idMap[inID];
             idMap[inID] = NULL;
             
@@ -795,6 +919,11 @@ void freeSoundBank() {
         delete [] loadingFailureFileName;
         }
 
+    if( reverbConvolution.savedNumWindowsB != -1 ) {
+        // doneApplyingReverb was never called?
+        endMultiConvolution( &reverbConvolution );
+        }
+    
     endMultiConvolution( &eqConvolution );
 
     for( int i=0; i<mapSize; i++ ) {
@@ -805,6 +934,10 @@ void freeSoundBank() {
                 }
             if( idMap[i]->reverbSound != NULL ) {    
                 freeSoundSprite( idMap[i]->reverbSound );
+                }
+
+            if( idMap[i]->sha1Hash != NULL ) {
+                delete [] idMap[i]->sha1Hash;
                 }
 
             delete idMap[i];
@@ -1239,22 +1372,60 @@ void deleteSoundFromBank( int inID ) {
 
         
         File reverbFolder( NULL, "reverbCache" );
-        
-        char *cacheFileName = autoSprintf( "%d.aiff", inID );
-    
-        File *cacheFile = reverbFolder.getChildFile( cacheFileName );
-    
-        delete [] cacheFileName;
-        
-        if( cacheFile->exists() ) {
-            cacheFile->remove();
-            }
 
-        delete cacheFile;
+        if( reverbFolder.exists() && reverbFolder.isDirectory() ) {
+            
+            char *cacheFileName = autoSprintf( "%d.aiff", inID );
+            
+            File *cacheFile = reverbFolder.getChildFile( cacheFileName );
+            
+            delete [] cacheFileName;
+            
+            if( cacheFile->exists() ) {
+                cacheFile->remove();
+                }
+            
+            delete cacheFile;
+            }
         }
     
     
     freeSoundRecord( inID );
+
+
+    // avoid inflation of nextSoundNumber by rolling it back
+    // whenever final sound in bank is deleted
+    if( soundsDir.exists() && soundsDir.isDirectory() ) {
+        
+        File *nextNumberFile = 
+            soundsDir.getChildFile( "nextSoundNumber.txt" );
+        
+        int nextSoundNumber = nextNumberFile->readFileIntContents( 1 );
+        
+        
+        if( nextSoundNumber == inID + 1 ) {
+        
+            // our last sound was deleted
+            
+            // walk backward in idMap and find last non-NULL record
+            
+            int lastRecord = 0;
+            
+            for( int i = mapSize - 1; i >= 0; i-- ) {
+                if( idMap[i] != NULL ) {
+                    lastRecord = i;
+                    break;
+                    }
+                }
+            
+            nextSoundNumber = lastRecord + 1;
+            
+            nextNumberFile->writeToFile( nextSoundNumber );
+            
+            }
+        
+        delete nextNumberFile;
+        }
     }
 
 
@@ -1498,10 +1669,18 @@ int stopRecordingSound() {
     r->sound = setSoundSprite( &( samples[ finalStartPoint ] ),
                                finalNumSamples );
     r->reverbSound = NULL;
+
+    r->hash = 0;
+    r->sha1Hash = NULL;
     
     delete [] samples;
     
     idMap[newID] = r;
+
+    
+    if( doComputeSoundHashes ) {
+        recomputeSoundHash( r );
+        }
     
 
     loadedSounds.push_back( r->id );
@@ -1593,4 +1772,206 @@ void printOrphanedSoundReport() {
     printf( "%d sounds found orphaned\n", num );
     }
 
+
+
+char doesSoundExist( int inID ) {    
+    if( inID < mapSize ) {
+        if( idMap[inID] != NULL ) {
+            return true;
+            }
+        }
+    return false;
+    }
+
+
+
+
+
+
+
+int doesSoundRecordExist(
+    int inNumSoundBytes,
+    unsigned char *inSoundData ) {
+    
+    unsigned int targetHash = computeSoundHash( inNumSoundBytes,
+                                                inSoundData );
+    
+    char *sha1Hash = computeSHA1Digest( inSoundData, inNumSoundBytes );
+    
+
+    for( int i=0; i<mapSize; i++ ) {
+        if( idMap[i] != NULL ) {
+            SoundRecord *r = idMap[i];
+            
+            if( r->hash != 0 && r->hash == targetHash ) {
+                
+                // a hit
+                
+                // make sure they are really equal
+                
+
+                // does SHA1 exist for match?
+                if( r->sha1Hash != NULL ) {
+                    if( strcmp( r->sha1Hash, sha1Hash ) == 0 ) {
+                        // match!
+                        delete [] sha1Hash;
+                        return r->id;
+                        }
+                    else {
+                        // sha1 mismatch
+                        continue;
+                        }
+                    }
+
+                // sha1 does not exist for our record
+                // check if file data matches
+                
+                int numSoundBytes;
+    
+                unsigned char *soundBytes = getSoundFileData( r->id, 
+                                                              &numSoundBytes );
+    
+                char match = false;
+                
+                if( soundBytes != NULL ) {
+                    
+                    if( numSoundBytes == inNumSoundBytes ) {
+                        
+                        if( memcmp( soundBytes, inSoundData, 
+                                    numSoundBytes ) == 0 ) {
+                            match = true;
+                            }
+                        }
+
+                    delete [] soundBytes;
+                    }
+                
+                if( match ) {
+                    delete [] sha1Hash;
+                    return r->id;
+                    }
+                }
+            
+            }
+        }
+    
+    // no match
+    delete [] sha1Hash;
+    return -1;
+    }
+
+
+
+int addSoundToLiveBank( int inNumSoundFileBytes,
+                        unsigned char *inSoundFileData,
+                        const char *inType ) {
+
+    int numSamples;
+    int16_t *samples = NULL;
+    
+    if( strcmp( inType, "AIFF" ) == 0 ) {
+        samples = readMono16AIFFData( inSoundFileData, inNumSoundFileBytes, 
+                                      &numSamples );
+        }
+    else if( strcmp( inType, "OGG" ) == 0 ) {
+        OGGHandle o = openOGG( inSoundFileData, inNumSoundFileBytes );
+
+        int numChan = getOGGChannels( o );
+        if( numChan == 1 ) {
+            numSamples = getOGGTotalSamples( o );
+            samples = new int16_t[ numSamples ];
+            
+            readAllMonoSamplesOGG( o, samples );
+            }        
+        // skip non-mono OGG files
+        
+        closeOGG( o );
+        }
+    
+
+    if( samples == NULL ) {
+        // failed to load
+        return -1;
+        }
+    
+        
+
+    int newID = maxID + 1;
+    
+
+    // now add it to live, in memory database
+    if( newID >= mapSize ) {
+        // expand map
+
+        int newMapSize = newID + 1;
+        
+
+        
+        SoundRecord **newMap = new SoundRecord*[newMapSize];
+        
+        for( int i=0; i<newMapSize; i++ ) {
+            newMap[i] = NULL;
+            }
+
+        memcpy( newMap, idMap, sizeof(SoundRecord*) * mapSize );
+
+        delete [] idMap;
+        idMap = newMap;
+        mapSize = newMapSize;
+        }
+
+
+    if( newID > maxID ) {
+        maxID = newID;
+        }
+    
+    SoundRecord *r = new SoundRecord;
+    
+    r->liveUseageCount = 0;
+    
+    r->id = newID;
+    r->sound = setSoundSprite( samples, numSamples );
+    r->reverbSound = NULL;
+
+    if( reverbConvolution.savedNumWindowsB != -1 ) {
+        // convolution exists, apply it
+        int numWetSamples;
+            
+        int16_t *wetSamples = generateWetConvolve( reverbConvolution,
+                                                   numSamples,
+                                                   samples,
+                                                   &numWetSamples );
+        if( wetSamples != NULL ) {
+            r->reverbSound = setSoundSprite( wetSamples, numWetSamples );
+            delete [] wetSamples;
+            } 
+        }
+    
+
+    r->hash = 0;
+    r->sha1Hash = NULL;
+
+    if( doComputeSoundHashes ) {
+        recomputeSoundHash( r, inNumSoundFileBytes, inSoundFileData, true );
+        }
+
+    
+    delete [] samples;
+    
+    idMap[newID] = r;    
+    
+
+    loadedSounds.push_back( r->id );
+
+    r->loading = false;
+    r->numStepsUnused = 0;
+
+    return newID;
+    }
+
+
+
+void doneApplyingReverb() {
+    endMultiConvolution( &reverbConvolution );
+    }
 

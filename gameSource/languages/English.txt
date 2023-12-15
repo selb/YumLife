@@ -25,6 +25,7 @@ objects "OBJECTS"
 transitions "TRANSITIONS"
 animations "ANIMATIONS"
 categories "CATEGORIES"
+mods "MODS"
 
 groundTextures "GROUND TEXTURES"
 
@@ -456,6 +457,9 @@ owner "OWN"
 visitor "VSTR"
 property "PROP"
 mother2 "MOM"
+bell "BELL"
+hell "HELL"
+
 
 
 babyLabel "+BABY+"

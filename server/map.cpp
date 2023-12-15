@@ -307,6 +307,9 @@ static SimpleVector<int> specialBiomeBandYCenter;
 
 static int minActivePlayersForBirthlands;
 
+static int polylingualNoHomeland;
+
+
 
 
 // the biome index to use in place of special biomes outside of the north-most
@@ -1384,6 +1387,10 @@ static int getBaseMap( int inX, int inY, char *outGridPlacement = NULL ) {
         return edgeObjectID;
         }
     
+    if( numBiomes == 0 ) {
+        return 0;
+        }
+
     int cachedID = mapCacheLookup( inX, inY, outGridPlacement );
     
     if( cachedID != -1 ) {
@@ -4023,6 +4030,9 @@ char initMap() {
 
     minActivePlayersForBirthlands = 
         SettingsManager::getIntSetting( "minActivePlayersForBirthlands", 15 );
+    
+    polylingualNoHomeland = 
+        SettingsManager::getIntSetting( "polylingualNoHomeland", 1 );
 
     
 
@@ -10072,7 +10082,27 @@ int isBirthland( int inX, int inY, int inLineageEveID, int inDisplayID ) {
         
         int biomeNumber = biomes[ pickedBiome ];
         
-        int personRace = getObject( inDisplayID )->race;
+        int personRace = 0;
+        
+        ObjectRecord *personO = getObject( inDisplayID );
+        
+        if( personO != NULL ) {
+            personRace = personO->race;
+            }
+
+        char personPolylingual = ( personRace == getPolylingualRace( true ) );
+
+        
+        if( polylingualNoHomeland && personPolylingual ) {
+            // polylingual race can give birth anywhere
+            // no homeland band.
+            
+            // However, they must be in SOME band, and not
+            // be able to walk infinitely far to the North or South
+            // (The outOfBand check above handles this).
+            return true;
+            }
+
 
         int specialistRace = getSpecialistRace( biomeNumber );
         
@@ -10087,7 +10117,7 @@ int isBirthland( int inX, int inY, int inLineageEveID, int inDisplayID ) {
         else {
             // in-band, but no specialist race defined
             // "language expert" band?
-            if( personRace == getPolylingualRace( true ) ) {
+            if( personPolylingual ) {
                 return 1;
                 }
             else {

@@ -11,6 +11,16 @@
 typedef struct SoundRecord {
         int id;
 
+        unsigned int hash;
+
+        // full SHA1 hash
+        // not computed for every sound in bank, since we can always
+        // check the file data
+        // but for live-only sounds (like for mods) we compute
+        // this, since we don't have file data to check
+        char *sha1Hash;
+        
+
         // NULL if sound not loaded
         SoundSpriteHandle sound;
         SoundSpriteHandle reverbSound;
@@ -28,7 +38,8 @@ typedef struct SoundRecord {
 
 
 // returns number of sounds that need to be loaded (or reverbs regenerated)
-int initSoundBankStart( char *outRebuildingCache );
+int initSoundBankStart( char *outRebuildingCache,
+                        char inComputeSoundHashes = false );
 
 
 // returns progress... ready for Finish when progress == 1.0
@@ -139,6 +150,37 @@ void checkIfSoundStillNeeded( int inID );
 
 
 void printOrphanedSoundReport();
+
+
+char doesSoundExist( int inID );
+
+
+
+
+// returns ID of sound if one exists matching these settings
+// returns -1 if not
+int doesSoundRecordExist(
+    int inNumSoundFileBytes,
+    unsigned char *inSoundFileData );
+
+
+
+// adds sound to bank without saving to disk
+// inType can also be OGG
+// inSoundFileData destroyed by caller
+// returns new sound ID, or -1 if parsing sound from inSoundFileData fails
+int addSoundToLiveBank( int inNumSoundFileBytes,
+                        unsigned char *inSoundFileData,
+                        const char *inType = "AIFF" );
+
+
+// frees memory associated with reverb filter
+// This is allocated during initSoundBankStart
+// it is also used by addSoundToLiveBank
+// So, after loading mods is done, call doneApplyingReverb
+// to free the filter resources.
+// (future calls to addSoundToLiveBank won't apply a reverb)
+void doneApplyingReverb();
 
 
 #endif
