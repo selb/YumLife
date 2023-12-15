@@ -4406,8 +4406,6 @@ HoldingPos drawObject( ObjectRecord *inObject, int inDrawBehindSlots,
         }
 
 	if (HetuwMod::objectDrawScale) inScale = HetuwMod::objectDrawScale[inObject->id];
-
-    HoldingPos returnHoldingPos = { false, {0, 0}, 0 };
     
     SimpleVector <int> frontArmIndices;
     getFrontArmIndices( inObject, inAge, &frontArmIndices );
