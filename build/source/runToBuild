@@ -30,9 +30,11 @@ NPROC=${NPROC:-4}
 make -j$NPROC || exit 1
 
 
-echo "Building EditOneLife..."
 
-./makeEditor.sh || exit 1
+if [ "$1" = 1 ]; then
+  echo "Building EditOneLife..."
+  ./makeEditor.sh || exit 1
+fi
 
 
 
@@ -56,7 +58,6 @@ echo "Copying items from build into directories"
 if [ "$1" = "5" ] # windows
 then
     cp OneLife/gameSource/OneLife.exe ./OneLifeApp.exe
-    cp OneLife/gameSource/EditOneLife.exe .
 else
     cp OneLife/gameSource/OneLife ./OneLifeApp
     cp OneLife/gameSource/EditOneLife .
