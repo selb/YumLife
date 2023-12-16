@@ -4,6 +4,15 @@ http://onehouronelife.com/updateLog.php
 
 
 
+Version 405   2023-December-15
+
+--Fixed fprintf type warning found with old Mac compiler.
+
+--Added missing DLLs for editor on Windows.
+
+
+
+
 Version 404   2023-December-15
 
 --Fixed so that BELL and HELL arrow labels are in English.txt translation file
