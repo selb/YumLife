@@ -26,6 +26,7 @@ std::string Phex::strCmdChar;
 std::string Phex::publicHash = "";
 std::unordered_map<std::string, Phex::User> Phex::users;
 std::unordered_map<int, std::string> Phex::playerIdToHash;
+std::unordered_set<std::string> Phex::blockedUsers;
 
 bool Phex::hasFocus = false;
 bool Phex::isMinimized = false;
@@ -344,6 +345,10 @@ void Phex::serverCmdUSERNAME_ERR(std::vector<std::string> input) {
 }
 
 void Phex::serverCmdSAY(std::vector<std::string> input) {
+	if (blockedUsers.count(input[2])) {
+		return;
+	}
+
 	ChatElement chatElement;
 	chatElement.hash = input[2];
 	createUser(chatElement.hash);
@@ -351,7 +356,6 @@ void Phex::serverCmdSAY(std::vector<std::string> input) {
 	chatElement.unixTimeStamp = strToTimeT(input[3]);
 	chatElement.text = joinStr(input, " ", 4);
 
-	createUser(chatElement.hash);
 	chatElement.name = string(*getUserDisplayName(chatElement.hash));
 
 	chatElement.textToDraw = colorCodeNamesInChat+chatElement.name+": "+colorCodeWhite+chatElement.text;
@@ -504,6 +508,9 @@ void Phex::initChatCommands() {
 	chatCommands["LIST"].func = chatCmdLIST;
 	chatCommands["LIST"].minWords = 1;
 	chatCommands["LIST"].helpStr = "Lists all online players";
+	chatCommands["BLOCK"].func = chatCmdBLOCK;
+	chatCommands["BLOCK"].minWords = 2;
+	chatCommands["BLOCK"].helpStr = "Block a user's messages (until exit)";
 	chatCommands["LIFE"].func = chatCmdLIFE;
 	chatCommands["LIFE"].minWords = 1;
 	chatCommands["LIFE"].helpStr = "Sends your real life ID to server";
@@ -554,6 +561,27 @@ void Phex::chatCmdLIST(std::vector<std::string> input) {
 		}
 		HetuwMod::writeLineToLogs("phex_list", ss.str());
 	}
+}
+
+void Phex::chatCmdBLOCK(std::vector<std::string> input) {
+	std::string matchedHash;
+	for (std::pair<std::string, User> element : users) {
+		User &user = element.second;
+		std::string *displayName = getUserDisplayName(user.hash);
+		if (displayName != NULL && input[1] == *displayName) {
+			matchedHash = user.hash;
+			break;
+		}
+	}
+
+	std::stringstream ss;
+	if (matchedHash == "") {
+		ss << colorCodeCmdMessageError << "No user with that name.";
+	} else {
+		ss << colorCodeCmdMessage << "Blocking messages from " << input[1] << " (" << matchedHash.substr(0, ChatElement::maxHashDisplayLength) << ")";
+		blockedUsers.insert(matchedHash);
+	}
+	addCmdMessageToChatWindow(ss.str());
 }
 
 void Phex::chatCmdLIFE(std::vector<std::string> input) {

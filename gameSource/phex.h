@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
+#include <unordered_set>
 
 #include "hetuwmod.h"
 #include "hetuwFont.h"
@@ -227,6 +228,7 @@ public:
 	static std::string publicHash;
 	static std::unordered_map<std::string, User> users;
 	static std::unordered_map<int, std::string> playerIdToHash;
+	static std::unordered_set<std::string> blockedUsers;
 	
 	static bool hasFocus;
 	static bool isMinimized;
@@ -326,6 +328,7 @@ public:
 	static void chatCmdHELP(std::vector<std::string> input);
 	static void chatCmdNAME(std::vector<std::string> input);
 	static void chatCmdLIST(std::vector<std::string> input);
+	static void chatCmdBLOCK(std::vector<std::string> input);
 	static void chatCmdLIFE(std::vector<std::string> input);
 	static void chatCmdTEST(std::vector<std::string> input);
 
