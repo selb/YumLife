@@ -1,6 +1,7 @@
 #include "phex.h"
 
 #include <string>
+#include <sstream>
 #include <vector>
 #include <unordered_map>
 
@@ -537,12 +538,21 @@ void Phex::chatCmdLIST(std::vector<std::string> input) {
 		}
 		if (user->name.length() > 0) str += " "+colorCodeNamesInChat+user->name;
 		
+		LiveObject *player = NULL;
 		if (user->inGameServerPlayerID >= 0) {
-			LiveObject *player = HetuwMod::livingLifePage->getLiveObject(user->inGameServerPlayerID);
+			player = HetuwMod::livingLifePage->getLiveObject(user->inGameServerPlayerID);
 			if (player && player->name) str += " "+colorCodeCmdInGameNames+string(player->name);
 		}
 
 		addCmdMessageToChatWindow(str);
+
+		/* log the hashes in addition to displaying them */
+		std::stringstream ss;
+		ss << element.first << hetuwLogSeperator << user->name << hetuwLogSeperator << user->inGameServerPlayerID << hetuwLogSeperator;
+		if (player && player->name) {
+			ss << player->name;
+		}
+		HetuwMod::writeLineToLogs("phex_list", ss.str());
 	}
 }
 
