@@ -95,6 +95,13 @@
  *
  * 2017-August-8    Jason Rohrer
  * Function for getting alphabetically sorted child files.
+ *
+ * 2023-December-19    Jason Rohrer
+ * uint64_t versions of reading/writing single int from file, using C99.
+ * Added getAbsoluteFileName() function.
+ *
+ * 2023-December-20    Jason Rohrer
+ * Fixed so that remove correctly handles removing directories (only if empty).
  */
 
 
@@ -110,6 +117,14 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdint.h>
+
+
+#ifndef WIN_32
+// windows doesn't support inttypes
+#include <inttypes.h>
+#endif
+
 
 #include <dirent.h>
 
@@ -318,6 +333,15 @@ class File {
 		char *getFullFileName( int *outLength = NULL );
 	
 
+        /**
+         * Gets the absolute-path file from the platform-specific root
+         * of the filesystem.
+         * 
+         * Parameters and return value are the same as getFullFileName
+         */
+        char *getAbsoluteFileName( int *outLength = NULL );
+        
+
 
 		/**
 		 * Gets the pathless name of this file.
@@ -344,6 +368,8 @@ class File {
         // read a single int from this file
         // inDefaultValue returned if reading fails
         int readFileIntContents( int inDefaultValue );
+        
+        uint64_t readFileUInt64Contents( uint64_t inDefaultValue );
         
 
 
@@ -395,6 +421,7 @@ class File {
         //   false otherwise.
         char writeToFile( int inInt );
         
+        char writeToFile( uint64_t inInt );
         
 		
 	private:
@@ -828,19 +855,29 @@ inline timeSec_t File::getModificationTime() {
 
 
 
+#include "Directory.h"
+
+
+
 inline char File::remove() {
     char returnVal = false;
     
     if( exists() ) {
-		char *stringName = getFullFileName(); 
-
-		int error = ::remove( stringName );
-
-        if( error == 0 ) {
-            returnVal = true;
+        
+        if( isDirectory() ) {
+            returnVal = Directory::removeDirectory( this );
             }
+        else {
+            char *stringName = getFullFileName(); 
             
-		delete [] stringName;
+            int error = ::remove( stringName );
+            
+            if( error == 0 ) {
+                returnVal = true;
+                }
+            
+            delete [] stringName;
+            }
 		}
 
     return returnVal;
@@ -996,6 +1033,22 @@ inline char *File::getFullFileName( int *outLength ) {
 
 
 
+inline char *File::getAbsoluteFileName( int *outLength ) {
+    char *name = getFullFileName();
+    
+    char *absolutePath = Path::makeAbsolute( name );
+    
+    delete [] name;
+    
+    if( absolutePath != NULL && outLength != NULL ) {
+        *outLength = strlen( absolutePath );
+        }
+
+    return absolutePath;
+    }
+
+
+
 #include "minorGems/io/file/FileInputStream.h"
 #include "minorGems/io/file/FileOutputStream.h"
 
@@ -1033,6 +1086,32 @@ inline int File::readFileIntContents( int inDefaultValue ) {
     
     int numRead = sscanf( cont, "%d", &val );
     
+    delete [] cont;
+
+    if( numRead != 1 ) {
+        return inDefaultValue;
+        }
+
+    return val;
+    }
+
+
+
+inline uint64_t File::readFileUInt64Contents( uint64_t inDefaultValue ) {
+    char *cont = readFileContents();
+    
+    if( cont == NULL ) {
+        return inDefaultValue;
+        }
+    
+    uint64_t val;
+    
+    #ifdef WIN_32
+    int numRead = sscanf( cont, "%I64u", &val );
+    #else
+    int numRead = sscanf( cont, "%" SCNu64, &val );
+    #endif
+
     delete [] cont;
 
     if( numRead != 1 ) {
@@ -1102,6 +1181,22 @@ inline char File::writeToFile( int inInt ) {
 
 
 
+inline char File::writeToFile( uint64_t inInt ) {
+    #ifdef WIN_32
+    char *stringVal = autoSprintf( "%I64u", inInt );
+    #else
+    char *stringVal = autoSprintf( "%" PRIu64, inInt );
+    #endif
+    
+    char returnVal = writeToFile( stringVal );
+
+    delete [] stringVal;
+
+    return returnVal;
+    }
+
+
+
 inline char File::writeToFile( unsigned char *inData, int inLength ) {
     FileOutputStream *output = new FileOutputStream( this );
 
@@ -1120,7 +1215,6 @@ inline char File::writeToFile( unsigned char *inData, int inLength ) {
 
 
 
-#include "Directory.h"
 
 
 

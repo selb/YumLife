@@ -15,10 +15,17 @@
  *
  * 2010-May-14    Jason Rohrer
  * String parameters as const to fix warnings.
+ *
+ * 2023-December-19    Jason Rohrer
+ * Added makeAbsolute static function.
  */
 
 #include "minorGems/io/file/Path.h"
 #include "minorGems/util/stringUtils.h"
+
+#include <stdio.h>
+
+#include <windows.h>
 
 
 /*
@@ -93,3 +100,28 @@ char Path::isRoot( const char *inPathString ) {
     }
 
 
+
+#define MAX_ABS_PATH_LENGTH 4096
+
+char *Path::makeAbsolute( const char *inPathString ) {
+    char *absPath = new char[ MAX_ABS_PATH_LENGTH ];
+
+    if( absPath == NULL ) {
+        return NULL;
+        }
+
+    int pathLen = GetFullPathNameA( inPathString,
+                                    MAX_ABS_PATH_LENGTH,
+                                    absPath,
+                                    NULL );
+    
+    char *returnString = NULL;
+    
+    if( pathLen > 0 ) {
+        returnString = stringDuplicate( absPath );
+        }
+    
+    delete [] absPath;
+
+    return returnString;
+    }
