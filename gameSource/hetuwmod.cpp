@@ -1571,6 +1571,7 @@ void HetuwMod::gameStep() {
 	mouseBuffer->Reset();
 
 	stepHttpRequests();
+	Phex::onGameStep();
 }
 
 void HetuwMod::livingLifeStep() {
@@ -5235,4 +5236,11 @@ void HetuwMod::drawHungerWarning() {
 		setDrawColor( 1, 0, 0, alpha );
 		drawRect( startPos, viewWidth * guiScale, viewHeight * guiScale );
 	}
+}
+
+// Note that this is triggered any time we find out a life failed to start or
+// ended; it can be called repeatedly without us seeing any successful
+// connections or births between.
+void HetuwMod::onNotLiving() {
+	// not used yet :)
 }

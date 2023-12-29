@@ -14,6 +14,7 @@
 
 TCPConnection Phex::tcp;
 bool Phex::bSendFirstMsg = true;
+bool Phex::lifeStarted = false;
 
 std::unordered_map<std::string, Phex::ServerCommand> Phex::serverCommands;
 std::unordered_map<std::string, Phex::ChatCommand> Phex::chatCommands;
@@ -958,7 +959,7 @@ bool Phex::addToInputStr(unsigned char c) {
 }
 
 void Phex::sendFirstMessage() {
-	string clientName = "hetuw";
+	string clientName = "yumlife";
 	string phexVersionNumber = to_string(PHEX_VERSION);
 	string secretHash = getSecretHash();
 	string jasonsOneLifeVersion = to_string(versionNumber);
@@ -972,11 +973,7 @@ void Phex::joinChannel(std::string inChannelName) {
 	tcp.send("JOIN "+channelName);
 	mainChatWindow.clear();
 	tcp.send("GETLAST "+channelName+" 30");
-	if (bSendFakeLife) {
-		sendServerLife(1);
-	} else {
-		sendServerLife(HetuwMod::ourLiveObject->id);
-	}
+	sendServerLife(bSendFakeLife ? 1 : HetuwMod::ourLiveObject->id);
 }
 
 void Phex::sendServerLife(int life) {
@@ -988,9 +985,10 @@ void Phex::sendServerLife(int life) {
 
 void Phex::draw() {
 	if (!HetuwMod::phexIsEnabled) return;
+
+	lifeStarted = true;
 	if (HetuwMod::bDrawBiomeInfo) testDrawBiomeChunks();
 	fontSetMaxX();
-	tcp.step();
 	keyHandler.step();
 	if (sendBiomeDataActive && intervalSendBiomeData.step()) loopBiomeChunks();
 	if (sendPositionActive && intervalSendPosition.step()) sendPosition();
@@ -1129,16 +1127,20 @@ void Phex::onReceivedMessage(std::string msg) {
 
 void Phex::onConnectionStatusChanged(TCPConnection::statusType status) {
 	switch (status) {
+		case TCPConnection::UNINITIALIZED:
 		case TCPConnection::OFFLINE:
+			HetuwMod::writeLineToLogs("phex_status", "offline");
 			titleText.setToOffline();
 			setArray(butPhex.colorBckgr, colorButPhexOffline, 4);
 			break;
 		case TCPConnection::CONNECTING:
+			HetuwMod::writeLineToLogs("phex_status", "connecting");
 			titleText.setToConnecting();
 			setArray(butPhex.colorBckgr, colorButPhexConnecting, 4);
 			bSendFirstMsg = true;
 			break;
 		case TCPConnection::ONLINE:
+			HetuwMod::writeLineToLogs("phex_status", "online");
 			titleText.setToOnline();
 			setArray(butPhex.colorBckgr, colorButPhexOnline, 4);
 			channelName = "";
@@ -1274,9 +1276,22 @@ void Phex::onRingApoc(int x, int y) {
 }
 
 void Phex::onBirth() {
+	if (!HetuwMod::phexIsEnabled) return;
+
 	if (tcp.status == TCPConnection::ONLINE) {
-		if (forceChannel.length() > 1) joinChannel(forceChannel);
-		else joinChannel(string(HetuwMod::serverIP));
+		std::string expectedChannel;
+		if (forceChannel.length() > 1) {
+			expectedChannel = forceChannel;
+		} else {
+			expectedChannel = HetuwMod::serverIP;
+		}
+
+		if (channelName != expectedChannel) {
+			HetuwMod::writeLineToLogs("phex_status", channelName + " != " + expectedChannel + ", reconnecting");
+			tcp.reconnect();
+		} else {
+			sendServerLife(bSendFakeLife ? 1 : HetuwMod::ourLiveObject->id);
+		}
 	}
 	/*
 	for (int x=0; x<biomeChunksSentSize; x++) {
@@ -1285,6 +1300,16 @@ void Phex::onBirth() {
 		}
 	}
 	*/
+}
+
+void Phex::onGameStep() {
+	if (!HetuwMod::phexIsEnabled) return;
+
+	// Phex originally tcp.step()'d on the livingLifePage draw loop, so this
+	// condition is a bit of a kludge to avoid having to rework this module's
+	// lifecycle assumptions.
+	if (lifeStarted)
+		tcp.step();
 }
 
 void Phex::sendBiomeChunk(int chunkX, int chunkY) {

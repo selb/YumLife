@@ -1348,11 +1348,13 @@ void drawFrame( char inUpdate ) {
         if( currentGamePage == livingLifePage &&
             livingLifePage->checkSignal( "died" ) ) {
             showDiedPage();
+            HetuwMod::onNotLiving();
             }
         if( currentGamePage == livingLifePage &&
             livingLifePage->checkSignal( "disconnect" ) ) {
     
             showReconnectPage();
+            HetuwMod::onNotLiving();
             }
         
 
@@ -2022,6 +2024,8 @@ void drawFrame( char inUpdate ) {
                 }
             }
         else if( currentGamePage == livingLifePage ) {
+            bool notLiving = false;
+
             if( livingLifePage->checkSignal( "loginFailed" ) ) {
                 lastScreenViewCenter.x = 0;
                 lastScreenViewCenter.y = 0;
@@ -2188,6 +2192,7 @@ void drawFrame( char inUpdate ) {
                 userTwinCode = stringDuplicate( "yumlife_reborn" );
                 userTwinCount = 1;
                 startConnecting();
+                notLiving = true;
                 }
             else if( livingLifePage->checkSignal( "tutorial" ) ) {
                 // YumLife mod
@@ -2199,6 +2204,7 @@ void drawFrame( char inUpdate ) {
                 userTwinCount = 1;
                 livingLifePage->runTutorial( 1 );
                 startConnecting();
+                notLiving = true;
                 }
             else if( livingLifePage->checkSignal( "loadFailure" ) ) {
                 currentGamePage = finalMessagePage;
@@ -2221,6 +2227,10 @@ void drawFrame( char inUpdate ) {
 
                 currentGamePage->base_makeActive( true );
                 }
+
+                notLiving = (notLiving || currentGamePage != livingLifePage);
+                if (!notLiving)
+                    HetuwMod::onNotLiving();
             }
         else if( currentGamePage == extendedMessagePage ) {
             if( extendedMessagePage->checkSignal( "done" ) ) {

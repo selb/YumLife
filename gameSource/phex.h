@@ -216,6 +216,7 @@ public:
 
 	static TCPConnection tcp;
 	static bool bSendFirstMsg;
+	static bool lifeStarted;
 
 	static std::unordered_map<std::string, ServerCommand> serverCommands;
 	static std::unordered_map<std::string, ChatCommand> chatCommands;
@@ -391,6 +392,7 @@ public:
 	static void onBirth();
 	static void onRingBell(int x, int y);
 	static void onRingApoc(int x, int y);
+	static void onGameStep();
 
 private:
 

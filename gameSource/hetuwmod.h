@@ -669,6 +669,8 @@ public:
 	static void getSkinColor(float *rgba, ObjectRecord *obj);
 	static std::string getRaceName(ObjectRecord *obj);
 
+	static void onNotLiving();
+
 private:
 
 	static void zoomCalc();

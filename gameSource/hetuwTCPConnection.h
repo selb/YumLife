@@ -13,8 +13,8 @@ public:
 	std::string ip;
 	int port;
 
-	enum statusType { OFFLINE, CONNECTING, ONLINE };
-	statusType status = OFFLINE;
+	enum statusType { UNINITIALIZED, OFFLINE, CONNECTING, ONLINE };
+	statusType status = UNINITIALIZED;
 
 	void (*onReceivedMessage)(std::string);
 	void (*onStatusChanged)(statusType);

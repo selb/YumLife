@@ -10,6 +10,7 @@
 // The server needs to send the first message in order to let the client know it is connected
 
 void TCPConnection::init(std::string serverIp, int serverPort, void (*inOnReceivedMessage)(std::string), void (*inOnStatusChanged)(statusType)) {
+	status = OFFLINE;
 	ip = serverIp;
 	port = serverPort;
 	onReceivedMessage = inOnReceivedMessage;
@@ -34,6 +35,8 @@ void TCPConnection::send(std::string message) {
 	sendBuffer.push_back(message);
 }
 void TCPConnection::step() {
+	if (status == UNINITIALIZED) return;
+
 	if (!keepConnected) {
 		if (status == OFFLINE) return;
 		disconnectC();
