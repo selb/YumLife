@@ -36,10 +36,9 @@ Picker::Picker( Pickable *inPickable, double inX, double inY )
           mDelConfirmButton( smallFont, -15, -290, "!" ), 
           mSearchField( mainFont, 
                         0,  100, 4,
-                        false,
+                        true,
                         "", NULL, "" ),
           mSelectionIndex( -1 ),
-          mMouseOverIndex( -1 ),
           mSelectionRightClicked( false ),
           mPastSearchCurrentIndex( -1 ) {
 
@@ -289,6 +288,24 @@ void Picker::redoSearch( char inClearPageSkip ) {
     }
 
 
+void Picker::focusSearchField() {
+    mSearchField.focus();
+    }
+    
+void Picker::clearSearchField() {
+    mSearchField.setText( "" );
+    }
+    
+void Picker::setSearchField( const char *inText ) {
+    mSearchField.setText( inText );
+    redoSearch( true );
+    }
+    
+void Picker::usePickable( int id ) {
+    mPickable->usePickable( id );
+    }
+
+
 
 void Picker::addSearchToStack() {
     char *search = mSearchField.getText();
@@ -315,12 +332,9 @@ void Picker::addSearchToStack() {
 void Picker::actionPerformed( GUIComponent *inTarget ) {
     int skipAmount = PER_PAGE;
     
-    if( isCommandKeyDown() ) {
-        skipAmount *= 5;
-        }
-    if( isShiftKeyDown() ) {
-        skipAmount *= 5;
-        }
+    // if( isCommandKeyDown() ) {
+        // skipAmount *= 5;
+        // }
     
     if( inTarget == &mNextButton ) {
         mSkip += skipAmount;
@@ -359,52 +373,6 @@ void Picker::actionPerformed( GUIComponent *inTarget ) {
     }
 
 
-
-void Picker::keyDown( unsigned char inASCII ) {
-    // don't capture field typing
-    if( mSearchField.isFocused() || mSelectionIndex == -1 ) {
-        return;
-        }
-
-    // but respond to [ and ] keys to page through items one by one
-    
-    int oldSelection = mSelectionIndex;    
-
-    switch( inASCII ) {
-        case '[':
-            mSelectionIndex --;
-            if( mSelectionIndex < 0 ) {
-                if( mPrevButton.isVisible() ) {
-                    actionPerformed( &mPrevButton );
-                    mSelectionIndex = PER_PAGE - 1;
-                    }
-                else {
-                    mSelectionIndex = 0;
-                    }
-                }
-            break;
-        case ']':
-            mSelectionIndex ++;
-            if( mSelectionIndex >= mNumResults ) {
-                if( mNextButton.isVisible() ) {
-                    actionPerformed( &mNextButton );
-                    mSelectionIndex = 0;
-                    }
-                else {
-                    mSelectionIndex = mNumResults - 1;
-                    }
-                }
-            break;
-        }
-
-    if( oldSelection != mSelectionIndex ) {
-        mSelectionRightClicked = false;
-        fireActionPerformed( this );
-        }
-    }
-
-
-
 void Picker::specialKeyDown( int inKeyCode ) {
     
     if( ! mSearchField.isFocused() ) {
@@ -439,6 +407,14 @@ void Picker::specialKeyDown( int inKeyCode ) {
 
 
 
+void Picker::setIgnoredKey( unsigned char inASCII ) {
+    
+    mSearchField.setIgnoredKey( inASCII );
+    
+    }
+
+
+
 
 void Picker::draw() {
     setDrawColor( 0.75, 0.75, 0.75, 1 );
@@ -453,8 +429,6 @@ void Picker::draw() {
         doublePair pos = { -50, 40 };
         
         
-        char blankNextItemText = false;
-        
         for( int i=0; i<mNumResults; i++ ) {
             if( i == mSelectionIndex ) {
                 setDrawColor( 1, 1, 1, 1 );
@@ -462,13 +436,7 @@ void Picker::draw() {
                 selPos.x = 0;
                 drawRect( selPos, 80, 32 );
                 }
-            if( i == mMouseOverIndex ) {
-                setDrawColor( 0, 0, 0, 0.125 );
-                doublePair selPos = pos;
-                selPos.x = 0;
-                drawRect( selPos, 80, 32 );
-                }
-            
+
             setDrawColor( 1, 1, 1, 1 );
             mPickable->draw( mResults[i], pos );
             
@@ -494,29 +462,9 @@ void Picker::draw() {
                 parts.push_back( part );
                 }
             
-
-            int numPartsToShow = parts.size();
-
-            if( numPartsToShow > 4 ) {
-                numPartsToShow = 4;
-                }
-
-            textPos.y += ( numPartsToShow - 1 ) * 12 / 2;
+            textPos.y += ( parts.size() - 1 ) * 12 / 2;
             
-            if( mMouseOverIndex == i ) {
-                // mousing over this item, expand its text to show
-                // all of it
-                // but keep y position so that text doesn't jump around
-                numPartsToShow = parts.size();
-                }            
-
-            float oldFade = getDrawFade();
-            
-            if( blankNextItemText ) {
-                setDrawFade( 0.25 );
-                }
-            
-            for( int j=0; j<numPartsToShow; j++ ) {
+            for( int j=0; j<parts.size(); j++ ) {
                 
                 char *text = parts.getElementDirect( j );
                 char *trimmed = trimWhitespace( text );
@@ -526,21 +474,8 @@ void Picker::draw() {
                 textPos.y -= 12;
 
                 delete [] trimmed;
+                delete [] text;
                 }
-            
-            setDrawFade( oldFade );
-
-            blankNextItemText = false;
-
-            parts.deallocateStringElements();
-            
-            
-            if( numPartsToShow > 4 ) {
-                // blank next item to make room for this
-                // extra text
-                blankNextItemText = true;
-                }
-
             
             if( mResultsUnclickable[ i ] ) {
                 setDrawColor( 0, 0, 0, 0.65 );
@@ -566,42 +501,64 @@ void Picker::draw() {
 
 
 
-
-
-void Picker::pointerMove( float inX, float inY ) {
-
-    if( inX > -80 && inX < 80 &&
-        inY < 75 && inY > -245 ) {
-
-        
-        inY -= 40;
-        
-        inY *= -1;
-        
-        inY += 32;
-        
-
-        mMouseOverIndex = (int)( inY / 64 );        
-
-        if( mMouseOverIndex >= mNumResults ) {
-            mMouseOverIndex = -1;
-            }
-        if( mMouseOverIndex < 0 ) {
-            mMouseOverIndex = -1;
-            }
-        }
-    else {
-        mMouseOverIndex = -1;
-        }
-    }
-
-
-
 void Picker::pointerDown( float inX, float inY ) {
     if( inX > -80 && inX < 80 &&
         inY < 75 && inY > -245 ) {
         mPressStartedHere = true;
         }
+    }
+    
+    
+    
+void Picker::select( int index ) {
+    if( index < mNumResults && index >= 0 &&
+        mResultsUnclickable[ index ] ) {
+        return;
+        }
+    
+    if( index >= mNumResults || index < 0 ) {
+        return;
+        }
+    
+    mSelectionIndex = index;
+    }
+    
+void Picker::selectUp() {
+    int index = mSelectionIndex - 1;
+    
+    if( index < mNumResults && index >= 0 &&
+        mResultsUnclickable[ index ] ) {
+        return;
+        }
+    
+    if( index >= mNumResults || index < 0 ) {
+        return;
+        }
+    
+    mSelectionIndex = index;
+    }
+    
+void Picker::selectDown() {
+    int index = mSelectionIndex + 1;
+    
+    if( index < mNumResults && index >= 0 &&
+        mResultsUnclickable[ index ] ) {
+        return;
+        }
+    
+    if( index >= mNumResults || index < 0 ) {
+        return;
+        }
+    
+    mSelectionIndex = index;
+    }
+    
+void Picker::nextPage() {
+    if( mNextButton.isVisible() ) actionPerformed( &mNextButton );
+    }
+    
+void Picker::prevPage() {
+    if( mPrevButton.isVisible() ) actionPerformed( &mPrevButton );
     }
 
         

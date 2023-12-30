@@ -58,6 +58,7 @@
 #include "hetuwmod.h"
 #include "phex.h"
 #include <string>
+#include "minitech.h"
 
 static ObjectPickable objectPickable;
 
@@ -144,9 +145,12 @@ static float pencilErasedFontExtraFade = 0.75;
 
 extern doublePair lastScreenViewCenter;
 doublePair LivingLifePage::hetuwGetLastScreenViewCenter() { return lastScreenViewCenter; }
+doublePair LivingLifePage::minitechGetLastScreenViewCenter() { return lastScreenViewCenter; }
 
 static char shouldMoveCamera = true;
 
+bool ShowUseOnObjectHoverSettingToggle = false;
+static bool isShowUseOnObjectHoverKeybindEnabled = false;
 
 extern double visibleViewWidth;
 extern double viewHeight;
@@ -1316,18 +1320,65 @@ int LivingLifePage::hetuwGetTextLengthLimit() {
 }
 
 
-
-static char *getDisplayObjectDescription( int inID ) {
+static char *getFullUpperCasedObjectDescription( int inID ) {
     ObjectRecord *o = getObject( inID );
     if( o == NULL ) {
         return NULL;
         }
-    char *upper = stringToUpperCase( o->description );
-    stripDescriptionComment( upper );
-    return upper;
+    return stringToUpperCase( o->description );
+}
+
+
+static char *getDisplayObjectDescription( int inID ) {
+    char *desc = getFullUpperCasedObjectDescription(inID);
+    if(desc == NULL) {
+        return NULL;
+        }
+    stripDescriptionComment( desc );
+    return desc;
     }
 
+std::string LivingLifePage::minitechGetFullObjectDescription( int objID ) {
+    char *desc = getFullUpperCasedObjectDescription(objID);
+    if (desc == NULL) {
+        return "";
+        }
+    std::string s = desc;
+    return s;
+    }
 
+std::string LivingLifePage::minitechGetDisplayObjectDescription( int objId ) { 
+    ObjectRecord *o = getObject( objId );
+    if( o == NULL ) {
+		return "";
+        }
+	char *descriptionChars = getDisplayObjectDescription(objId);
+	string description(descriptionChars);
+	delete [] descriptionChars;
+	return description;
+}
+
+static bool isAllDigits( std::string &str ) {
+    return std::all_of(str.begin(), str.end(), ::isdigit);
+    }
+
+// Checks for a potential container change caused by containment transitions
+// We could check all the changed contained objects and all the IN and OUT transitions
+// But it suffices for now to just check for
+// a change in the container and that both containers having the useOnContained tag
+static bool potentialContainerChangebyContTrans( int oldId, int newId ) { 
+    if( oldId == newId ) return false;
+    int maxObjectID = getMaxObjectID();
+    if( oldId <= 0 || newId <= 0 || oldId > maxObjectID || newId > maxObjectID ) return false;
+    ObjectRecord *oldObj = getObject( oldId );
+    ObjectRecord *newObj = getObject( newId );
+    if( oldObj == NULL || newObj == NULL ) return false;
+    if( oldObj->description == NULL || newObj->description == NULL ) return false;
+    if( strstr( oldObj->description, "+useOnContained" ) != NULL &&
+        strstr( newObj->description, "+useOnContained" ) != NULL )
+        return true;
+    return false;
+}
 
 typedef enum messageType {
     SHUTDOWN,
@@ -3228,6 +3279,14 @@ LivingLifePage::LivingLifePage()
 	// hetuw mod
 	mDeathReason = NULL;
 	HetuwMod::setLivingLifePage(this, &gameObjects, mMapContainedStacks, mMapSubContainedStacks, mMapD, mCurMouseOverID);
+	
+	minitech::setLivingLifePage(
+		this, 
+		&gameObjects, 
+		mMapD, 
+		pathFindingD, 
+		mMapContainedStacks, 
+		mMapSubContainedStacks);
 
     }
 
@@ -3687,7 +3746,9 @@ void LivingLifePage::drawChalkBackgroundString( doublePair inPos,
                                                 LiveObject *inSpeaker,
                                                 int inForceMinChalkBlots,
                                                 FloatColor *inForceBlotColor,
-                                                FloatColor *inForceTextColor ) {
+                                                FloatColor *inForceTextColor,
+                                                bool tinyStyle,
+                                                bool scaleWithGui ) {
     
     char *stringUpper = stringToUpperCase( inString );
 
@@ -3701,7 +3762,11 @@ void LivingLifePage::drawChalkBackgroundString( doublePair inPos,
         return;
         }
 
-    double lineSpacing = handwritingFont->getFontHeight() / 2 + 5;
+    float scale = 1.0;
+    if(tinyStyle) scale = 0.75;
+    if(scaleWithGui) scale = scale * HetuwMod::guiScale;
+
+    double lineSpacing = handwritingFont->getFontHeight() / 2 + ( 5 * scale );
     
     double firstLineY =  inPos.y + ( lines->size() - 1 ) * lineSpacing;
     
@@ -3722,7 +3787,7 @@ void LivingLifePage::drawChalkBackgroundString( doublePair inPos,
     for( int i=0; i<lines->size(); i++ ) {
         char *line = lines->getElementDirect( i );
 
-        double length = handwritingFont->measureString( line );
+        double length = handwritingFont->measureString( line ) * scale;
         if( length > widestLine ) {
             widestLine = length;
             }
@@ -3783,15 +3848,15 @@ void LivingLifePage::drawChalkBackgroundString( doublePair inPos,
         char *line = lines->getElementDirect( i );
         
 
-        double length = handwritingFont->measureString( line );
+        double length = handwritingFont->measureString( line ) * scale;
             
-        int numBlots = lrint( 0.25 + length / 20 ) + 1;
+        int numBlots = lrint( 0.25 + length / 20 / scale ) + 1;
         
         if( inForceMinChalkBlots != -1 && numBlots < inForceMinChalkBlots ) {
             numBlots = inForceMinChalkBlots;
             }
     
-        doublePair blotSpacing = { 20, 0 };
+        doublePair blotSpacing = { 20 * scale, 0 };
     
         doublePair firstBlot = 
             { inPos.x, firstLineY - i * lineSpacing};
@@ -3812,17 +3877,17 @@ void LivingLifePage::drawChalkBackgroundString( doublePair inPos,
             doublePair blotPos = add( firstBlot, mult( blotSpacing, b ) );
         
             double rot = blotRandSource.getRandomDouble();
-            drawSprite( mChalkBlotSprite, blotPos, 1.0, rot );
-            drawSprite( mChalkBlotSprite, blotPos, 1.0, rot );
+            drawSprite( mChalkBlotSprite, blotPos, scale, rot );
+            drawSprite( mChalkBlotSprite, blotPos, scale, rot );
             
             // double hit vertically
             blotPos.y += 5;
             rot = blotRandSource.getRandomDouble();
-            drawSprite( mChalkBlotSprite, blotPos, 1.0, rot );
+            drawSprite( mChalkBlotSprite, blotPos, scale, rot );
             
             blotPos.y -= 10;
             rot = blotRandSource.getRandomDouble();
-            drawSprite( mChalkBlotSprite, blotPos, 1.0, rot );
+            drawSprite( mChalkBlotSprite, blotPos, scale, rot );
             }
         }
     
@@ -3860,7 +3925,7 @@ void LivingLifePage::drawChalkBackgroundString( doublePair inPos,
         doublePair lineStart = 
             { inPos.x, firstLineY - i * lineSpacing};
         
-        handwritingFont->drawString( line, lineStart, alignLeft );
+        hetuwDrawScaledHandwritingFont( line, lineStart, scale, alignLeft );
         delete [] line;
         }
 
@@ -8523,6 +8588,7 @@ void LivingLifePage::draw( doublePair inViewCenter,
 
     for( int i=0; i<2; i++ ) {
         
+		if( !minitech::minitechEnabled ) //minitech
         if( ! takingPhoto && mCurrentHintTargetObject[i] > 0 ) {
             // draw pointer to closest hint target object
         
@@ -9836,6 +9902,7 @@ void LivingLifePage::draw( doublePair inViewCenter,
         }
     
     for( int i=0; i<NUM_HINT_SHEETS; i++ ) {
+		if ( !minitech::minitechEnabled ) //minitech
         if( ! equal( mHintPosOffset[i], mHintHideOffset[i] ) 
             &&
             mHintMessage[i] != NULL ) {
@@ -11215,9 +11282,40 @@ void LivingLifePage::draw( doublePair inViewCenter,
                     }
                 }
             
-            
-            setDrawColor( 0, 0, 0, 1 );
-            pencilFont->drawString( stringUpper, tipPos, alignCenter );
+            // This was the main description drawn on guiPanel
+            // setDrawColor( 0, 0, 0, 1 );
+            // pencilFont->drawString( stringUpper, pos, alignCenter );
+			
+			// Moved to be cursor-tips
+            if( ! mXKeyDown )
+            if( mCurMouseOverID != 0 ) {
+                FloatColor bgColor = { 0.05, 0.05, 0.05, 1.0 };
+                FloatColor txtColor = { 1, 1, 1, 1 };
+                doublePair pos1 = {lastMouseX + 16 * HetuwMod::guiScale, lastMouseY - 16 * HetuwMod::guiScale};
+                drawChalkBackgroundString( pos1, stringUpper, 1.0, 100000.0, NULL, -1, &bgColor, &txtColor, true );
+
+                const bool isShowUseOnObjectHoverIsActive = 
+                    ShowUseOnObjectHoverSettingToggle  && isShowUseOnObjectHoverKeybindEnabled;
+
+                if(isShowUseOnObjectHoverIsActive && mCurMouseOverID > 0) {      
+                    std::string objComment = minitech::getObjDescriptionComment(mCurMouseOverID);
+                    std::string displayedComment = objComment;
+                    std::string tagName = " USE";
+                    std::string tagData = minitech::getObjDescriptionTagData(objComment, tagName.c_str());
+
+                    if(!tagData.empty()) { 
+                        std::string remainingUseCount = tagData.substr(tagName.size() + 1); 
+                        displayedComment = remainingUseCount;
+                        }
+                    if(!displayedComment.empty() && isAllDigits(displayedComment)) {
+                        char *display = autoSprintf("USE: %s", displayedComment.c_str());
+                        doublePair pos2 = {lastMouseX + 22 * HetuwMod::guiScale, lastMouseY - 34 * HetuwMod::guiScale};
+                        drawChalkBackgroundString( pos2, display, 1.0, 100000.0, NULL, -1, &bgColor, &txtColor, true );
+                        
+                        delete [] display;
+                    }                
+                }
+            }
             
             delete [] stringUpper;
             }
@@ -11288,6 +11386,15 @@ void LivingLifePage::draw( doublePair inViewCenter,
         }
 
 	HetuwMod::livingLifeDraw();
+
+	// minitech
+	float worldMouseX, worldMouseY;
+	getLastMouseScreenPos( &lastScreenMouseX, &lastScreenMouseY );
+	screenToWorld( lastScreenMouseX,
+				   lastScreenMouseY,
+				   &worldMouseX,
+				   &worldMouseY );
+	minitech::livingLifeDraw(worldMouseX, worldMouseY);
 
     if( vogMode ) {
         // draw again, so we can see picker
@@ -14398,6 +14505,7 @@ void LivingLifePage::step() {
         sendToServerSocket( (char*)"KA 0 0#" );
         }
     
+	minitech::livingLifeStep();
 	HetuwMod::livingLifeStep();
 
     if( showFPS ) {
@@ -17708,6 +17816,7 @@ void LivingLifePage::step() {
                             if( isHintFilterStringInvalid() ) {
                                 mNextHintIndex = 
                                     mHintBookmarks[ mNextHintObjectID ];
+									if (minitech::changeHintObjOnTouch) minitech::changeCurrentHintObjId(mNextHintObjectID);
                                 }
                             }
                         
@@ -19262,6 +19371,7 @@ void LivingLifePage::step() {
                 ourID = ourObject->id;
 
 				HetuwMod::initOnServerJoin();
+				minitech::initOnBirth();
                 if( ourID != lastPlayerID ) {
                     homePosStack.deleteAll();
 					HetuwMod::initOnBirth();
@@ -24210,6 +24320,9 @@ static void freeSavedPath() {
 
 
 void LivingLifePage::pointerDown( float inX, float inY ) {
+	
+	if (minitech::livingLifePageMouseDown( inX, inY )) return;
+	
 	if (!mForceGroundClick && HetuwMod::livingLifePageMouseDown( inX, inY ))
 		return;
 
@@ -24719,6 +24832,7 @@ void LivingLifePage::pointerDown( float inX, float inY ) {
                 mNextHintObjectID = destID;
                 if( isHintFilterStringInvalid() ) {
                     mNextHintIndex = mHintBookmarks[ destID ];
+					if (minitech::changeHintObjOnTouch) minitech::changeCurrentHintObjId(destID);
                     }
                 }
             else if( tr->newActor > 0 && 
@@ -24727,6 +24841,7 @@ void LivingLifePage::pointerDown( float inX, float inY ) {
                 mNextHintObjectID = tr->newActor;
                 if( isHintFilterStringInvalid() ) {
                     mNextHintIndex = mHintBookmarks[ tr->newTarget ];
+					if (minitech::changeHintObjOnTouch) minitech::changeCurrentHintObjId(tr->newActor);
                     }
                 }
             else if( tr->newTarget > 0 ) {
@@ -24734,6 +24849,7 @@ void LivingLifePage::pointerDown( float inX, float inY ) {
                 mNextHintObjectID = tr->newTarget;
                 if( isHintFilterStringInvalid() ) {
                     mNextHintIndex = mHintBookmarks[ tr->newTarget ];
+					if (minitech::changeHintObjOnTouch) minitech::changeCurrentHintObjId(tr->newTarget);
                     }
                 }
             }
@@ -24745,6 +24861,7 @@ void LivingLifePage::pointerDown( float inX, float inY ) {
                 mNextHintObjectID = destID;
                 if( isHintFilterStringInvalid() ) {
                     mNextHintIndex = mHintBookmarks[ destID ];
+					if (minitech::changeHintObjOnTouch) minitech::changeCurrentHintObjId(destID);
                     }
                 }
             }
@@ -26124,6 +26241,62 @@ void LivingLifePage::keyDown( unsigned char inASCII ) {
         return;
         }
 
+	bool commandKey = isCommandKeyDown();
+	bool shiftKey = isShiftKeyDown();
+
+
+    if (!vogMode && !vogPickerOn) {
+        int keyCode_u = 85;
+        if (shiftKey && inASCII == keyCode_u) {
+            bool isSettingEnabled = 
+                SettingsManager::getIntSetting("advanced/showUseOnObjectHoverKeybind", 0);
+            ShowUseOnObjectHoverSettingToggle = isSettingEnabled;
+
+            if (isSettingEnabled) {
+                isShowUseOnObjectHoverKeybindEnabled = !isShowUseOnObjectHoverKeybindEnabled;
+            } else {
+                isShowUseOnObjectHoverKeybindEnabled = false;
+            }
+        }
+    }
+
+    if( vogMode && vogPickerOn ) {
+        //Picker keybinds
+        if( !commandKey && inASCII == 9 ) { // TAB
+            if( TextField::isAnyFocused() ) {
+                TextField::unfocusAll();
+            } else {
+                mObjectPicker.clearSearchField();
+                mObjectPicker.focusSearchField();
+            }
+            return;
+        } else if( commandKey && inASCII == 9 ) { // ctrl + TAB
+            mObjectPicker.setSearchField( "." );
+            TextField::unfocusAll();
+            return;
+        } else if( !TextField::isAnyFocused() && commandKey ) {
+            if( inASCII + 64 == toupper(HetuwMod::charKey_Up) ) {
+                mObjectPicker.selectUp();
+            } else if( inASCII + 64 == toupper(HetuwMod::charKey_Down) ) {
+                mObjectPicker.selectDown();
+                return;
+            }  else if( inASCII + 64 == toupper(HetuwMod::charKey_Right) ) {
+                mObjectPicker.nextPage();
+            }  else if( inASCII + 64 == toupper(HetuwMod::charKey_Left) ) {
+                mObjectPicker.prevPage();
+            }
+        } else if( TextField::isAnyFocused() && !mSayField.isFocused() && inASCII == 13 ) {
+            TextField::unfocusAll();
+            return;
+        }
+    } else if( vogMode && !vogPickerOn ) {
+		if( !commandKey && inASCII == 9 ) { // TAB
+			addComponent( &mObjectPicker );
+			mObjectPicker.addActionListener( this );
+			vogPickerOn = true;
+		}
+    }
+
 	if (inASCII == 'x' || inASCII == 'X') { // hetuw mod - copied and pasted from below in order to allow the cancel of twinning waiting screen
 		if( userTwinCode != NULL &&
 			! mStartedLoadingFirstObjectSet ) {
@@ -26138,6 +26311,7 @@ void LivingLifePage::keyDown( unsigned char inASCII ) {
 	if (!vogMode) {
 		if (Phex::hasFocus && mSayField.isFocused()) mSayField.unfocusAll();
 		if (HetuwMod::livingLifeKeyDown(inASCII) && inASCII != 'z') return;
+		if (minitech::livingLifeKeyDown(inASCII) && inASCII != 'z') return;
 	}
 
     switch( inASCII ) {
@@ -26685,6 +26859,11 @@ void LivingLifePage::keyDown( unsigned char inASCII ) {
                                     // not blank
                                     mHintFilterString = 
                                         stringDuplicate( trimmedFilterString );
+										
+									minitech::inputHintStrToSearch( mHintFilterString );
+                                    }
+								else {
+									minitech::inputHintStrToSearch( "" );
                                     }
                             
                                 delete [] trimmedFilterString;

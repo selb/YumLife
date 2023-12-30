@@ -1,6 +1,7 @@
 #include "TextField.h"
 
 #include <string.h>
+#include <string>
 
 #include "minorGems/game/game.h"
 #include "minorGems/game/gameGraphics.h"
@@ -1163,7 +1164,17 @@ void TextField::specialKeyUp( int inKeyCode ) {
         }
     }
 
-
+void TextField::setIgnoredKey( unsigned char inASCII ) {
+    
+    std::string newChars( mForbiddenChars );
+    newChars.push_back( inASCII );
+    if( mForbiddenChars != NULL ) {
+        delete [] mForbiddenChars;
+        mForbiddenChars = NULL;
+        }
+    mForbiddenChars = strdup( newChars.c_str() );
+    
+    }
 
 void TextField::focus() {
     

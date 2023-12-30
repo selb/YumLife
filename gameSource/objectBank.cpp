@@ -4405,7 +4405,7 @@ HoldingPos drawObject( ObjectRecord *inObject, int inDrawBehindSlots,
         inFlipH = false;
         }
 
-	if (HetuwMod::objectDrawScale) inScale = HetuwMod::objectDrawScale[inObject->id];
+	if (HetuwMod::objectDrawScale && inScale == 1.0) inScale = HetuwMod::objectDrawScale[inObject->id]; //minitech
     
     SimpleVector <int> frontArmIndices;
     getFrontArmIndices( inObject, inAge, &frontArmIndices );

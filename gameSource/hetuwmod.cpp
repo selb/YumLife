@@ -1,4 +1,5 @@
 #include "hetuwmod.h"
+#include "minitech.h"
 
 #include <iostream>
 #include <vector>
@@ -2211,6 +2212,17 @@ void HetuwMod::livingLifeDraw() {
 	//drawRect( debugRecPos, 10, 10 );
 	//setDrawColor( 0.0, 1.0, 0, 1.0 );
 	//drawRect( debugRecPos2, 10, 10 );
+	
+	if (minitech::minitechEnabled) {
+		minitech::viewWidth = HetuwMod::viewWidth;
+		minitech::viewHeight = HetuwMod::viewHeight;
+		minitech::guiScale = 1.25 * HetuwMod::guiScale;
+		
+		minitech::handwritingFont->hetuwSetScaleFactor( 16*minitech::guiScale );
+		minitech::mainFont->hetuwSetScaleFactor( 16*minitech::guiScale );
+		minitech::tinyHandwritingFont->hetuwSetScaleFactor( 16/2*minitech::guiScale );
+		minitech::tinyMainFont->hetuwSetScaleFactor( 16/2*minitech::guiScale );
+	}
 
 	if (bDrawBiomeInfo) drawBiomeIDs();
 	if (bDrawHungerWarning) drawHungerWarning();

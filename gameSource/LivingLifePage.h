@@ -24,6 +24,8 @@
 
 #include "TextField.h"
 
+#include <string>
+
 
 #define NUM_HUNGER_BOX_SPRITES 20
 
@@ -557,6 +559,11 @@ class LivingLifePage : public GamePage, public ActionListener {
         int getRequiredVersion() {
             return mRequiredVersion;
             }
+			
+		doublePair minitechGetLastScreenViewCenter();
+        std::string minitechGetFullObjectDescription(int objId);
+		std::string minitechGetDisplayObjectDescription(int objId);
+		bool minitechSayFieldIsFocused() { return mSayField.isFocused(); }
 
 		void hetuwSetPanelOffsets();
 		bool hetuwSayFieldIsFocused() { return mSayField.isFocused(); }
@@ -695,10 +702,10 @@ class LivingLifePage : public GamePage, public ActionListener {
         SimpleVector<int> mMapExtraMovingObjectsDestObjectIDs;
         SimpleVector<ExtraMapObject> mMapExtraMovingObjects;
 
-        
+        public: // minitech
         int mMapOffsetX;
         int mMapOffsetY;
-
+		protected: // minitech
 
         char mEKeyEnabled;
         char mEKeyDown;
@@ -1049,7 +1056,9 @@ class LivingLifePage : public GamePage, public ActionListener {
                                         LiveObject *inSpeaker = NULL,
                                         int inForceMinChalkBlots = -1,
                                         FloatColor *inForceBlotColor = NULL,
-                                        FloatColor *inForceTextColor = NULL );
+                                        FloatColor *inForceTextColor = NULL,
+                                        bool tinyStyle = false,
+                                        bool scaleWithGui = false );
         
         protected: // hetuw mod
         
