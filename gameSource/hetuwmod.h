@@ -348,6 +348,8 @@ public:
 	static unsigned char charKey_CreateHome;
 	static unsigned char charKey_FixCamera;
 
+	static unsigned char charKey_ConfirmExit;
+
 	static bool isCharKey( unsigned char c, unsigned char charKey );
 
 	static time_t lastSpecialEmote;

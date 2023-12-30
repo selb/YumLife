@@ -438,6 +438,10 @@ void hetuwSetViewSize() {
 	}
 }
 
+char hetuwGetConfirmExitKey() {
+	return HetuwMod::charKey_ConfirmExit;
+}
+
 void initDrawString( int inWidth, int inHeight ) {
 
     toggleLinearMagFilter( true );
@@ -1142,7 +1146,14 @@ static void drawPauseScreen() {
         quitMessageKey = "pauseMessage3b";
         }
 
-    mainFont->drawString( translate( quitMessageKey ), 
+    std::string quitMessage = translate(quitMessageKey);
+    for (size_t i = 0; i < quitMessage.size(); i++) {
+        if (quitMessage[i] == '%') {
+            quitMessage[i] = HetuwMod::charKey_ConfirmExit;
+        }
+    }
+
+    mainFont->drawString( quitMessage.c_str(), 
                           messagePos, alignCenter );
 
 	HetuwMod::enableZoom();
