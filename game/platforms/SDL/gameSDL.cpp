@@ -3794,7 +3794,7 @@ void GameSceneHandler::keyPressed(
     mPausedSleepTime = 0;
     
 
-    if( mPaused && inKey == '%' && ! mBlockQuitting ) {
+    if( mPaused && inKey == hetuwGetConfirmExitKey() && ! mBlockQuitting ) {
         // % to quit from pause
         exit( 0 );
         }

@@ -84,6 +84,7 @@ char *getHashSalt();
 
 
 void hetuwSetViewSize();
+char hetuwGetConfirmExitKey();
 
 
 // name of custom font TGA file to find in "graphics" folder
