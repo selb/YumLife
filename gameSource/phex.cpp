@@ -126,7 +126,7 @@ void Phex::init() {
 	textInRecPaddingX = 0.01;
 	textInRecPaddingY = textInRecPaddingX * HetuwMod::viewWidthToHeightFactor;
 
-	setArray(recBckgrBig, (const double[]){ 0.7f, 0.0f, 1.0f, 1.0f }, 4);
+	setArray(recBckgrBig, (const double[]){ 0.0f, 0.0f, 0.3f, 1.0f }, 4); //minitech
 	setArray(recBckgr, recBckgrBig, 4);
 
 	setArray(colorRecBckgr, (const float[]){ 0.0f, 0.0f, 0.0f, 0.7f }, 4);
@@ -158,6 +158,12 @@ void Phex::init() {
 	colorCodeCmdMessage = mainFont->hetuwGetColorCode(colorCmdMessage);
 	colorCodeCmdInGameNames = mainFont->hetuwGetColorCode(colorCmdInGameNames);
 	colorCodeCmdMessageError = mainFont->hetuwGetColorCode(colorCmdMessageError);
+
+	// Disable hetuwMaxXActive during UI initialization. The screen state when
+	// these texts are being measured is not sane and can lead to weird wrapping
+	// during the initial measurement that does not repeat itself in the actual
+	// fully initialized game screen.
+	mainFont->hetuwMaxXActive = false;
 
 	initButtons();
 
@@ -193,6 +199,8 @@ void Phex::init() {
 
 	mainChatWindow.rec[3] = recLineBelowHotKey[3] - textInRecPaddingY;
 
+	mainFont->hetuwMaxXActive = true;
+
 	minimize();
 }
 
@@ -208,7 +216,7 @@ void Phex::initFont() {
 }
 
 void Phex::fontSetMaxX() {
-	mainFont->hetuwMaxX = HetuwMod::viewWidth/2.0;
+	mainFont->hetuwMaxX = - HetuwMod::viewWidth/2.0 * 0.4;
 	mainFont->hetuwMaxX += lastScreenViewCenter.x;
 	mainFont->hetuwMaxX -= textInRecPaddingX*HetuwMod::viewWidth;
 	mainFont->hetuwMaxX = round(mainFont->hetuwMaxX); 
@@ -240,7 +248,7 @@ void Phex::initButtons() {
 	double butPhexHeight = butPhexWidth * HetuwMod::viewWidthToHeightFactor;
 	double butPhexPaddingX = 0.01;
 	double butPhexPaddingY = butPhexPaddingX * HetuwMod::viewWidthToHeightFactor;
-	butPhex.setPosition(1.0-butPhexWidth-butPhexPaddingX, butPhexPaddingY);
+	butPhex.setPosition(butPhexPaddingX, butPhexPaddingY); //minitech
 	butPhex.setWidth(butPhexWidth);
 	butPhex.setHeight(butPhexHeight);
 	setArray(butPhex.colorBckgr, colorButPhexOffline, 4);
@@ -267,7 +275,7 @@ void Phex::initButtons() {
 
 	butMaximize.init("Maximize", &maximize);
 	setButtonStyle(&butMaximize);
-	butMaximize.setPosition(1.0-recBckgrWidth, 0);
+	butMaximize.setPosition(0, 0);
 	butMaximize.setWidth(recBckgrWidth);
 	butMaximize.setHeight(butHeight);
 	setArray(butMaximize.colorBckgr, colorRecBckgr, 4);
@@ -854,13 +862,6 @@ void Phex::Button::calcRecDimensions() {
 void Phex::Button::calcDimensions() {
 	calcTextDimensions();
 	calcRecDimensions();
-}
-
-void Phex::Button::setTextPosition() {
-	float recWidthHalf = (rec[2]-rec[0])/2.0;
-	float recHeightHalf = (rec[3]-rec[1])/2.0;
-	text.drawStartPos.x = rec[0] + recWidthHalf - text.width/2.0;
-	text.drawStartPos.y = rec[1] + recHeightHalf + text.height/2.0;
 }
 
 void Phex::Button::setBorderRecs() {

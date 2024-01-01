@@ -11282,9 +11282,11 @@ void LivingLifePage::draw( doublePair inViewCenter,
                     }
                 }
             
-            // This was the main description drawn on guiPanel
-            // setDrawColor( 0, 0, 0, 1 );
-            // pencilFont->drawString( stringUpper, pos, alignCenter );
+            // 2HOL hetuw hides this in preference to the cursor tooltips.
+            // This causes some useful information (like leadership, or object
+            // tags if enabled) to be lost, so we keep it enabled for YumLife.
+            setDrawColor( 0, 0, 0, 1 );
+            pencilFont->drawString( stringUpper, tipPos, alignCenter );
 			
 			// Moved to be cursor-tips
             if( ! mXKeyDown )

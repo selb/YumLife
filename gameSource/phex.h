@@ -113,7 +113,6 @@ public:
 		void calcTextDimensions();
 		void calcRecDimensions();
 		void calcDimensions();
-		void setTextPosition();
 		void setBorderRecs();
 	};
 
