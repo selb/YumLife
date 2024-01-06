@@ -110,6 +110,7 @@ unsigned char HetuwMod::charKey_MapZoomIn;
 unsigned char HetuwMod::charKey_MapZoomOut;
 
 unsigned char HetuwMod::charKey_ConfirmExit;
+unsigned char HetuwMod::charKey_Minitech;
 
 bool HetuwMod::upKeyDown;
 bool HetuwMod::downKeyDown;
@@ -291,6 +292,9 @@ bool HetuwMod::sendKeyEvents = false;
 
 bool HetuwMod::bDrawBiomeInfo = false;
 
+bool HetuwMod::minitechEnabled = true;
+bool HetuwMod::minitechStayMinimized = false;
+
 HetuwFont *HetuwMod::customFont = NULL;
 
 std::string HetuwMod::helpTextSearch[6];
@@ -355,7 +359,9 @@ void HetuwMod::init() {
 	charKey_HidePlayers = 254;
 	charKey_ShowGrid = 'k';
 	charKey_MakePhoto = 254;
-	charKey_Phex = '#';
+
+	charKey_Minitech = 'v';
+	charKey_ConfirmExit = '%';
 
 	charKey_ShowMap = 'm';
 	charKey_MapZoomIn = 'u';
@@ -828,6 +834,7 @@ bool HetuwMod::setSetting( const char* name, const char* value ) {
 	if (strstr(name, "key_showgrid")) return setCharKey( charKey_ShowGrid, value );
 	if (strstr(name, "key_takephoto")) return setCharKey( charKey_MakePhoto, value );
 	if (strstr(name, "key_phex")) return setCharKey( charKey_Phex, value );
+	if (strstr(name, "key_minitech")) return setCharKey( charKey_Minitech, value );
 	if (strstr(name, "key_confirmexit")) return setCharKey( charKey_ConfirmExit, value );
 
 	if (strstr(name, "init_show_names")) {
@@ -969,6 +976,14 @@ bool HetuwMod::setSetting( const char* name, const char* value ) {
 		bDrawHungerWarning = bool(value[0]-'0');
 		return true;
 	}
+	if (strstr(name, "minitech_enabled")) {
+		minitechEnabled = bool(value[0]-'0');
+		return true;
+	}
+	if (strstr(name, "minitech_stay_minimized")) {
+		minitechStayMinimized = bool(value[0]-'0');
+		return true;
+	}
 	if (strstr(name, "reduce_delay")) {
 		delayReduction = stoi(value);
 		if (delayReduction < 0)
@@ -1034,9 +1049,11 @@ void HetuwMod::writeSettings(ofstream &ofs) {
 	writeCharKeyToStream( ofs, "key_takeOffBackpack", charKey_TakeOffBackpack );
 	writeCharKeyToStream( ofs, "key_pocket", charKey_Pocket );
 	writeCharKeyToStream( ofs, "key_showgrid", charKey_ShowGrid );
-	writeCharKeyToStream( ofs, "key_phex", charKey_Phex );
 	ofs << endl;
 	writeCharKeyToStream( ofs, "key_confirmexit", charKey_ConfirmExit );
+	ofs << endl;
+	writeCharKeyToStream( ofs, "key_phex", charKey_Phex );
+	writeCharKeyToStream( ofs, "key_minitech", charKey_Minitech );
 	ofs << endl;
 	ofs << "// WARNING: Jason doesnt want us to upload bogus photos and you might get banned if you do, read: OneLife/photoServer/protocol.txt" << endl;
 	ofs << "// How to use:" << endl;
@@ -1098,6 +1115,9 @@ void HetuwMod::writeSettings(ofstream &ofs) {
 	ofs << "reduce_delay = " << delayReduction << endl;
 	ofs << "// Set max zoom out. This one goes to 11." << endl;
 	ofs << "zoom_limit = " << zoomLimit << endl;
+	ofs << endl;
+	ofs << "minitech_enabled = " << (char)(minitechEnabled+48) << endl;
+	ofs << "minitech_stay_minimized = " << (char)(minitechStayMinimized+48) << endl;
 	ofs << endl;
 }
 
@@ -2213,7 +2233,7 @@ void HetuwMod::livingLifeDraw() {
 	//setDrawColor( 0.0, 1.0, 0, 1.0 );
 	//drawRect( debugRecPos2, 10, 10 );
 	
-	if (minitech::minitechEnabled) {
+	if (minitechEnabled) {
 		minitech::viewWidth = HetuwMod::viewWidth;
 		minitech::viewHeight = HetuwMod::viewHeight;
 		minitech::guiScale = 1.25 * HetuwMod::guiScale;
@@ -5159,6 +5179,17 @@ void HetuwMod::drawHelp() {
 	sprintf(str, "SHIFT+%c - USE APRON POCKET", toupper(charKey_Pocket));
 	livingLifePage->hetuwDrawScaledHandwritingFont( str, drawPos, guiScale );
 	drawPos.y -= lineHeight;
+
+	if (minitechEnabled) {
+		drawPos.y -= lineHeight;
+
+		sprintf(str, "%c TOGGLE CRAFTING GUIDE", toupper(charKey_Minitech));
+		livingLifePage->hetuwDrawScaledHandwritingFont( str, drawPos, guiScale );
+		drawPos.y -= lineHeight;
+		sprintf(str, "CTRL+%c TOGGLE MAKE/USE", toupper(charKey_Minitech));
+		livingLifePage->hetuwDrawScaledHandwritingFont( str, drawPos, guiScale );
+		drawPos.y -= lineHeight;
+	}
 
 	drawPos = lastScreenViewCenter;
 	drawPos.x -= viewWidth/2 - 640*guiScale;

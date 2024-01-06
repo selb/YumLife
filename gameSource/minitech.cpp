@@ -19,6 +19,7 @@
 
 #include "minorGems/util/SettingsManager.h"
 
+#include "hetuwmod.h"
 
 #include "minitech.h"
 
@@ -96,10 +97,9 @@ void minitech::setLivingLifePage(
 	mMapContainedStacks = inmMapContainedStacks;
 	mMapSubContainedStacks = inmMapSubContainedStacks;
 	
-	minitechEnabled = SettingsManager::getIntSetting( "useMinitech", 1 );
-	char *minimizeKeyFromSetting = SettingsManager::getStringSetting("minitechMinimizeKey", "v");
-	minimizeKey = minimizeKeyFromSetting[0];
-	delete [] minimizeKeyFromSetting;
+	/* intentionally not refactoring to minimize diff from upstream minitech */
+	minitechEnabled = HetuwMod::minitechEnabled;
+	minimizeKey = HetuwMod::charKey_Minitech;
     
     showUncraftables = SettingsManager::getIntSetting( "minitechShowUncraftables", 0 );
 }
@@ -131,7 +131,6 @@ void minitech::initOnBirth() {
 	tinyHandwritingFont->setMinimumPositionPrecision( 1 );
 	tinyMainFont = new Font( getFontTGAFileName(), 6, 16, false, 16/2*guiScale );
 	tinyMainFont->setMinimumPositionPrecision( 1 );
-
 }
 
 
@@ -1587,6 +1586,7 @@ void minitech::inputHintStrToSearch(string hintStr) {
                     for ( int i=0; i<(int)sortedHits.size(); i++ ) {
                         if ( !isUncraftable(sortedHits[i]->id) ) {
                             currentHintObjId = sortedHits[i]->id;
+                            minitechMinimized = false;
                             return;
                         }
                     }
@@ -1639,7 +1639,7 @@ void minitech::livingLifeDraw(float mX, float mY) {
 	
 	// currentHintObjId = getDummyParent(currentHintObjId);
 	
-	if ( lastHintObjId == 0 && currentHintObjId != 0 ) minitechMinimized = false;
+	if ( lastHintObjId == 0 && currentHintObjId != 0 && !HetuwMod::minitechStayMinimized ) minitechMinimized = false;
 	
 	if ( (lastHintObjId != currentHintObjId || lastUseOrMake != useOrMake) && !minitechMinimized ) {
 		lastHintObjId = currentHintObjId;

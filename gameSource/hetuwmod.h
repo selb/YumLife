@@ -339,6 +339,8 @@ public:
 	static unsigned char charKey_HidePlayers;
 	static unsigned char charKey_ShowGrid;
 	static unsigned char charKey_MakePhoto;
+
+	static unsigned char charKey_Minitech;
 	static unsigned char charKey_Phex;
 
 	static unsigned char charKey_ShowMap;
@@ -672,6 +674,9 @@ public:
 	static std::string getRaceName(ObjectRecord *obj);
 
 	static void onNotLiving();
+
+	static bool minitechEnabled;
+	static bool minitechStayMinimized;
 
 private:
 
