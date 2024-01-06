@@ -126,7 +126,11 @@ void Phex::init() {
 	textInRecPaddingX = 0.01;
 	textInRecPaddingY = textInRecPaddingX * HetuwMod::viewWidthToHeightFactor;
 
-	setArray(recBckgrBig, (const double[]){ 0.0f, 0.0f, 0.3f, 1.0f }, 4); //minitech
+	if (!HetuwMod::minitechEnabled) {
+		setArray(recBckgrBig, (const double[]){ 0.7f, 0.0f, 1.0f, 1.0f }, 4);
+	} else {
+		setArray(recBckgrBig, (const double[]){ 0.0f, 0.0f, 0.3f, 1.0f }, 4);
+    }
 	setArray(recBckgr, recBckgrBig, 4);
 
 	setArray(colorRecBckgr, (const float[]){ 0.0f, 0.0f, 0.0f, 0.7f }, 4);
@@ -216,7 +220,11 @@ void Phex::initFont() {
 }
 
 void Phex::fontSetMaxX() {
-	mainFont->hetuwMaxX = - HetuwMod::viewWidth/2.0 * 0.4;
+	if (!HetuwMod::minitechEnabled) {
+		mainFont->hetuwMaxX = HetuwMod::viewWidth/2.0;
+	} else {
+		mainFont->hetuwMaxX = - HetuwMod::viewWidth/2.0 * 0.4;
+	}
 	mainFont->hetuwMaxX += lastScreenViewCenter.x;
 	mainFont->hetuwMaxX -= textInRecPaddingX*HetuwMod::viewWidth;
 	mainFont->hetuwMaxX = round(mainFont->hetuwMaxX); 
@@ -248,7 +256,11 @@ void Phex::initButtons() {
 	double butPhexHeight = butPhexWidth * HetuwMod::viewWidthToHeightFactor;
 	double butPhexPaddingX = 0.01;
 	double butPhexPaddingY = butPhexPaddingX * HetuwMod::viewWidthToHeightFactor;
-	butPhex.setPosition(butPhexPaddingX, butPhexPaddingY); //minitech
+	if (!HetuwMod::minitechEnabled) {
+		butPhex.setPosition(1.0-butPhexWidth-butPhexPaddingX, butPhexPaddingY);
+	} else {
+		butPhex.setPosition(butPhexPaddingX, butPhexPaddingY);
+	}
 	butPhex.setWidth(butPhexWidth);
 	butPhex.setHeight(butPhexHeight);
 	setArray(butPhex.colorBckgr, colorButPhexOffline, 4);
@@ -275,7 +287,11 @@ void Phex::initButtons() {
 
 	butMaximize.init("Maximize", &maximize);
 	setButtonStyle(&butMaximize);
-	butMaximize.setPosition(0, 0);
+	if (!HetuwMod::minitechEnabled) {
+		butMaximize.setPosition(1.0-recBckgrWidth, 0);
+	} else {
+		butMaximize.setPosition(0, 0);
+	}
 	butMaximize.setWidth(recBckgrWidth);
 	butMaximize.setHeight(butHeight);
 	setArray(butMaximize.colorBckgr, colorRecBckgr, 4);
@@ -1127,6 +1143,11 @@ void Phex::onReceivedMessage(std::string msg) {
 }
 
 void Phex::onConnectionStatusChanged(TCPConnection::statusType status) {
+	/* This causes a re-measure of the status text, so wrapping needs to be
+	 * disabled for the duration.
+	 */
+	mainFont->hetuwMaxXActive = false;
+
 	switch (status) {
 		case TCPConnection::UNINITIALIZED:
 		case TCPConnection::OFFLINE:
@@ -1153,6 +1174,8 @@ void Phex::onConnectionStatusChanged(TCPConnection::statusType status) {
 			else joinChannel(string(HetuwMod::serverIP));
 			break;
 	}
+
+	mainFont->hetuwMaxXActive = true;
 }
 
 void Phex::onClickPhex() {
