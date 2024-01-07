@@ -152,6 +152,8 @@ double HetuwMod::curStepTime;
 time_t HetuwMod::curStepSecondsSince1970;
 int HetuwMod::stepCount;
 double HetuwMod::ourAge;
+double HetuwMod::ourLastDirection = 0.0;
+double HetuwMod::ourLastSpeed = 0.0;
 
 SimpleVector<LiveObject> *HetuwMod::gameObjects;
 SimpleVector<int> *HetuwMod::mMapContainedStacks;
@@ -1615,6 +1617,15 @@ void HetuwMod::livingLifeStep() {
 
 	move();
 
+	if (ourLiveObject->inMotion && ourLiveObject->lastSpeed > 1e-6) {
+		double dx = double(ourLiveObject->xd) - ourLiveObject->currentPos.x;
+		double dy = double(ourLiveObject->yd) - ourLiveObject->currentPos.y;
+		if (fabs(dx) >= 0.1 || fabs(dy) >= 0.1) {
+			ourLastSpeed = ourLiveObject->lastSpeed;
+			ourLastDirection = atan2(dy, dx);
+		}
+	}
+
 	SayStep();
 
 	colorRainbow->step();
@@ -2680,29 +2691,67 @@ void HetuwMod::createCordsDrawStr() {
 	int babyCount = 0;
 	int expertCount = 0;
 	int phexCount = 0;
+
 	for (unsigned i=0; i<homePosStack.size(); i++) {
+		double dx = double(homePosStack[i]->x) - ourLiveObject->currentPos.x;
+		double dy = double(homePosStack[i]->y) - ourLiveObject->currentPos.y;
+		std::stringstream ss;
+		if ((fabs(dx) >= 0.1 || fabs(dy) >= 0.1) && ourLastSpeed > 1e-3) {
+			double dir = atan2(dy, dx);
+			double diff = dir - ourLastDirection;
+			diff = fabs(fmod(diff + 3*M_PI, 2*M_PI) - M_PI);
+			if (diff < M_PI/2) {
+				double dist = sqrt(dx*dx + dy*dy);
+				double time = round(dist / ourLastSpeed);
+				if (time >= 1 && time <= 24*60*60) {
+					int count = int(time);
+					char unit = 'S';
+					if (count >= 60*60) {
+						unit = 'H';
+						count /= 60*60;
+					} else if (count >= 60) {
+						unit = 'M';
+						count /= 60;
+					}
+
+					char lbracket = ' ';
+					char rbracket = ' ';
+					if (diff < M_PI/8) {
+						lbracket = '[';
+						rbracket = ']';
+					} else if (diff < M_PI/4) {
+						lbracket = '(';
+						rbracket = ')';
+					}
+					ss << "  " << lbracket << count << unit << rbracket;
+				}
+			}
+		}
+		std::string eta = ss.str();
+
+
 		switch (homePosStack[i]->type) {
 			case hpt_custom:
-				sprintf( sBufA, "%c %d %d", homePosStack[i]->c, homePosStack[i]->x+cordOffset.x, homePosStack[i]->y+cordOffset.y );
+				sprintf( sBufA, "%c %d %d%s", homePosStack[i]->c, homePosStack[i]->x+cordOffset.x, homePosStack[i]->y+cordOffset.y, eta.c_str() );
 				break;
 			case hpt_birth:
-				sprintf( sBufA, "BIRTH %d %d", homePosStack[i]->x+cordOffset.x, homePosStack[i]->y+cordOffset.y );
+				sprintf( sBufA, "BIRTH %d %d%s", homePosStack[i]->x+cordOffset.x, homePosStack[i]->y+cordOffset.y, eta.c_str() );
 				break;
 			case hpt_home:
-				sprintf( sBufA, "HOME %c %d %d", (char)(homeCount+65), homePosStack[i]->x+cordOffset.x, homePosStack[i]->y+cordOffset.y );
+				sprintf( sBufA, "HOME %c %d %d%s", (char)(homeCount+65), homePosStack[i]->x+cordOffset.x, homePosStack[i]->y+cordOffset.y, eta.c_str() );
 				homeCount++;
 				break;
 			case hpt_bell:
-				sprintf( sBufA, "BELL %c %d %d", (char)(bellCount+65), homePosStack[i]->x+cordOffset.x, homePosStack[i]->y+cordOffset.y );
+				sprintf( sBufA, "BELL %c %d %d%s", (char)(bellCount+65), homePosStack[i]->x+cordOffset.x, homePosStack[i]->y+cordOffset.y, eta.c_str() );
 				bellCount++;
 				break;
 			case hpt_apoc:
-				sprintf( sBufA, "APOC %c %d %d", (char)(apocCount+65), homePosStack[i]->x+cordOffset.x, homePosStack[i]->y+cordOffset.y );
+				sprintf( sBufA, "APOC %c %d %d%s", (char)(apocCount+65), homePosStack[i]->x+cordOffset.x, homePosStack[i]->y+cordOffset.y, eta.c_str() );
 				apocCount++;
 				break;
 			case hpt_tarr:
 				// if (tarrCount > 0) break; // make sure it doesnt add more than 1 tarr monument to the list - saftey feature because of bug - idk what causes the bug
-				sprintf( sBufA, "TARR %c %d %d", (char)(tarrCount+65), homePosStack[i]->x+cordOffset.x, homePosStack[i]->y+cordOffset.y );
+				sprintf( sBufA, "TARR %c %d %d%s", (char)(tarrCount+65), homePosStack[i]->x+cordOffset.x, homePosStack[i]->y+cordOffset.y, eta.c_str() );
 				tarrCount++;
 				break;
 			case hpt_map: {
@@ -2712,23 +2761,23 @@ void HetuwMod::createCordsDrawStr() {
 						mapName = homePosStack[i]->text.substr(0, 12);
 					} else mapName = homePosStack[i]->text;
 				}
-				sprintf( sBufA, "%s %d %d", mapName.c_str(), homePosStack[i]->x+cordOffset.x, homePosStack[i]->y+cordOffset.y );
+				sprintf( sBufA, "%s %d %d%s", mapName.c_str(), homePosStack[i]->x+cordOffset.x, homePosStack[i]->y+cordOffset.y, eta.c_str() );
 				mapCount++;
 				break; }
 			case hpt_baby:
-				sprintf( sBufA, "BABY %c %d %d", (char)(babyCount+65), homePosStack[i]->x+cordOffset.x, homePosStack[i]->y+cordOffset.y );
+				sprintf( sBufA, "BABY %c %d %d%s", (char)(babyCount+65), homePosStack[i]->x+cordOffset.x, homePosStack[i]->y+cordOffset.y, eta.c_str() );
 				babyCount++;
 				break;
 			case hpt_babyboy:
-				sprintf( sBufA, "BABY BOY %c %d %d", (char)(babyCount+65), homePosStack[i]->x+cordOffset.x, homePosStack[i]->y+cordOffset.y );
+				sprintf( sBufA, "BABY BOY %c %d %d%s", (char)(babyCount+65), homePosStack[i]->x+cordOffset.x, homePosStack[i]->y+cordOffset.y, eta.c_str() );
 				babyCount++;
 				break;
 			case hpt_babygirl:
-				sprintf( sBufA, "BABY GIRL %c %d %d", (char)(babyCount+65), homePosStack[i]->x+cordOffset.x, homePosStack[i]->y+cordOffset.y );
+				sprintf( sBufA, "BABY GIRL %c %d %d%s", (char)(babyCount+65), homePosStack[i]->x+cordOffset.x, homePosStack[i]->y+cordOffset.y, eta.c_str() );
 				babyCount++;
 				break;
 			case hpt_expert:
-				sprintf( sBufA, "EXPERT %c %d %d", (char)(expertCount+65), homePosStack[i]->x+cordOffset.x, homePosStack[i]->y+cordOffset.y );
+				sprintf( sBufA, "EXPERT %c %d %d%s", (char)(expertCount+65), homePosStack[i]->x+cordOffset.x, homePosStack[i]->y+cordOffset.y, eta.c_str() );
 				expertCount++;
 				break;
 			case hpt_phex: {
@@ -2738,7 +2787,7 @@ void HetuwMod::createCordsDrawStr() {
 						str = homePosStack[i]->text.substr(0, 12);
 					} else str = homePosStack[i]->text;
 				}
-				sprintf( sBufA, "%s %d %d", str.c_str(), homePosStack[i]->x+cordOffset.x, homePosStack[i]->y+cordOffset.y );
+				sprintf( sBufA, "%s %d %d%s", str.c_str(), homePosStack[i]->x+cordOffset.x, homePosStack[i]->y+cordOffset.y, eta.c_str() );
 				phexCount++;
 				break; }
 		}

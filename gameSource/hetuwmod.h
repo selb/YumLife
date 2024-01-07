@@ -370,6 +370,8 @@ public:
 
 	static int stepCount;
 	static double ourAge;
+	static double ourLastSpeed; /* last speed when moving, cells/s */
+	static double ourLastDirection; /* in radians */
 	
 	static bool phexIsEnabled;
 	static std::string phexIp;
