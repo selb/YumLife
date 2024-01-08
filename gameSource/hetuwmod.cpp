@@ -5,6 +5,7 @@
 #include <vector>
 #include <fstream>
 #include <string>
+#include <unordered_set>
 
 #include "LivingLifePage.h"
 #include "objectBank.h"
@@ -297,6 +298,11 @@ bool HetuwMod::bDrawBiomeInfo = false;
 bool HetuwMod::minitechEnabled = true;
 bool HetuwMod::minitechStayMinimized = false;
 
+static vector<string> autoMaleNames;
+static size_t nextMaleName = 0;
+static vector<string> autoFemaleNames;
+static size_t nextFemaleName = 0;
+
 HetuwFont *HetuwMod::customFont = NULL;
 
 std::string HetuwMod::helpTextSearch[6];
@@ -312,6 +318,8 @@ float HetuwMod::raceColor_white[] = {0.866667, 0.690196, 0.576471};
 float HetuwMod::raceColor_black[] = {0.250980, 0.168627, 0.164706};
 
 extern doublePair lastScreenViewCenter;
+
+static unordered_set<std::string> namesSeen;
 
 void HetuwMod::init() {
 	blobs::font_32_64_yum.write("graphics/font_32_64_yum.tga");
@@ -1002,6 +1010,26 @@ bool HetuwMod::setSetting( const char* name, const char* value ) {
 			zoomLimit = maxZoomLevel;
 		return true;
 	}
+	if (strstr(name, "auto_male_names") || strstr(name, "auto_female_names")) {
+		vector<string> &names = (strstr(name, "female") ? autoFemaleNames : autoMaleNames);
+		std::stringstream ss(value);
+		std::vector<std::string> splitValue = HetuwMod::splitStrXTimes(value, ',', 1024);
+		for (size_t i = 0; i < splitValue.size(); i++) {
+			std::string name = splitValue[i];
+			bool valid = true;
+			for (size_t i = 0; valid && i < name.size(); ++i) {
+				char c = name[i];
+				if (c >= 'a' && c <= 'z') {
+					name[i] -= 'a' - 'A';
+				} else if (c < 'A' || c > 'Z') {
+					valid = false;
+				}
+			}
+			if (valid && !name.empty())
+				names.push_back(name);
+		}
+		return true;
+	}
 
 	return false;
 }
@@ -1121,6 +1149,17 @@ void HetuwMod::writeSettings(ofstream &ofs) {
 	ofs << "minitech_enabled = " << (char)(minitechEnabled+48) << endl;
 	ofs << "minitech_stay_minimized = " << (char)(minitechStayMinimized+48) << endl;
 	ofs << endl;
+
+	ofs << "// names to automatically give when holding your bb; separate with commas" << endl;
+	ofs << "// for example: auto_male_names = MATTHEW, MARK, LUKE, JOHN" << endl;
+	ofs << "auto_male_names = ";
+	for (size_t i = 0; i < autoMaleNames.size(); i++)
+		ofs << (i == 0 ? "" : ", ") << autoMaleNames[i];
+	ofs << endl;
+	ofs << "auto_female_names = ";
+	for (size_t i = 0; i < autoFemaleNames.size(); i++)
+		ofs << (i == 0 ? "" : ", ") << autoFemaleNames[i];
+	ofs << endl;
 }
 
 void HetuwMod::initSettings() {
@@ -1140,7 +1179,7 @@ void HetuwMod::initSettings() {
 			if (line.length() < 3) continue;
 			if (line[0] == '/' && line[1] == '/') continue;
 			char name[256];
-			char value[256];
+			char value[4096];
 			getSettingsFileLine( name, sizeof(name), value, sizeof(value), line );
 			if (strlen(name) < 1) continue;
 			//printf("hetuw name: %s, value: %s\n", name, value);
@@ -1248,6 +1287,8 @@ void HetuwMod::initOnBirth() { // will be called from LivingLifePage.cpp
 	writeLineToLogs("my_age", to_string((int)livingLifePage->hetuwGetAge(ourLiveObject)));
 
 	Phex::onBirth();
+
+	namesSeen.clear();
 }
 
 void HetuwMod::initOnServerJoin() { // will be called from LivingLifePage.cpp and hetuwmod.cpp
@@ -1684,6 +1725,15 @@ void HetuwMod::livingLifeStep() {
 	if (livingLifePage->hetuwIsVogMode()) {
 		if (intervalVogMove.step()) moveInVogMode();
 	}
+
+	for(int i=0; i<gameObjects->size(); i++) {
+		LiveObject *o = gameObjects->getElement( i );
+		if (o->name != NULL) {
+			namesSeen.insert(string(o->name));
+		}
+	}
+
+	autoNameBB();
 }
 
 void HetuwMod::moveInVogMode() {
@@ -5342,4 +5392,90 @@ void HetuwMod::drawHungerWarning() {
 // connections or births between.
 void HetuwMod::onNotLiving() {
 	// not used yet :)
+}
+
+void HetuwMod::autoNameBB() {
+	static bool autoNaming = false;
+	static string yourSon;
+	static string yourDaughter;
+
+	if (yourSon.empty()) {
+		yourSon = translate("your");
+		yourSon += " ";
+		yourSon += translate("son");
+	}
+	if (yourDaughter.empty()) {
+		yourDaughter = translate("your");
+		yourDaughter += " ";
+		yourDaughter += translate("daughter");
+	}
+
+	if (ourLiveObject->holdingID >= 0) {
+		autoNaming = false;
+		return;
+	}
+
+	if (autoNaming) return;
+
+	int bbID = -ourLiveObject->holdingID;
+	LiveObject *bb = livingLifePage->getLiveObject(bbID);
+	if (bb == NULL) return;
+
+	/* no need to name this bb */
+	if (bb->name != NULL && 0 != bb->name[0]) return;
+
+	/* we're not related */
+	if (bb->relationName == NULL) return;
+
+	bool male;
+	if (yourSon == bb->relationName) {
+		male = true;
+	} else if (yourDaughter == bb->relationName) {
+		male = false;
+	} else {
+		// not our child
+		return;
+	}
+	vector<string> &names = male ? autoMaleNames : autoFemaleNames;
+	size_t &idx = male ? nextMaleName : nextFemaleName;
+
+	if (names.empty()) return;
+
+	stringstream ss(ourLiveObject->name == NULL ? "" : ourLiveObject->name);
+	string ourFirstName, ourLastName;
+	ss >> ourFirstName >> ourLastName;
+
+	std::string foundName;
+	for (; idx < names.size(); idx++) {
+		std::string firstName = names[idx];
+		ss.str("");
+		ss.clear();
+		ss << firstName;
+		if (!ourLastName.empty()) {
+			ss << ' ' << ourLastName;
+		}
+		std::string name = ss.str();
+		if (!namesSeen.count(name)) {
+			foundName = firstName;
+			break;
+		}
+	}
+
+	/* move one past the found name */
+	idx++;
+
+	if (idx >= names.size()) {
+		/* start over next step */
+		idx = 0;
+	}
+
+	if (foundName.empty()) {
+		return;
+	}
+
+	autoNaming = true;
+	ss.str("");
+	ss.clear();
+	ss << "YOU ARE " << foundName;
+	livingLifePage->hetuwSay(ss.str().c_str());
 }

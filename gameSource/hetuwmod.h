@@ -816,6 +816,8 @@ private:
 	static void initCustomFont();
 
 	static void drawHungerWarning();
+
+	static void autoNameBB();
 };
 
 
