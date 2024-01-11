@@ -1662,7 +1662,7 @@ void HetuwMod::livingLifeStep() {
 		double dx = double(ourLiveObject->xd) - ourLiveObject->currentPos.x;
 		double dy = double(ourLiveObject->yd) - ourLiveObject->currentPos.y;
 		if (fabs(dx) >= 0.1 || fabs(dy) >= 0.1) {
-			ourLastSpeed = ourLiveObject->lastSpeed;
+			ourLastSpeed = ourLiveObject->currentGridSpeed;
 			ourLastDirection = atan2(dy, dx);
 		}
 	}
@@ -2758,10 +2758,10 @@ void HetuwMod::createCordsDrawStr() {
 					char unit = 'S';
 					if (count >= 60*60) {
 						unit = 'H';
-						count /= 60*60;
+						count = round(double(count)/60.0/60.0);
 					} else if (count >= 60) {
 						unit = 'M';
-						count /= 60;
+						count = round(double(count)/60.0);
 					}
 
 					char lbracket = ' ';
