@@ -299,9 +299,7 @@ bool HetuwMod::minitechEnabled = true;
 bool HetuwMod::minitechStayMinimized = false;
 
 static vector<string> autoMaleNames;
-static size_t nextMaleName = 0;
 static vector<string> autoFemaleNames;
-static size_t nextFemaleName = 0;
 
 HetuwFont *HetuwMod::customFont = NULL;
 
@@ -5437,7 +5435,6 @@ void HetuwMod::autoNameBB() {
 		return;
 	}
 	vector<string> &names = male ? autoMaleNames : autoFemaleNames;
-	size_t &idx = male ? nextMaleName : nextFemaleName;
 
 	if (names.empty()) return;
 
@@ -5446,8 +5443,8 @@ void HetuwMod::autoNameBB() {
 	ss >> ourFirstName >> ourLastName;
 
 	std::string foundName;
-	for (; idx < names.size(); idx++) {
-		std::string firstName = names[idx];
+	for (size_t i = 0; i < names.size(); i++) {
+		std::string firstName = names[i];
 		ss.str("");
 		ss.clear();
 		ss << firstName;
@@ -5461,14 +5458,6 @@ void HetuwMod::autoNameBB() {
 		}
 	}
 
-	/* move one past the found name */
-	idx++;
-
-	if (idx >= names.size()) {
-		/* start over next step */
-		idx = 0;
-	}
-
 	if (foundName.empty()) {
 		return;
 	}
@@ -5477,5 +5466,5 @@ void HetuwMod::autoNameBB() {
 	ss.str("");
 	ss.clear();
 	ss << "YOU ARE " << foundName;
-	livingLifePage->hetuwSay(ss.str().c_str());
+	Say(ss.str().c_str());
 }
