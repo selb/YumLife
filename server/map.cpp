@@ -128,6 +128,8 @@
 #include "../gameSource/GridPos.h"
 #include "../gameSource/objectMetadata.h"
 
+#include "../gameSource/settingsToggle.h"
+
 
 
 timeSec_t startFrozenTime = -1;
@@ -3271,8 +3273,14 @@ char initMap() {
     initBiomeCache();
 
     mapCacheClear();
+
+
+    useContentSettings();
     
     edgeObjectID = SettingsManager::getIntSetting( "edgeObject", 0 );
+
+    useMainSettings();
+
     
     minEveCampRespawnAge = 
         SettingsManager::getFloatSetting( "minEveCampRespawnAge", 60.0f );
@@ -3285,9 +3293,14 @@ char initMap() {
         SettingsManager::getIntSetting( "longTermNoLookCullEnabled", 1 );
 
     
+    useContentSettings();
+    
     SimpleVector<int> *list = 
         SettingsManager::getIntSettingMulti( "barrierObjects" );
-        
+    
+    useMainSettings();
+
+    
     barrierItemList.deleteAll();
     barrierItemList.push_back_other( list );
     delete list;
@@ -3917,11 +3930,13 @@ char initMap() {
 
 
     // manually controll order
+    useContentSettings();
     SimpleVector<int> *biomeOrderList =
         SettingsManager::getIntSettingMulti( "biomeOrder" );
 
     SimpleVector<float> *biomeWeightList =
         SettingsManager::getFloatSettingMulti( "biomeWeights" );
+    useMainSettings();
 
     for( int i=0; i<biomeOrderList->size(); i++ ) {
         int b = biomeOrderList->getElementDirect( i );
@@ -3958,9 +3973,12 @@ char initMap() {
     delete biomeWeightList;
 
 
+    useContentSettings();
     SimpleVector<int> *specialBiomeList =
         SettingsManager::getIntSettingMulti( "specialBiomes" );
-    
+    useMainSettings();
+
+
     numSpecialBiomes = specialBiomeList->size();
     specialBiomes = specialBiomeList->getElementArray();
     
@@ -3979,6 +3997,9 @@ char initMap() {
 
     specialBiomeBandMode = 
         SettingsManager::getIntSetting( "specialBiomeBandMode", 0 );
+    
+
+    useContentSettings();
     
     specialBiomeBandThickness = 
         SettingsManager::getIntSetting( "specialBiomeBandThickness",
@@ -4022,6 +4043,8 @@ char initMap() {
 
     SimpleVector<int> *specialBiomeBandYCenterList =
         SettingsManager::getIntSettingMulti( "specialBiomeBandYCenter" );
+
+    useMainSettings();
 
     specialBiomeBandYCenter.push_back_other( specialBiomeBandYCenterList );
 
@@ -4310,10 +4333,11 @@ char initMap() {
             }
         }
 
-
+    useContentSettings();
     SimpleVector<char*> *specialPlacements = 
         SettingsManager::getSetting( "specialMapPlacements" );
-    
+    useMainSettings();
+
     if( specialPlacements != NULL ) {
         
         for( int i=0; i<specialPlacements->size(); i++ ) {
@@ -9871,9 +9895,11 @@ void stepMapLongTermCulling( int inNumCurrentPlayers ) {
                 "longTermNoLookCullEnabled", 1 );
         
 
+        useContentSettings();
         SimpleVector<int> *list = 
             SettingsManager::getIntSettingMulti( "noCullItemList" );
-        
+        useMainSettings();
+
         noCullItemList.deleteAll();
         noCullItemList.push_back_other( list );
         delete list;

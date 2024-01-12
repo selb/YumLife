@@ -25,6 +25,9 @@
 
 #include "liveAnimationTriggers.h"
 
+#include "settingsToggle.h"
+
+
 #include "../commonSource/fractalNoise.h"
 #include "../commonSource/sayLimit.h"
 
@@ -2871,6 +2874,9 @@ LivingLifePage::LivingLifePage()
     const char *badgeSettingsNames[3] = { "badgeObjects",
                                           "badgeObjectsHalfX",
                                           "badgeObjectsFullX" };
+    
+    useContentSettings();
+
     for( int i=0; i<3; i++ ) {
         SimpleVector<int> *badgeSetting = 
             SettingsManager::getIntSettingMulti( badgeSettingsNames[i] );
@@ -2880,6 +2886,8 @@ LivingLifePage::LivingLifePage()
         }
     
     mFullXObjectID = SettingsManager::getIntSetting( "fullX", 0 );
+    
+    useMainSettings();
     
 
     mHomeSlipSprites[0] = mHomeSlipSprite;
@@ -3212,10 +3220,13 @@ LivingLifePage::LivingLifePage()
     splitAndExpandSprites( "homeArrowsErased.tga", NUM_HOME_ARROWS, 
                            mHomeArrowErasedSprites );
 
+    useContentSettings();
     
     SimpleVector<int> *culvertStoneIDs = 
         SettingsManager::getIntSettingMulti( "culvertStoneSprites" );
     
+    useMainSettings();
+
     for( int i=0; i<culvertStoneIDs->size(); i++ ) {
         int id = culvertStoneIDs->getElementDirect( i );
         
