@@ -44,6 +44,10 @@ static const char *steamGateServerURL =
 #include <stdarg.h>
 #include <sys/wait.h>
 
+#define __STDC_FORMAT_MACROS
+#include <inttypes.h>
+
+
 static void launchGame() {
     AppLog::info( "Launching game." );
     int forkValue = fork();
@@ -127,6 +131,10 @@ void endProgressBar( ProgressHandle ) {
 #include <stdarg.h>
 #include <sys/wait.h>
 
+#define __STDC_FORMAT_MACROS
+#include <inttypes.h>
+
+
 static void launchGame() {
     AppLog::info( "Launching game" );
     int forkValue = fork();
@@ -196,7 +204,7 @@ void endProgressBar( ProgressHandle ) {
 
 
 
-#elif defined(WIN_32)
+#elif defined(WIN32)
 
 #include <windows.h>
 #include <process.h>
@@ -1402,7 +1410,7 @@ void processModUploads() {
                              "Steam Workshop upload complete." );
             
                 // show them the resulting item page
-                #ifdef WIN_32
+                #ifdef WIN32
                 char *url = autoSprintf( 
                     "steam://url/CommunityFilePage/%I64u", itemID );
                 #else
