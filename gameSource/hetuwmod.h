@@ -679,6 +679,7 @@ public:
 
 	static bool minitechEnabled;
 	static bool minitechStayMinimized;
+	static bool minitechTooltipsEnabled;
 
 private:
 

@@ -300,6 +300,7 @@ bool HetuwMod::bDrawBiomeInfo = false;
 
 bool HetuwMod::minitechEnabled = true;
 bool HetuwMod::minitechStayMinimized = false;
+bool HetuwMod::minitechTooltipsEnabled = true;
 
 static string autoNameMode = "sequential";
 static vector<string> autoMaleNames;
@@ -996,6 +997,10 @@ bool HetuwMod::setSetting( const char* name, const char* value ) {
 		minitechStayMinimized = bool(value[0]-'0');
 		return true;
 	}
+	if (strstr(name, "minitech_tooltips_enabled")) {
+		minitechTooltipsEnabled = bool(value[0]-'0');
+		return true;
+	}
 	if (strstr(name, "reduce_delay")) {
 		delayReduction = stoi(value);
 		if (delayReduction < 0)
@@ -1158,6 +1163,7 @@ void HetuwMod::writeSettings(ofstream &ofs) {
 	ofs << endl;
 	ofs << "minitech_enabled = " << (char)(minitechEnabled+48) << endl;
 	ofs << "minitech_stay_minimized = " << (char)(minitechStayMinimized+48) << endl;
+	ofs << "minitech_tooltips_enabled = " << (char)(minitechTooltipsEnabled+48) << endl;
 	ofs << endl;
 
 	ofs << "// names to automatically give when holding your bb; separate with commas" << endl;

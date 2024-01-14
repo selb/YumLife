@@ -11298,10 +11298,9 @@ void LivingLifePage::draw( doublePair inViewCenter,
             // tags if enabled) to be lost, so we keep it enabled for YumLife.
             setDrawColor( 0, 0, 0, 1 );
             pencilFont->drawString( stringUpper, tipPos, alignCenter );
-			
-			// Moved to be cursor-tips
-            if( ! mXKeyDown )
-            if( mCurMouseOverID != 0 ) {
+
+            // Minitech cursor tooltips
+            if( HetuwMod::minitechTooltipsEnabled && !mXKeyDown && mCurMouseOverID != 0 ) {
                 FloatColor bgColor = { 0.05, 0.05, 0.05, 1.0 };
                 FloatColor txtColor = { 1, 1, 1, 1 };
                 doublePair pos1 = {lastMouseX + 16 * HetuwMod::guiScale, lastMouseY - 16 * HetuwMod::guiScale};
