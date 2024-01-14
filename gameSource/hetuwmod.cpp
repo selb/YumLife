@@ -1261,6 +1261,10 @@ void HetuwMod::onGotServerAddress(char inUsingCustomServer, char *inServerIP, in
 
 template<typename T>
 static void shuffle(vector<T> &vec) {
+	if (vec.size() == 0) {
+		return;
+	}
+
 	for (size_t i = vec.size()-1; i >= 1; i--) {
 		size_t j = randSource.getRandomBoundedInt(0, i);
 		swap(vec[i], vec[j]);
