@@ -15,6 +15,7 @@
 #include "minorGems/graphics/openGL/ScreenGL.h"
 #include "minorGems/io/file/File.h"
 #include "minorGems/graphics/converters/TGAImageConverter.h"
+#include "minorGems/util/random/JenkinsRandomSource.h"
 #include "groundSprites.h"
 #include "photos.h"
 #include "phex.h"
@@ -29,6 +30,8 @@ constexpr int HetuwMod::OBJID_HotCoals;
 constexpr int HetuwMod::OBJID_ClayBowl;
 constexpr int HetuwMod::OBJID_ClayPlate;
 constexpr int HetuwMod::OBJID_HotAdobeOven;
+
+static JenkinsRandomSource randSource;
 
 int HetuwMod::maxObjects;
 
@@ -298,6 +301,7 @@ bool HetuwMod::bDrawBiomeInfo = false;
 bool HetuwMod::minitechEnabled = true;
 bool HetuwMod::minitechStayMinimized = false;
 
+static string autoNameMode = "sequential";
 static vector<string> autoMaleNames;
 static vector<string> autoFemaleNames;
 
@@ -1028,6 +1032,14 @@ bool HetuwMod::setSetting( const char* name, const char* value ) {
 		}
 		return true;
 	}
+	if (strstr(name, "auto_name_mode")) {
+		string v(value);
+		v = v.substr(0, v.find("//"));
+		if (v == "sequential" || v == "shuffle" || v == "off") {
+			autoNameMode = v;
+		}
+		return true;
+	}
 
 	return false;
 }
@@ -1158,6 +1170,7 @@ void HetuwMod::writeSettings(ofstream &ofs) {
 	for (size_t i = 0; i < autoFemaleNames.size(); i++)
 		ofs << (i == 0 ? "" : ", ") << autoFemaleNames[i];
 	ofs << endl;
+	ofs << "auto_name_mode = " << autoNameMode << "  // sequential, shuffle, or off" << endl;
 }
 
 void HetuwMod::initSettings() {
@@ -1240,6 +1253,14 @@ void HetuwMod::onGotServerAddress(char inUsingCustomServer, char *inServerIP, in
 	}
 }
 
+template<typename T>
+static void shuffle(vector<T> &vec) {
+	for (size_t i = vec.size()-1; i >= 1; i--) {
+		size_t j = randSource.getRandomBoundedInt(0, i);
+		swap(vec[i], vec[j]);
+	}
+}
+
 void HetuwMod::initOnBirth() { // will be called from LivingLifePage.cpp
 	ourLiveObject = livingLifePage->getOurLiveObject();
 	if (ourLiveObject->id == lastLoggedId) return;
@@ -1287,6 +1308,10 @@ void HetuwMod::initOnBirth() { // will be called from LivingLifePage.cpp
 	Phex::onBirth();
 
 	namesSeen.clear();
+	if (autoNameMode == "shuffle") {
+		shuffle(autoFemaleNames);
+		shuffle(autoMaleNames);
+	}
 }
 
 void HetuwMod::initOnServerJoin() { // will be called from LivingLifePage.cpp and hetuwmod.cpp
@@ -5396,6 +5421,10 @@ void HetuwMod::autoNameBB() {
 	static bool autoNaming = false;
 	static string yourSon;
 	static string yourDaughter;
+
+	if (autoNameMode == "off") {
+		return;
+	}
 
 	if (yourSon.empty()) {
 		yourSon = translate("your");
