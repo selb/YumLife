@@ -302,7 +302,7 @@ bool HetuwMod::minitechEnabled = true;
 bool HetuwMod::minitechStayMinimized = false;
 bool HetuwMod::minitechTooltipsEnabled = true;
 
-static string autoNameMode = "sequential";
+static string autoNameMode = "shuffle";
 static vector<string> autoMaleNames;
 static vector<string> autoFemaleNames;
 
