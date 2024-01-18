@@ -374,7 +374,6 @@ void HetuwMod::init() {
 	charKey_MakePhoto = 254;
 
 	charKey_Minitech = 'v';
-	charKey_ConfirmExit = '%';
 
 	charKey_ShowMap = 'm';
 	charKey_MapZoomIn = 'u';
