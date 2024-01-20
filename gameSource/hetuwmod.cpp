@@ -293,6 +293,7 @@ bool HetuwMod::phexIsEnabled = true;
 std::string HetuwMod::phexIp = "chat.onelifeglobal.chat";
 int HetuwMod::phexPort = 6567;
 bool HetuwMod::debugPhex = false;
+bool HetuwMod::phexForceLeft = false;
 
 bool HetuwMod::sendKeyEvents = false;
 
@@ -907,6 +908,10 @@ bool HetuwMod::setSetting( const char* name, const char* value ) {
 		Phex::bSendFakeLife = bool(value[0]-'0');
 		return true;
 	}
+	if (strstr(name, "phex_forceleft")) {
+		phexForceLeft = bool(value[0]-48);
+		return true;
+	}
 	if (strstr(name, "send_keyevents")) {
 		sendKeyEvents = bool(value[0]-48);
 		return true;
@@ -1124,6 +1129,7 @@ void HetuwMod::writeSettings(ofstream &ofs) {
 	if (Phex::forceChannel.length() > 1) ofs << "phex_channel = " << Phex::forceChannel << endl;
 	if (Phex::bSendFakeLife) ofs << "phex_send_fake_life = " << (char)(Phex::bSendFakeLife+48) << endl;
 	if (debugPhex) ofs << "phex_debug = " << (char)(debugPhex+48) << endl;
+	ofs << "phex_forceleft = " << (char)(phexForceLeft+48) << " // 1 = phex on left even if minitech disabled" << endl;
 	if (sendKeyEvents) {
 		ofs << endl;
 		ofs << "send_keyevents = " << (char)(sendKeyEvents+48) << endl;

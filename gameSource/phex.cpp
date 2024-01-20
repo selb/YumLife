@@ -126,10 +126,10 @@ void Phex::init() {
 	textInRecPaddingX = 0.01;
 	textInRecPaddingY = textInRecPaddingX * HetuwMod::viewWidthToHeightFactor;
 
-	if (!HetuwMod::minitechEnabled) {
-		setArray(recBckgrBig, (const double[]){ 0.7f, 0.0f, 1.0f, 1.0f }, 4);
-	} else {
+	if (HetuwMod::phexForceLeft || HetuwMod::minitechEnabled) {
 		setArray(recBckgrBig, (const double[]){ 0.0f, 0.0f, 0.3f, 1.0f }, 4);
+	} else {
+		setArray(recBckgrBig, (const double[]){ 0.7f, 0.0f, 1.0f, 1.0f }, 4);
     }
 	setArray(recBckgr, recBckgrBig, 4);
 
@@ -220,10 +220,10 @@ void Phex::initFont() {
 }
 
 void Phex::fontSetMaxX() {
-	if (!HetuwMod::minitechEnabled) {
-		mainFont->hetuwMaxX = HetuwMod::viewWidth/2.0;
-	} else {
+	if (HetuwMod::phexForceLeft || HetuwMod::minitechEnabled) {
 		mainFont->hetuwMaxX = - HetuwMod::viewWidth/2.0 * 0.4;
+	} else {
+		mainFont->hetuwMaxX = HetuwMod::viewWidth/2.0;
 	}
 	mainFont->hetuwMaxX += lastScreenViewCenter.x;
 	mainFont->hetuwMaxX -= textInRecPaddingX*HetuwMod::viewWidth;
@@ -256,10 +256,10 @@ void Phex::initButtons() {
 	double butPhexHeight = butPhexWidth * HetuwMod::viewWidthToHeightFactor;
 	double butPhexPaddingX = 0.01;
 	double butPhexPaddingY = butPhexPaddingX * HetuwMod::viewWidthToHeightFactor;
-	if (!HetuwMod::minitechEnabled) {
-		butPhex.setPosition(1.0-butPhexWidth-butPhexPaddingX, butPhexPaddingY);
-	} else {
+	if (HetuwMod::phexForceLeft || HetuwMod::minitechEnabled) {
 		butPhex.setPosition(butPhexPaddingX, butPhexPaddingY);
+	} else {
+		butPhex.setPosition(1.0-butPhexWidth-butPhexPaddingX, butPhexPaddingY);
 	}
 	butPhex.setWidth(butPhexWidth);
 	butPhex.setHeight(butPhexHeight);
@@ -287,10 +287,10 @@ void Phex::initButtons() {
 
 	butMaximize.init("Maximize", &maximize);
 	setButtonStyle(&butMaximize);
-	if (!HetuwMod::minitechEnabled) {
-		butMaximize.setPosition(1.0-recBckgrWidth, 0);
-	} else {
+	if (HetuwMod::phexForceLeft || HetuwMod::minitechEnabled) {
 		butMaximize.setPosition(0, 0);
+	} else {
+		butMaximize.setPosition(1.0-recBckgrWidth, 0);
 	}
 	butMaximize.setWidth(recBckgrWidth);
 	butMaximize.setHeight(butHeight);

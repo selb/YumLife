@@ -377,6 +377,7 @@ public:
 	static std::string phexIp;
 	static int phexPort;
 	static bool debugPhex;
+	static bool phexForceLeft;
 
 	static bool sendKeyEvents;
 
