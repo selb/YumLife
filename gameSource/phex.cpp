@@ -472,20 +472,13 @@ void Phex::serverCmdHASH_SERVER_LIFE(std::vector<std::string> input) {
 	try {
 		if (!strEquals(input[2], string(HetuwMod::serverIP))) return;
 		int playerID = stoi(input[3]);
-		LiveObject* player = HetuwMod::livingLifePage->getLiveObject(playerID);
-		if (!player) {
-			printf("Phex ERROR when receiving HASH_SERVER_LIFE command\n");
-			printf("Phex cant find player with id: %d\n", playerID);
-			return;
-		}
 		createUser(input[1]);
 		playerIdToHash[playerID] = input[1];
 		users[input[1]].inGameServerPlayerID = playerID;
-	} catch(std::exception const & ex) {
-		printf("Phex EXCEPTION when receiving HASH_SERVER_LIFE command\n");
-		printf("Phex command: %s\n", joinStr(input, " ", 0).c_str());
-		printf("Phex EXCEPTION: %s\n", ex.what());
-		return;
+	} catch(std::invalid_argument const &) {
+		printf("Phex HASH_SERVER_LIFE playerID invalid\n");
+	} catch(std::out_of_range const &) {
+		printf("Phex HASH_SERVER_LIFE playerID out of range\n");
 	}
 }
 
