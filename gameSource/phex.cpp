@@ -573,7 +573,13 @@ void Phex::chatCmdLIST(std::vector<std::string> input) {
 				str += element.first;
 			}
 			if (user->name.length() > 0) str += " "+colorCodeNamesInChat+user->name;
-			if (player && player->name) str += " "+colorCodeCmdInGameNames+string(player->name);
+			if (player) {
+				const char *name = player->name;
+				if (name == NULL || name[0] == 0) {
+					name = "(unnamed)";
+				}
+				str += " "+colorCodeCmdInGameNames+string(name);
+			}
 
 			addCmdMessageToChatWindow(str);
 		}
