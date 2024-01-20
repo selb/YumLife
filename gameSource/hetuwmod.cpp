@@ -1185,15 +1185,8 @@ void HetuwMod::writeSettings(ofstream &ofs) {
 }
 
 void HetuwMod::initSettings() {
-	bool migrating = false;
-
 	ifstream ifs;
 	ifs.open( hetuwSettingsFileName );
-	if (!ifs.good()) {
-		// try opening an existing hetuw.cfg instead
-		migrating = true;
-		ifs.open("hetuw.cfg");
-	}
 	if (ifs.good()) { // file exists
 		string line;
 		while (getline(ifs, line)) {
@@ -1212,9 +1205,6 @@ void HetuwMod::initSettings() {
 				printf("hetuw WARNING %s, exception thrown at line: %s\n", hetuwSettingsFileName, line.c_str());
 			}
 		}
-	} else {
-		// just a new install, neither file existed
-		migrating = false;
 	}
 	ifs.close();
 
@@ -1231,27 +1221,6 @@ void HetuwMod::initSettings() {
 	ofstream ofs( hetuwSettingsFileName, ofstream::out );
 	writeSettings(ofs);
 	ofs.close();
-
-	if (migrating) {
-		ofs.open("hetuw.cfg", ofstream::out);
-		ofs << "// +------------------------------------------------+" << endl;
-		ofs << "// | !!  WARNING: YumLife now uses yumlife.cfg.  !! |" << endl;
-		ofs << "// |                                                |" << endl;
-		ofs << "// | Changes made here will not affect YumLife.     |" << endl;
-		ofs << "// | Your settings have been preserved below in     |" << endl;
-		ofs << "// | case you need to use hetuw in the future.      |" << endl;
-		ofs << "// |                                                |" << endl;
-		ofs << "// +------------------------------------------------+" << endl;
-		for (int i = 0; i < 20; ++i) {
-			ofs << endl;
-		}
-		ofs << "// This file does not affect YumLife! Use yumlife.cfg." << endl;
-		ofs << endl;
-		writeSettings(ofs);
-		ofs << endl;
-		ofs << "// This file does not affect YumLife! Use yumlife.cfg." << endl;
-		ofs.close();
-	}
 }
 
 void HetuwMod::onGotServerAddress(char inUsingCustomServer, char *inServerIP, int inServerPort) {
