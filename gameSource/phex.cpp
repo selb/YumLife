@@ -344,7 +344,7 @@ void Phex::serverCmdVERSION(std::vector<std::string> input) {
 }
 
 void Phex::serverCmdHASH(std::vector<std::string> input) {
-	createUser(input[1]);
+	createUser(input[1], false);
 	publicHash = input[1];
 	users[input[1]].online = true;
 }
@@ -355,7 +355,7 @@ void Phex::serverCmdUSERNAME(std::vector<std::string> input) {
 		printf("Phex Error message: %s\n", joinStr(input).c_str());
 		return;
 	}
-	createUser(input[1]);
+	createUser(input[1], false);
 	users[publicHash].name = input[1];
 	users[publicHash].displayName = users[publicHash].name;
 	if (userNameWasChanged) {
@@ -370,13 +370,15 @@ void Phex::serverCmdUSERNAME_ERR(std::vector<std::string> input) {
 }
 
 void Phex::serverCmdSAY(std::vector<std::string> input) {
-	if (blockedUsers.count(input[2])) {
+	std::string hash = input[2];
+	createUser(hash, true);
+
+	if (blockedUsers.count(hash)) {
 		return;
 	}
 
 	ChatElement chatElement;
-	chatElement.hash = input[2];
-	createUser(chatElement.hash);
+	chatElement.hash = hash;
 
 	chatElement.unixTimeStamp = strToTimeT(input[3]);
 	chatElement.text = joinStr(input, " ", 4);
@@ -392,28 +394,30 @@ void Phex::serverCmdSAY_RAW(std::vector<std::string> input) {
 }
 
 void Phex::serverCmdHASH_USERNAME(std::vector<std::string> input) {
-	createUser(input[1]);
+	createUser(input[1], false);
 	users[input[1]].name = input[2];
 	users[input[1]].displayName = input[2];
 }
 
 void Phex::serverCmdONLINE(std::vector<std::string> input) {
-	createUser(input[1]);
+	// ONLINE is not considered activity since every idle player gets an ONLINE
+	// message on first connect
+	createUser(input[1], false);
 	users[input[1]].online = true;
 }
 
 void Phex::serverCmdOFFLINE(std::vector<std::string> input) {
-	createUser(input[1]);
+	createUser(input[1], false);
 	users[input[1]].online = false;
 }
 
 void Phex::serverCmdJOINED_CHANNEL(std::vector<std::string> input) {
-	createUser(input[1]);
+	createUser(input[1], true);
 	users[input[1]].channel = input[2];
 }
 
 void Phex::serverCmdLEFT_CHANNEL(std::vector<std::string> input) {
-	createUser(input[1]);
+	createUser(input[1], false);
 	users[input[1]].channel = "";
 }
 
@@ -472,7 +476,7 @@ void Phex::serverCmdHASH_SERVER_LIFE(std::vector<std::string> input) {
 	try {
 		if (!strEquals(input[2], string(HetuwMod::serverIP))) return;
 		int playerID = stoi(input[3]);
-		createUser(input[1]);
+		createUser(input[1], false);
 		playerIdToHash[playerID] = input[1];
 		users[input[1]].inGameServerPlayerID = playerID;
 	} catch(std::invalid_argument const &) {
@@ -555,21 +559,24 @@ void Phex::chatCmdLIST(std::vector<std::string> input) {
 	for (std::pair<std::string, User> element : users) {
 		User *user = &element.second;
 		if (!user->online) continue;
-		std::string str = "";
-		if (element.first.length() > ChatElement::maxHashDisplayLength) {
-			str += element.first.substr(0, ChatElement::maxHashDisplayLength);
-		} else {
-			str += element.first;
-		}
-		if (user->name.length() > 0) str += " "+colorCodeNamesInChat+user->name;
 		
 		LiveObject *player = NULL;
 		if (user->inGameServerPlayerID >= 0) {
 			player = HetuwMod::livingLifePage->getLiveObject(user->inGameServerPlayerID);
-			if (player && player->name) str += " "+colorCodeCmdInGameNames+string(player->name);
 		}
 
-		addCmdMessageToChatWindow(str);
+		if (player || (time(NULL) - user->lastSeen) < 15*60) {
+			std::string str = "";
+			if (element.first.length() > ChatElement::maxHashDisplayLength) {
+				str += element.first.substr(0, ChatElement::maxHashDisplayLength);
+			} else {
+				str += element.first;
+			}
+			if (user->name.length() > 0) str += " "+colorCodeNamesInChat+user->name;
+			if (player && player->name) str += " "+colorCodeCmdInGameNames+string(player->name);
+
+			addCmdMessageToChatWindow(str);
+		}
 
 		/* log the hashes in addition to displaying them */
 		std::stringstream ss;
@@ -767,13 +774,15 @@ void Phex::Text::draw() {
 	HetuwMod::hDrawRecFromPercent(drawRec);
 }
 
-void Phex::createUser(std::string &hash) {
+void Phex::createUser(std::string &hash, bool active) {
 	users[hash].hash = hash;
-	//if (users.find(hash) == users.end()) return; 
+	if (active) {
+		users[hash].lastSeen = time(NULL);
+	}
 }
 
 std::string* Phex::getUserDisplayName(std::string &hash) {
-	createUser(hash);
+	createUser(hash, false);
 	if (users[hash].displayName.length() > 0) return &users[hash].displayName;
 	users[hash].displayName = string(users[hash].name);
 	if (users[hash].displayName.length() < 1) {

@@ -10,6 +10,8 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#include <time.h>
+
 #include "hetuwmod.h"
 #include "hetuwFont.h"
 #include "hetuwTCPConnection.h"
@@ -211,6 +213,7 @@ public:
 		std::string channel = ""; // might be empty
 		bool online = false;
 		int inGameServerPlayerID = -1;
+		time_t lastSeen = 0;
 	};
 
 	static TCPConnection tcp;
@@ -347,7 +350,7 @@ public:
 	static double getLineHeight(HetuwFont *font);
 	static void drawString(std::string str, doublePair startPos);
 
-	static void createUser(std::string &hash);
+	static void createUser(std::string &hash, bool active);
 	static std::string* getUserDisplayName(std::string &hash);
 
 	static time_t strToTimeT(std::string str);
