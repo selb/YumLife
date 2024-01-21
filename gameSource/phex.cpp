@@ -103,6 +103,8 @@ HetuwMod::IntervalTimed Phex::intervalSendPosition = HetuwMod::IntervalTimed(3.0
 int Phex::lastPositionSentX = -9999;
 int Phex::lastPositionSentY = -9999;
 
+static bool mouseOverBckgr = false;
+
 constexpr char Phex::hexDigits[];
 
 extern doublePair lastScreenViewCenter;
@@ -813,6 +815,9 @@ void Phex::ChatWindow::addElement(ChatElement element) {
 	doublePair widthHeight = getStringWidthHeight(pos, element.textToDraw);
 	element.textHeight = widthHeight.y;
 	elements.push_back(element);
+	if (!hasFocus || scrollPos == (int)elements.size() - 2) {
+		scrollToBottom();
+	}
 }
 
 void Phex::ChatWindow::onZoom() {
@@ -825,19 +830,40 @@ void Phex::ChatWindow::onZoom() {
 	}
 }
 
+bool Phex::ChatWindow::onScroll(int dir) {
+	scrollPos -= dir;
+	if (scrollPos < 0) {
+		scrollPos = 0;
+	} else if (scrollPos >= (int)elements.size()) {
+		scrollPos = (int)elements.size() - 1;
+	}
+	return true;
+}
+
 void Phex::ChatWindow::draw(bool bDraw) {
 	float x = rec[0];
 	float y = rec[1];
 	topMinimum = 0;
+
 	if (bDraw) setDrawColor(1.0f, 1.0f, 1.0f, 1.0f);
-	for(int i=(int)elements.size()-1; i>=0; i--) {
+
+	// This should not happen, but making sure before we index with it
+	if (scrollPos >= (int)elements.size()) {
+		scrollPos = (int)elements.size() - 1;
+	}
+
+	for(int i=(int)scrollPos; i>=0; i--) {
 		if (msgDisplayDur > 0)
-			if ((int)elements.size()-i > drawMaxElements)
+			if ((int)(scrollPos + 1 - i) > drawMaxElements)
 				if (elements[i].unixTimeStamp+msgDisplayDur < HetuwMod::curStepSecondsSince1970) break;
 		y += elements[i].textHeight;
 		if (y > rec[3]) break;
 		topMinimum = y;
 		if (bDraw) drawString(elements[i].textToDraw.c_str(), {x, y});
+	}
+
+	if (bDraw && isScrolledUp()) {
+		drawString("...", { rec[0], rec[1] + HetuwMod::zoomScale*0.005 });
 	}
 }
 
@@ -970,6 +996,7 @@ bool Phex::addToInputStr(unsigned char c) {
 		if (tcp.status != TCPConnection::ONLINE) return true;
 		sendInputStr();
 		inputText.str = "";
+		mainChatWindow.scrollToBottom();
 		return true;
 	}
 	inputText.setLastChangedTime();
@@ -1232,6 +1259,9 @@ bool Phex::onUpdateFocus(bool focus) {
 	hasFocus = focus;
 	bDrawRecInput = hasFocus;
 	inputText.bDrawCursor = hasFocus;
+	if (!hasFocus) {
+		mainChatWindow.scrollToBottom();
+	}
 	return true;
 }
 
@@ -1241,6 +1271,7 @@ void Phex::onMouseEvent(float x, float y) {
 	for(unsigned k=0; k<buttons.size(); k++) {
 		buttons[k]->onMouseEvent(x, y);
 	}
+	mouseOverBckgr = HetuwMod::pointIsInsideRec(recBckgr, x, y);
 }
 
 bool Phex::onMouseDown(float x, float y) {
@@ -1266,6 +1297,16 @@ bool Phex::onMouseUp(float x, float y) {
 	for(unsigned k=0; k<buttons.size(); k++) {
 		if (buttons[k]->onMouseUp(x, y)) return true;
 	}
+	return false;
+}
+
+bool Phex::onScroll(int dir) {
+	if (!mouseOverBckgr || !lifeStarted || !hasFocus || !HetuwMod::phexIsEnabled) {
+		return false;
+	}
+
+	if (mainChatWindow.onScroll(dir)) return true;
+
 	return false;
 }
 

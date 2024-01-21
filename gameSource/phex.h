@@ -136,6 +136,7 @@ public:
 		std::vector<ChatElement> elements;
 		int msgDisplayDur = -1;
 		int drawMaxElements = 9999;
+		int scrollPos = -1;
 		double topMinimum;
 
 		void init(double inRec[4]) { for(int i=0; i<4; i++) rec[i] = inRec[i]; }
@@ -143,7 +144,10 @@ public:
 		void onZoom();
 		void draw(bool bDraw=true);
 		double getTopMinimum();
-		void clear() { elements.clear(); }
+		void clear() { elements.clear(); scrollPos = -1; }
+		bool isScrolledUp() const { return scrollPos != (int)elements.size() - 1; }
+		void scrollToBottom() { scrollPos = (int)elements.size() - 1; }
+		bool onScroll(int dir);
 	};
 
 	struct PhexTitleText {
@@ -387,6 +391,7 @@ public:
 	static void onMouseEvent(float x, float y);
 	static bool onMouseDown(float x, float y);
 	static bool onMouseUp(float x, float y);
+	static bool onScroll(int dir);
 	static void onKey(unsigned char inASCII);
 	static bool onKeyDown(unsigned char inASCII);
 	static bool onKeyUp(unsigned char inASCII);

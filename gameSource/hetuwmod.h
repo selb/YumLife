@@ -820,6 +820,8 @@ private:
 	static void drawHungerWarning();
 
 	static void autoNameBB();
+
+	static void onScroll(int dir);
 };
 
 

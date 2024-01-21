@@ -1632,18 +1632,35 @@ void HetuwMod::stepHttpRequests() {
 	}
 }
 
+void HetuwMod::onScroll(int dir) {
+	if (Phex::onScroll(dir)) return;
+
+	if (dir == -1)
+		zoomIncrease();
+	else
+		zoomDecrease();
+
+	return;
+}
+
 void HetuwMod::gameStep() {
 	curStepTime = game_getCurrentTime();
 	curStepSecondsSince1970 = time(NULL);
 	HetuwMouseActionBuffer* mouseBuffer = hetuwGetMouseActionBuffer();
 	for (int i = 0; i < mouseBuffer->bufferPos; i++) {
+		int dir = 0;
+
 		switch (mouseBuffer->buffer[i]) {
 			case MouseButton::WHEELUP:
-				zoomDecrease();
+				dir = 1;
 				break;
 			case MouseButton::WHEELDOWN:
-				zoomIncrease();
+				dir = -1;
 				break;
+		}
+
+		if (dir != 0) {
+			onScroll(dir);
 		}
 	}
 	mouseBuffer->Reset();
