@@ -2137,6 +2137,8 @@ static void fixSingleStepPath( LiveObject *inObject ) {
 
 
 char LivingLifePage::isBadBiome( int inMapI ) {
+    if (inMapI < 0 || inMapI >= MAP_NUM_CELLS) return false;
+
     int b = mMapBiomes[inMapI];
         
     if( mMapFloors[inMapI] == 0 &&
@@ -6621,6 +6623,8 @@ char whiteBorder = true;
 
 
 char LivingLifePage::isCoveredByFloor( int inTileIndex ) {
+    if (inTileIndex < 0 || inTileIndex >= MAP_NUM_CELLS) return false;
+
     int i = inTileIndex;
     
     int fID = mMapFloors[ i ];
