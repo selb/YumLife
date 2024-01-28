@@ -1607,6 +1607,8 @@ void minitech::changeCurrentHintObjId(int objID) {
 void minitech::livingLifeDraw(float mX, float mY) {
 	
 	if (!minitechEnabled) return;
+
+	ourLiveObject = livingLifePage->getOurLiveObject();
 	
 	doublePair screenPos = livingLifePage->minitechGetLastScreenViewCenter();
 	doublePair mousePos = {mX, mY};
@@ -1621,8 +1623,10 @@ void minitech::livingLifeDraw(float mX, float mY) {
 		listener->mouseHover = false;
 		
 		if ( !listener->mouseHover && !listener->mouseClick ) {
-			if( listener != NULL ) delete listener;
+			delete listener;
 			twotechMouseListeners.erase( twotechMouseListeners.begin() + i );
+			if (prevListener == listener) prevListener = NULL;
+			if (nextListener == listener) nextListener = NULL;
 		}
 	}
 	
