@@ -378,6 +378,7 @@ public:
 	static int phexPort;
 	static bool debugPhex;
 	static bool phexForceLeft;
+	static bool phexStartOffline;
 
 	static bool sendKeyEvents;
 

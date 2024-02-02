@@ -123,7 +123,8 @@ void Phex::init() {
 	tcp.logTag = "Phex";
 	tcp.charEnd = PHEX_CHAR_END;
 	tcp.verbose = HetuwMod::debugPhex;
-	tcp.connect();
+	if (!HetuwMod::phexStartOffline)
+		tcp.connect();
 
 	textInRecPaddingX = 0.01;
 	textInRecPaddingY = textInRecPaddingX * HetuwMod::viewWidthToHeightFactor;
@@ -271,7 +272,7 @@ void Phex::initButtons() {
 	butPhex.visible = false;
 	buttons.push_back(&butPhex);
 
-	butTurnOff.init("Turn Off", &onClickTurnOff);
+	butTurnOff.init(HetuwMod::phexStartOffline ? "Turn On" : "Turn Off", &onClickTurnOff);
 	setButtonStyle(&butTurnOff);
 	butTurnOff.setPosition(recBckgr[0], recBckgr[3]-butHeight);
 	butTurnOff.setWidth(butWidth);
