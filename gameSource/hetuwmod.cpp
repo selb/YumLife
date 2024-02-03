@@ -326,6 +326,8 @@ extern doublePair lastScreenViewCenter;
 
 static unordered_set<std::string> namesSeen;
 
+static bool pendingDropAcknowledgement;
+
 void HetuwMod::init() {
 	blobs::font_32_64_yum.write("graphics/font_32_64_yum.tga");
 
@@ -3260,7 +3262,6 @@ void HetuwMod::actionBetaRelativeToMe( int x, int y ) {
 	else if (remove) sprintf( msg, "REMV %d %d -1#", x, y);
 	else sprintf( msg, "DROP %d %d -1#", x, y);
 	livingLifePage->hetuwSetNextActionMessage( msg, x, y );
-	if (!remove) livingLifePage->hetuwSetNextActionDropping( true );
 }
 
 void HetuwMod::actionGammaRelativeToMe( int x, int y ) {
@@ -3272,7 +3273,6 @@ void HetuwMod::actionGammaRelativeToMe( int x, int y ) {
 	char msg[32];
 	sprintf( msg, "SWAP %d %d#", x, y);
 	livingLifePage->hetuwSetNextActionMessage( msg, x, y );
-	livingLifePage->hetuwSetNextActionDropping( true );
 }
 
 void HetuwMod::setOurSendPosXY(int &x, int &y) {
@@ -3288,17 +3288,23 @@ void HetuwMod::useBackpack(bool replace) {
 	int x, y;
 	setOurSendPosXY(x, y);
 
-	char msg[32];
-	if( ourLiveObject->holdingID > 0 ) {
+	char msg[32] = "";
+
+	if ( ourLiveObject->holdingID > 0 ) {
 		if (replace) {
 			sprintf( msg, "DROP %d %d %d#", x, y, clothingSlot );
 		} else {
-			sprintf( msg, "SELF %d %d %d#", x, y, clothingSlot );
+			/* If this SELF message is sent without an item in hand (from the
+			 * server's perspective!) the bp is taken into hand. */
+			if (!pendingDropAcknowledgement) {
+				sprintf( msg, "SELF %d %d %d#", x, y, clothingSlot );
+			}
 		}
-		livingLifePage->hetuwSetNextActionMessage( msg, x, y );
-		livingLifePage->hetuwSetNextActionDropping(true);
 	} else {
 		sprintf( msg, "SREMV %d %d %d %d#", x, y, clothingSlot, -1 );
+	}
+
+	if (msg[0] != 0) {
 		livingLifePage->hetuwSetNextActionMessage( msg, x, y );
 	}
 }
@@ -3319,7 +3325,6 @@ void HetuwMod::usePocket(int clothingID) {
 	if( ourLiveObject->holdingID > 0 ) {
 		sprintf( msg, "DROP %d %d %d#", x, y, clothingID );
 		livingLifePage->hetuwSetNextActionMessage( msg, x, y );
-		livingLifePage->hetuwSetNextActionDropping(true);
 	} else {
 		sprintf( msg, "SREMV %d %d %d %d#", x, y, clothingID, -1 );
 		livingLifePage->hetuwSetNextActionMessage( msg, x, y );
@@ -4594,6 +4599,10 @@ void HetuwMod::onPlayerUpdate( LiveObject* inO, const char* line ) {
 	if ( inO == NULL ) return;
 	if ( ourLiveObject == NULL ) return;
 
+	if (ourLiveObject->id == inO->id) {
+
+	}
+
 	bool isDeathMsg = ( strstr( line, "X X" ) != NULL );
 	if ( !isDeathMsg ) return;
 
@@ -5422,6 +5431,18 @@ void HetuwMod::drawHungerWarning() {
 // connections or births between.
 void HetuwMod::onNotLiving() {
 	// not used yet :)
+}
+
+void HetuwMod::onDropSent() {
+	pendingDropAcknowledgement = true;
+}
+
+void HetuwMod::onHoldingChange(int previous, int current) {
+	/* We can't just check for current == 0 because dropping into a bp/pocket
+	 * swaps. This isn't perfect, since it's possible we're seeing a PU from
+	 * a past action if there's enough lag; if the server doesn't coalesce
+	 * updates, this could potentially be improved by making this a counter. */
+	pendingDropAcknowledgement = false;
 }
 
 void HetuwMod::autoNameBB() {

@@ -2650,7 +2650,6 @@ static void addNewAnim( LiveObject *inObject, AnimType inNewAnim ) {
 // queue it here
 static char *nextActionMessageToSend = NULL;
 static char nextActionEating = false;
-static char nextActionDropping = false;
 
 
 // block move until next PLAYER_UPDATE received after action sent
@@ -2716,13 +2715,18 @@ void LivingLifePage::hetuwSetNextActionMessage(const char* msg, int x, int y) {
 	playerActionTargetX = x;
 	playerActionTargetY = y;
 	playerActionTargetNotAdjacent = true;
-	nextActionDropping = false;
 	nextActionEating = false;
 	nextActionMessageToSend = autoSprintf( "%s", msg );
 }
 
-void LivingLifePage::hetuwSetNextActionDropping( bool b ) {
-	nextActionDropping = b;
+bool LivingLifePage::hetuwNextActionIs(const char *action) {
+	if (nextActionMessageToSend == NULL)
+		return false;
+
+	size_t len = strlen(action);
+
+	return    strncmp(nextActionMessageToSend, action, len) == 0
+		   && (nextActionMessageToSend[len] == 0 || nextActionMessageToSend[len] == ' ');
 }
 
 void LivingLifePage::hetuwSetNextActionEating( bool b ) {
@@ -17459,6 +17463,8 @@ void LivingLifePage::step() {
                                 r->temporaryExpireETA = 
                                     game_getCurrentTime() + 60;
                                 }
+
+                            HetuwMod::onHoldingChange(existing->holdingID, o.holdingID);
                             }
                         
                         
@@ -22721,6 +22727,9 @@ void LivingLifePage::step() {
             ourLiveObject->pendingActionAnimationStartTime = 
                 game_getCurrentTime();
 
+            if (hetuwNextActionIs("DROP")) {
+                HetuwMod::onDropSent();
+            }
 
             if( nextActionEating ) {
                 // don't play eating sound here until 
@@ -24741,8 +24750,6 @@ void LivingLifePage::pointerDown( float inX, float inY ) {
 
 
     nextActionEating = false;
-    nextActionDropping = false;
-    
 
 
     if( p.hitSelf ) {
@@ -24787,7 +24794,6 @@ void LivingLifePage::pointerDown( float inX, float inY ) {
                         autoSprintf( "DROP %d %d %d#",
                                      sendX( clickDestX ), sendY( clickDestY ), 
                                      p.hitClothingIndex  );
-                    nextActionDropping = true;
                     printf( "Add to own clothing container\n" );
                     }
                 else {
@@ -25565,7 +25571,6 @@ void LivingLifePage::pointerDown( float inX, float inY ) {
 
                     if( destObjInClickedTile != 0 ) {
                         action = "SWAP";
-                        nextActionDropping = false;
                         }
                     else {
                         // just plain drop
@@ -25575,13 +25580,11 @@ void LivingLifePage::pointerDown( float inX, float inY ) {
                         // However, keep DROP for case of actually clicking
                         // an empty tile, just for clarity.
                         action = "DROP";
-                        nextActionDropping = true;
                         }
                         
                     }
                 else {
                     action = "USE";
-                    nextActionDropping = false;
                     }
                 
                 send = true;
@@ -25688,7 +25691,6 @@ void LivingLifePage::pointerDown( float inX, float inY ) {
                      getNumContainerSlots( destID ) > 0 &&
                      destNumContained <= getNumContainerSlots( destID ) ) {
                 action = "DROP";
-                nextActionDropping = true;
                 send = true;
                 }
             else if( modClick && ourLiveObject->holdingID != 0 &&
@@ -25696,7 +25698,6 @@ void LivingLifePage::pointerDown( float inX, float inY ) {
                      getNumContainerSlots( destID ) == 0 &&
                      ! getObject( destID )->permanent ) {
                 action = "DROP";
-                nextActionDropping = true;
                 send = true;
                 }
             else if( destID != 0 ) {
@@ -25753,7 +25754,6 @@ void LivingLifePage::pointerDown( float inX, float inY ) {
             
             if( strcmp( action, "DROP" ) == 0 ) {
                 delete [] extra;
-                nextActionDropping = true;
                 extra = stringDuplicate( " -1" );
                 }
 

@@ -678,6 +678,8 @@ public:
 	static std::string getRaceName(ObjectRecord *obj);
 
 	static void onNotLiving();
+	static void onDropSent();
+	static void onHoldingChange(int previous, int current);
 
 	static bool minitechEnabled;
 	static bool minitechStayMinimized;
