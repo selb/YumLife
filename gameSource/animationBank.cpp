@@ -22,6 +22,8 @@
 
 #include "spriteDrawColorOverride.h"
 
+#include "authorship.h"
+
 
 
 static int mapSize;
@@ -425,6 +427,25 @@ AnimationRecord *scanAnimationRecordFromString( const char *inString ) {
                     &( r->slotAnim[j].pauseSec ) );
             next++;
             }
+
+
+        r->authorTag = NULL;
+        
+        if( next < numLines ) {
+            
+            char authorTagBuffer[100];
+            
+            authorTagBuffer[0] = '\0';
+
+            sscanf( lines[next], "author=%99s", authorTagBuffer );
+            
+            if( strlen( authorTagBuffer ) > 0 ) {
+                r->authorTag = stringDuplicate( authorTagBuffer );
+                }
+            
+            next++;
+            }
+
         }
 
     for( int j=0; j<numLines; j++ ) {
@@ -561,6 +582,10 @@ void freeAnimationBank() {
                 delete [] r->spriteAnim;
                 delete [] r->slotAnim;
 
+                if( r->authorTag != NULL ) {
+                    delete [] r->authorTag;
+                    }
+
                 delete r;
                 }
             }
@@ -578,6 +603,10 @@ void freeAnimationBank() {
             delete [] r->spriteAnim;
             delete [] r->slotAnim;
             
+            if( r->authorTag != NULL ) {
+                delete [] r->authorTag;
+                }
+
             delete r;
             }
         }
@@ -702,6 +731,14 @@ void addAnimation( AnimationRecord *inRecord, char inNoWriteToFile ) {
         return;
         }
     
+
+    char shouldDeleteAuthorTag = false;
+    
+    if( inRecord->authorTag == NULL ) {
+        inRecord->authorTag = getAuthorHash();
+        shouldDeleteAuthorTag = true;
+        }
+
 
     AnimationRecord *oldRecord = getAnimation( inRecord->objectID, 
                                                inRecord->type );
@@ -915,7 +952,11 @@ void addAnimation( AnimationRecord *inRecord, char inNoWriteToFile ) {
                         inRecord->slotAnim[j].pauseSec ) );
                 }
 
-
+            if( inRecord->authorTag != NULL ) {
+                lines.push_back( autoSprintf( "author=%s",
+                                              inRecord->authorTag ) );
+                }
+                
 
             char **linesArray = lines.getElementArray();
         
@@ -952,7 +993,12 @@ void addAnimation( AnimationRecord *inRecord, char inNoWriteToFile ) {
             checkIfSoundStillNeeded( oldSoundIDs.getElementDirect( i ) );
             }
         }
+
     
+    if( shouldDeleteAuthorTag ) {
+        delete [] inRecord->authorTag;
+        inRecord->authorTag = NULL;
+        }
     }
 
 
@@ -992,6 +1038,10 @@ void clearAnimation( int inObjectID, AnimType inType, char inNoWriteToFile ) {
         delete [] r->spriteAnim;
         delete [] r->slotAnim;
         
+        if( r->authorTag != NULL ) {
+            delete [] r->authorTag;
+            }
+
         delete r;
         
         
@@ -4114,6 +4164,12 @@ AnimationRecord *copyRecord( AnimationRecord *inRecord,
     memcpy( newRecord->slotAnim, inRecord->slotAnim,
             sizeof( SpriteAnimationRecord ) * newRecord->numSlots );
     
+    newRecord->authorTag = NULL;
+    
+    if( inRecord->authorTag != NULL ) {
+        newRecord->authorTag = stringDuplicate( inRecord->authorTag );
+        }
+
     return newRecord;
     }
 
@@ -4126,6 +4182,11 @@ void freeRecord( AnimationRecord *inRecord ) {
     delete [] inRecord->soundAnim;
     delete [] inRecord->spriteAnim;
     delete [] inRecord->slotAnim;
+    
+    if( inRecord->authorTag != NULL ) {
+        delete [] inRecord->authorTag;
+        }
+
     delete inRecord;
     }
 
