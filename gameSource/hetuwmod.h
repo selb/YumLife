@@ -380,6 +380,8 @@ public:
 	static bool phexForceLeft;
 	static bool phexStartOffline;
 
+	static std::string fontFilename;
+
 	static bool sendKeyEvents;
 
 	static HetuwFont *customFont;

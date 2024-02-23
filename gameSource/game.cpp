@@ -306,7 +306,7 @@ const char *getLinuxAppName() {
 
 
 const char *getFontTGAFileName() {
-    return "font_32_64_yum.tga";
+    return HetuwMod::fontFilename.c_str();
     }
 
 

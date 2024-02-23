@@ -308,6 +308,8 @@ static string autoNameMode = "shuffle";
 static vector<string> autoMaleNames;
 static vector<string> autoFemaleNames;
 
+std::string HetuwMod::fontFilename = "font_32_64_yum.tga";
+
 HetuwFont *HetuwMod::customFont = NULL;
 
 std::string HetuwMod::helpTextSearch[6];
@@ -853,6 +855,15 @@ bool HetuwMod::setSetting( const char* name, const char* value ) {
 	if (strstr(name, "key_minitech")) return setCharKey( charKey_Minitech, value );
 	if (strstr(name, "key_confirmexit")) return setCharKey( charKey_ConfirmExit, value );
 
+	if (strstr(name, "font_filename")) {
+		std::ifstream ifs(std::string("graphics/") + value);
+		if (ifs.good()) {
+			fontFilename = string(value);
+		}
+		ifs.close();
+		return true;
+	}
+
 	if (strstr(name, "init_show_names")) {
 		iDrawNames = (int)(value[0]-'0');
 		return true;
@@ -1120,6 +1131,9 @@ void HetuwMod::writeSettings(ofstream &ofs) {
 	ofs << "//    Hold a camera and rightclick on a 'Protected Stack of Photo Paper'" << endl;
 	ofs << "//    Place the camera on the ground and rightlick it while it is rewinding" << endl;
 	writeCharKeyToStream( ofs, "key_takephoto", charKey_MakePhoto );
+	ofs << endl;
+	ofs << "// filename of the main font (in the graphics directory)" << endl;
+	ofs << "font_filename = " << fontFilename << endl;
 	ofs << endl;
 	ofs << "init_show_names = " << (char)(iDrawNames+48) << " // 0 = dont show names, 1 = show first name, 2 = show first and last name" << endl;
 	ofs << "init_show_selectedplayerinfo = " << (char)(bDrawSelectedPlayerInfo+48) << " // 1 = draw names bigger and show age when hovering over a player" << endl;
@@ -1396,7 +1410,7 @@ void HetuwMod::initCustomFont() {
 	int fontSpaceWidth = 8; // vanilla main font is 16
 	char fontFixedWidth = false;
 	double fontScaleFactor = 16.0;
-	customFont = new HetuwFont("font_32_64.tga", fontCharSpacing, fontSpaceWidth, fontFixedWidth, fontScaleFactor);
+	customFont = new HetuwFont(getFontTGAFileName(), fontCharSpacing, fontSpaceWidth, fontFixedWidth, fontScaleFactor);
 	customFont->setMinimumPositionPrecision( 1 );
 }
 
