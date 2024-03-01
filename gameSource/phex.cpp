@@ -589,7 +589,11 @@ void Phex::chatCmdLIST(std::vector<std::string> input) {
 
 		/* log the hashes in addition to displaying them */
 		std::stringstream ss;
-		ss << element.first << hetuwLogSeperator << user->name << hetuwLogSeperator << user->inGameServerPlayerID << hetuwLogSeperator;
+		ss << element.first << hetuwLogSeperator << user->name << hetuwLogSeperator;
+		if (player) {
+			ss << user->inGameServerPlayerID;
+		}
+		ss << hetuwLogSeperator;
 		if (player && player->name) {
 			ss << player->name;
 		}
