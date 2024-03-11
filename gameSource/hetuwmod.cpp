@@ -306,7 +306,9 @@ bool HetuwMod::minitechTooltipsEnabled = true;
 
 static string autoNameMode = "shuffle";
 static vector<string> autoMaleNames;
+static size_t autoMaleNameIndex = 0;
 static vector<string> autoFemaleNames;
+static size_t autoFemaleNameIndex = 0;
 
 std::string HetuwMod::fontFilename = "font_32_64_yum.tga";
 
@@ -1318,6 +1320,8 @@ void HetuwMod::initOnBirth() { // will be called from LivingLifePage.cpp
 		shuffle(autoFemaleNames);
 		shuffle(autoMaleNames);
 	}
+	autoFemaleNameIndex = 0;
+	autoMaleNameIndex = 0;
 }
 
 void HetuwMod::initOnServerJoin() { // will be called from LivingLifePage.cpp and hetuwmod.cpp
@@ -5505,7 +5509,9 @@ void HetuwMod::autoNameBB() {
 		// not our child
 		return;
 	}
+
 	vector<string> &names = male ? autoMaleNames : autoFemaleNames;
+	size_t &nextIndex = male ? autoMaleNameIndex : autoFemaleNameIndex;
 
 	if (names.empty()) return;
 
@@ -5514,7 +5520,8 @@ void HetuwMod::autoNameBB() {
 	ss >> ourFirstName >> ourLastName;
 
 	std::string foundName;
-	for (size_t i = 0; i < names.size(); i++) {
+	for (size_t off = 0; off < names.size(); off++) {
+		size_t i = (nextIndex + off) % names.size();
 		std::string firstName = names[i];
 		ss.str("");
 		ss.clear();
@@ -5525,6 +5532,7 @@ void HetuwMod::autoNameBB() {
 		std::string name = ss.str();
 		if (!namesSeen.count(name)) {
 			foundName = firstName;
+			nextIndex = i + 1;
 			break;
 		}
 	}
