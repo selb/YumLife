@@ -31,6 +31,9 @@ extern char *userEmail;
 extern char *serverIP;
 extern int ourID;
 
+extern char isAHAP;
+
+
 extern double viewWidth;
 extern double viewHeight;
 extern double visibleViewWidth;
@@ -168,6 +171,19 @@ void stepPhotos() {
 
 
 
+// result destroyed by caller
+static char *getPhotoServerURL() {
+    char *url;
+    if( isAHAP ) {
+        url = SettingsManager::getStringSetting( "ahapPhotoServerURL", "" );
+        }
+    else {
+        url = SettingsManager::getStringSetting( "photoServerURL", "" );
+        }
+    return url;
+    }
+
+
 
 int getNextPhotoSequenceNumber() {
     
@@ -181,7 +197,7 @@ int getNextPhotoSequenceNumber() {
     else if( sequenceNumberWebRequest == -1 ) {
         // start a new request
         
-        char *url = SettingsManager::getStringSetting( "photoServerURL", "" );
+        char *url = getPhotoServerURL();
         
         
         char *encodedEmail = URLUtils::urlEncode( userEmail );
@@ -552,7 +568,7 @@ void takePhoto( doublePair inCameraLocation, int inCameraFacing,
         // error
         }
     else {
-        char *url = SettingsManager::getStringSetting( "photoServerURL", "" );
+        char *url = getPhotoServerURL();
 
         char *subjectIDs;
         if( inSubjectIDs->size() == 0 ) {
