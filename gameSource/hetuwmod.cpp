@@ -3476,6 +3476,9 @@ bool HetuwMod::addToTempInputString( unsigned char c, bool onlyNumbers, int minS
 
 // when return true -> end/return in keyDown function in LivingLife
 bool HetuwMod::livingLifeKeyDown(unsigned char inASCII) {
+	if (ourLiveObject == NULL) {
+		return false;
+	}
 
 	if (sendKeyEvents) {
 		char message[32];
