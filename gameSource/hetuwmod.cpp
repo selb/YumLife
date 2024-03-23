@@ -4496,7 +4496,7 @@ void HetuwMod::updatePlayersInRangePanel() {
 			} else if (o->lineageEveID == ourLiveObject->lineageEveID) {
 				fam.name = "OUR FAMILY";
 			} else {
-				fam.name = "UNKNOWN";
+				fam.name = "UNNAMED";
 			}
 			fam.count = 1;
 			fam.youngWomenCount = (youngWoman ? 1 : 0);
