@@ -680,9 +680,12 @@ void HetuwMod::saveImage(Image *image, string name) {
 		shotDir.makeDirectory();
 	}
 	File *file = shotDir.getChildFile( (name+".tga").c_str() );
-	FileOutputStream fos( file );
-	TGAImageConverter imageConverter;
-	imageConverter.formatImage( image, &fos );
+	{
+		FileOutputStream fos( file );
+		TGAImageConverter imageConverter;
+		imageConverter.formatImage( image, &fos );
+	}
+	delete file;
 }
 
 // splits a string count times whenever it finds a splitChar - removes splitChar chars
