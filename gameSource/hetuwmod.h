@@ -39,92 +39,40 @@ class HetuwMod
 		int id;
 		int x;
 		int y;
-		char* name;
-		char* lastName;
+		string name;
+		string lastName;
 		char gender;
 		time_t lastTime;
 		int age;
 		bool finalAgeSet;
 		PlayerInMap() {
-			name = NULL;
-			lastName = NULL;
 			x = 999999;
 			y = 999999;
 			id = -9999;
 			finalAgeSet = false;
 		}
-		~PlayerInMap() {
-			if (name) {
-				delete[] name;
-				name = NULL;
-			}
-			if (lastName) {
-				delete[] lastName;
-				lastName = NULL;
-			}
-		}
 	};
 
 	struct DeathMsg {
 		time_t timeReci;
-		char* name;
+		string name;
 		float nameColor[3];
 		int age;
 		bool male;
 		int deathReason;
-		char *description; // can be NULL
+		string description;
 		DeathMsg() {
-			name = NULL;
 			deathReason = 0;
-			description = NULL;
-		}
-		~DeathMsg() {
-			if (name) {
-				delete[] name;
-				name = NULL;
-			}
-			if (description) {
-				delete[] description;
-				description = NULL;
-			}
 		}
 	};
 
-	#define hetuwDefaultOurFamilyName "MYFAMILY"
-	#define hetuwMaxFamilyNameLen 13
 	struct FamilyInRange {
-		char* name;
-		int count;
-		int youngWomenCount;
-		std::string raceName = "UNKNOWN";
+		string name = "";
+		int count = 0;
+		int youngWomenCount = 0;
+		string raceName = "UNKNOWN";
 		int generation = 0;
-		FamilyInRange() {
-			name = new char[hetuwMaxFamilyNameLen];
-			count = 0;
-			youngWomenCount = 0;
-		}
-		~FamilyInRange() {
-			if (name) { delete name; name = NULL; }
-		}
-		void reset() {
-			count = 0;
-			youngWomenCount = 0;
-		}
-		void setName(const char* inName) {
-			int i=0;
-			for ( ; i < (hetuwMaxFamilyNameLen-1); i++) {
-				name[i] = inName[i];
-				if (inName[i] == 0) break;
-			}
-			name[i] = 0;
-		}
-		bool nameEqualsName(const char* inName) {
-			for (int i=0; i < (hetuwMaxFamilyNameLen-1); i++) {
-				if (inName[i] == 0) break;
-				if (name[i] != inName[i]) return false;
-			}
-			return true;
-		}
+		int eveID = 0;
 	};
 
 	struct HttpRequest {
@@ -254,7 +202,7 @@ public:
 		hpt_custom, hpt_birth, hpt_home, hpt_bell, hpt_apoc, hpt_tarr, hpt_map, hpt_baby, hpt_babyboy, hpt_babygirl, hpt_expert, hpt_phex,
 	};
 
-	typedef struct {
+	struct HomePos {
 		int x;
 		int y;
 		char c = 0;
@@ -266,7 +214,7 @@ public:
 		int personID = -1;
 		bool hasCustomColor = false; // set it to true if you want rgb to be used
 		float rgba[4];
-	} HomePos;
+	};
 
 	static constexpr int languageArraySize1 = 460;
 	static constexpr int languageArraySize2 = 9;
@@ -477,7 +425,6 @@ public:
 	static bool livingLifePageMouseDown( float mX, float mY );
 	static void moveToAndClickTile(int tileX, int tileY, bool alpha);
 
-	static char* stringToChar(string str); // dont forget to delete[] cstr
 	static void setEmote(int id);
 	static void sendEmote(string emoteName);
 	static void sendEmote(int emoteId);
@@ -548,7 +495,7 @@ public:
 	static void onNameUpdate(LiveObject* o);
 	static void onCurseUpdate(LiveObject* o);
 	static void removeLastName(char *newName, const char* name );
-	static void getLastName( char* lastName, const char* name );
+	static string getLastName(const char* name);
 	static void setLastNameColor( const char* lastName, float alpha );
 	static void getLastNameColor(const char* lastName, float rgba[]);
 
@@ -595,13 +542,10 @@ public:
 	static int delayReduction;
 	static int zoomLimit;
 
-	static bool bFoundFamilyName;
-	static std::vector<FamilyInRange*> familiesInRange;
-	static string ourFamilyName;
+	static std::vector<FamilyInRange> familiesInRange;
 
 	static bool charArrContainsCharArr(const char* arr1, const char* arr2);
 	static void strToUpper(const char* src, char* dest, int maxSize);
-	static void objDescrToUpper(const char* arr, char* output, int maxSize);
 	static void getObjSearchDescr(const char* arr, char* output, int maxSize);
 	static void objGetDescrWithoutHashtag(const char* arr, char* output, int maxSize);
 	
@@ -746,6 +690,7 @@ private:
 	static void updateMap();
 
 	static int iDrawPlayersInRangePanel;
+	static bool compareFamilies(const FamilyInRange &, const FamilyInRange &);
 	static void updatePlayersInRangePanel();
 	static void drawPlayersInRangePanel();
 

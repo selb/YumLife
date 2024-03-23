@@ -182,7 +182,7 @@ bool HetuwMod::mapZoomOutKeyDown;
 
 int HetuwMod::playersInRangeNum = 0;
 int HetuwMod::iDrawPlayersInRangePanel;
-std::vector<HetuwMod::FamilyInRange*> HetuwMod::familiesInRange;
+std::vector<HetuwMod::FamilyInRange> HetuwMod::familiesInRange;
 
 bool HetuwMod::bDrawDeathMessages;
 std::vector<HetuwMod::DeathMsg*> HetuwMod::deathMessages;
@@ -222,9 +222,6 @@ float HetuwMod::xRayOpacity = 0.3f;
 bool HetuwMod::bxRay;
 bool HetuwMod::bHidePlayers = false;
 char HetuwMod::ourGender;
-
-bool HetuwMod::bFoundFamilyName;
-string HetuwMod::ourFamilyName;
 
 bool HetuwMod::cameraIsFixed;
 
@@ -407,9 +404,6 @@ void HetuwMod::init() {
 	clearSayBuffer = false;
 	selectedPlayerID = 0;
 	timeLastPlayerHover = 0;
-
-	familiesInRange.push_back(new FamilyInRange());
-	strcpy(familiesInRange[0]->name, hetuwDefaultOurFamilyName);
 
 	cordOffset = { 0, 0 };
 	addHomeLocation( 0, 0, hpt_birth ); // add birth location
@@ -1281,11 +1275,6 @@ void HetuwMod::initOnBirth() { // will be called from LivingLifePage.cpp
 
 	playersInRangeNum = 0;
 
-	familiesInRange.clear();
-	familiesInRange.shrink_to_fit();
-	familiesInRange.push_back(new FamilyInRange());
-	strcpy(familiesInRange[0]->name, hetuwDefaultOurFamilyName);
-
 	deathMessages.clear();
 	deathMessages.shrink_to_fit();
 
@@ -1357,9 +1346,6 @@ void HetuwMod::initOnServerJoin() { // will be called from LivingLifePage.cpp an
 	bxRay = false;
 	bHidePlayers = false;
 
-	bFoundFamilyName = false;
-	ourFamilyName = hetuwDefaultOurFamilyName;
-
  	ourLiveObject = livingLifePage->getOurLiveObject();
 	if (ourLiveObject) {
 		ourGender = getObject(ourLiveObject->displayID)->male ? 'M' : 'F';
@@ -1429,8 +1415,6 @@ bool HetuwMod::charArrEqualsCharArr(const char *a, const char *b) {
 }
 
 void HetuwMod::setSearchArray() {
-	int descrSize = 32;
-	char descr[descrSize];
 	char exactSearchArr[64];
 	for (int i=0; i<maxObjects; i++) {
 		objIsBeingSearched[i] = false;
@@ -1443,14 +1427,15 @@ void HetuwMod::setSearchArray() {
 				if (searchWordList[k][m] == 0) {
 					if (m > 0 && searchWordList[k][m-1] == '.') {
 						exactSearch = true;
-						strcpy(exactSearchArr, searchWordList[k]);
+						snprintf(exactSearchArr, sizeof(exactSearchArr), "%s", searchWordList[k]);
 						exactSearchArr[m-1] = 0;
 					}
 					break;
 				}
 			}
 
-			getObjSearchDescr(o->description, descr, descrSize);
+			char descr[64];
+			getObjSearchDescr(o->description, descr, sizeof(descr));
 
 			if (exactSearch) {
 				if (charArrEqualsCharArr(descr, exactSearchArr)) {
@@ -1607,7 +1592,7 @@ void HetuwMod::hSetDrawColor(float rgba[]) {
 void HetuwMod::drawWaitingText(doublePair pos) {
 	pos.y -= 60;
 	char hStr[256];
-	sprintf( hStr, hetuwWaitingText, toupper(HetuwMod::charKey_ShowHelp) );
+	snprintf( hStr, sizeof(hStr), hetuwWaitingText, toupper(HetuwMod::charKey_ShowHelp) );
 	livingLifePage->hetuwDrawMainFont(hStr, pos, alignCenter);
 	if (!invalidVersionDetected) return;
 	pos.y -= 60;
@@ -1733,8 +1718,7 @@ void HetuwMod::livingLifeStep() {
 		if (mapScale > 80177784) mapScale = 80177784;
 	}
 
-	if (stepCount % 46 == 0) {
-		if (!bFoundFamilyName) getOurFamilyName();
+	if (stepCount % 46 == 0 || familiesInRange.empty()) {
 		updatePlayersInRangePanel();
 	}
 
@@ -1749,7 +1733,7 @@ void HetuwMod::livingLifeStep() {
 	if (currentEmote >= 0 && lastEmoteTime+8 < time(NULL)) {
 		lastEmoteTime = time(NULL);
 		char message[64];
-		sprintf( message, "EMOT 0 0 %i#", currentEmote);
+		snprintf( message, sizeof(message), "EMOT 0 0 %i#", currentEmote);
         livingLifePage->sendToServerSocket( message );
 	}
 
@@ -2005,9 +1989,7 @@ void HetuwMod::teachLanguage() {
 	}
 	text[maxTextLength] = 0;
 
-	char *msg = new char[strlen(text)+1];
-	strcpy(msg, text);
-	sayBuffer.push_back(msg);
+	sayBuffer.push_back(stringDuplicate(text));
 }
 
 void HetuwMod::logHomeLocation(HomePos* hp) {
@@ -2585,29 +2567,14 @@ bool HetuwMod::charArrContainsCharArr(const char* arr1, const char* arr2) {
 void HetuwMod::strToUpper(const char* src, char* dest, int maxSize) {
 	int i = 0;
 	for ( ; src[i] != 0; i++) {
-		if (i >= maxSize) {
-			dest[i-1] = 0;
+		if (i >= maxSize-1) {
+			dest[i] = 0;
 			break;
 		}
 		dest[i] = src[i];
 		dest[i] = toupper(dest[i]);
 	}
 	dest[i] = 0;
-}
-
-// also removes text after #
-void HetuwMod::objDescrToUpper(const char* arr, char* output, int maxSize) {
-	int i=0;
-	for (; arr[i] != 0; i++) {
-		if (i >= maxSize) {
-			output[i] = 0;
-			break;
-		}
-		if (arr[i] == '#') break;
-		output[i] = arr[i];
-		output[i] = toupper(output[i]);
-	}
-	output[i] = 0;
 }
 
 void HetuwMod::getObjSearchDescr(const char* arr, char* output, int maxSize) {
@@ -2620,7 +2587,7 @@ void HetuwMod::getObjSearchDescr(const char* arr, char* output, int maxSize) {
 void HetuwMod::objGetDescrWithoutHashtag(const char* arr, char* output, int maxSize) {
 	int i=0;
 	for (; arr[i] != 0; i++) {
-		if (i >= maxSize) {
+		if (i >= maxSize-1) {
 			output[i] = 0;
 			break;
 		}
@@ -2832,62 +2799,62 @@ void HetuwMod::createCordsDrawStr() {
 
 		switch (homePosStack[i]->type) {
 			case hpt_custom:
-				sprintf( sBufA, "%c %d %d%s", homePosStack[i]->c, homePosStack[i]->x+cordOffset.x, homePosStack[i]->y+cordOffset.y, eta.c_str() );
+				snprintf( sBufA, sizeof(sBufA), "%c %d %d%s", homePosStack[i]->c, homePosStack[i]->x+cordOffset.x, homePosStack[i]->y+cordOffset.y, eta.c_str() );
 				break;
 			case hpt_birth:
-				sprintf( sBufA, "BIRTH %d %d%s", homePosStack[i]->x+cordOffset.x, homePosStack[i]->y+cordOffset.y, eta.c_str() );
+				snprintf( sBufA, sizeof(sBufA), "BIRTH %d %d%s", homePosStack[i]->x+cordOffset.x, homePosStack[i]->y+cordOffset.y, eta.c_str() );
 				break;
 			case hpt_home:
-				sprintf( sBufA, "HOME %c %d %d%s", (char)(homeCount+65), homePosStack[i]->x+cordOffset.x, homePosStack[i]->y+cordOffset.y, eta.c_str() );
+				snprintf( sBufA, sizeof(sBufA), "HOME %c %d %d%s", (char)(homeCount+65), homePosStack[i]->x+cordOffset.x, homePosStack[i]->y+cordOffset.y, eta.c_str() );
 				homeCount++;
 				break;
 			case hpt_bell:
-				sprintf( sBufA, "BELL %c %d %d%s", (char)(bellCount+65), homePosStack[i]->x+cordOffset.x, homePosStack[i]->y+cordOffset.y, eta.c_str() );
+				snprintf( sBufA, sizeof(sBufA), "BELL %c %d %d%s", (char)(bellCount+65), homePosStack[i]->x+cordOffset.x, homePosStack[i]->y+cordOffset.y, eta.c_str() );
 				bellCount++;
 				break;
 			case hpt_apoc:
-				sprintf( sBufA, "APOC %c %d %d%s", (char)(apocCount+65), homePosStack[i]->x+cordOffset.x, homePosStack[i]->y+cordOffset.y, eta.c_str() );
+				snprintf( sBufA, sizeof(sBufA), "APOC %c %d %d%s", (char)(apocCount+65), homePosStack[i]->x+cordOffset.x, homePosStack[i]->y+cordOffset.y, eta.c_str() );
 				apocCount++;
 				break;
 			case hpt_tarr:
 				// if (tarrCount > 0) break; // make sure it doesnt add more than 1 tarr monument to the list - saftey feature because of bug - idk what causes the bug
-				sprintf( sBufA, "TARR %c %d %d%s", (char)(tarrCount+65), homePosStack[i]->x+cordOffset.x, homePosStack[i]->y+cordOffset.y, eta.c_str() );
+				snprintf( sBufA, sizeof(sBufA), "TARR %c %d %d%s", (char)(tarrCount+65), homePosStack[i]->x+cordOffset.x, homePosStack[i]->y+cordOffset.y, eta.c_str() );
 				tarrCount++;
 				break;
 			case hpt_map: {
-				string mapName = "MAP "+(char)(mapCount+65);
+				string mapName = string("MAP ")+(char)(mapCount+65);
 				if (homePosStack[i]->text.length() > 0) {
 					if (homePosStack[i]->text.length() > 12) {
 						mapName = homePosStack[i]->text.substr(0, 12);
 					} else mapName = homePosStack[i]->text;
 				}
-				sprintf( sBufA, "%s %d %d%s", mapName.c_str(), homePosStack[i]->x+cordOffset.x, homePosStack[i]->y+cordOffset.y, eta.c_str() );
+				snprintf( sBufA, sizeof(sBufA), "%s %d %d%s", mapName.c_str(), homePosStack[i]->x+cordOffset.x, homePosStack[i]->y+cordOffset.y, eta.c_str() );
 				mapCount++;
 				break; }
 			case hpt_baby:
-				sprintf( sBufA, "BABY %c %d %d%s", (char)(babyCount+65), homePosStack[i]->x+cordOffset.x, homePosStack[i]->y+cordOffset.y, eta.c_str() );
+				snprintf( sBufA, sizeof(sBufA), "BABY %c %d %d%s", (char)(babyCount+65), homePosStack[i]->x+cordOffset.x, homePosStack[i]->y+cordOffset.y, eta.c_str() );
 				babyCount++;
 				break;
 			case hpt_babyboy:
-				sprintf( sBufA, "BABY BOY %c %d %d%s", (char)(babyCount+65), homePosStack[i]->x+cordOffset.x, homePosStack[i]->y+cordOffset.y, eta.c_str() );
+				snprintf( sBufA, sizeof(sBufA), "BABY BOY %c %d %d%s", (char)(babyCount+65), homePosStack[i]->x+cordOffset.x, homePosStack[i]->y+cordOffset.y, eta.c_str() );
 				babyCount++;
 				break;
 			case hpt_babygirl:
-				sprintf( sBufA, "BABY GIRL %c %d %d%s", (char)(babyCount+65), homePosStack[i]->x+cordOffset.x, homePosStack[i]->y+cordOffset.y, eta.c_str() );
+				snprintf( sBufA, sizeof(sBufA), "BABY GIRL %c %d %d%s", (char)(babyCount+65), homePosStack[i]->x+cordOffset.x, homePosStack[i]->y+cordOffset.y, eta.c_str() );
 				babyCount++;
 				break;
 			case hpt_expert:
-				sprintf( sBufA, "EXPERT %c %d %d%s", (char)(expertCount+65), homePosStack[i]->x+cordOffset.x, homePosStack[i]->y+cordOffset.y, eta.c_str() );
+				snprintf( sBufA, sizeof(sBufA), "EXPERT %c %d %d%s", (char)(expertCount+65), homePosStack[i]->x+cordOffset.x, homePosStack[i]->y+cordOffset.y, eta.c_str() );
 				expertCount++;
 				break;
 			case hpt_phex: {
-				string str = "PHEX "+(char)(phexCount+65);
+				string str = string("PHEX ")+(char)(phexCount+65);
 				if (homePosStack[i]->text.length() > 0) {
 					if (homePosStack[i]->text.length() > 12) {
 						str = homePosStack[i]->text.substr(0, 12);
 					} else str = homePosStack[i]->text;
 				}
-				sprintf( sBufA, "%s %d %d%s", str.c_str(), homePosStack[i]->x+cordOffset.x, homePosStack[i]->y+cordOffset.y, eta.c_str() );
+				snprintf( sBufA, sizeof(sBufA), "%s %d %d%s", str.c_str(), homePosStack[i]->x+cordOffset.x, homePosStack[i]->y+cordOffset.y, eta.c_str() );
 				phexCount++;
 				break; }
 		}
@@ -2975,37 +2942,6 @@ void HetuwMod::drawHomeCords() {
 			}
 		}
 	}
-}
-
-void HetuwMod::setOurFamilyName(const char* lastName) {
-	bFoundFamilyName = true;
-	ourFamilyName = string(lastName);
-	familiesInRange[0]->setName(ourFamilyName.c_str());
-	familiesInRange[0]->generation = ourLiveObject->lineage.size()+1;
-	familiesInRange[0]->raceName = getRaceName(getObject(ourLiveObject->displayID)); 
-}
-
-void HetuwMod::getOurFamilyName() {
-	if (!gameObjects) return;
-	if (ourLiveObject) {
-		char lastName[32];
-		getLastName(lastName, ourLiveObject->name);
-		if (lastName[0] != 0) {
-			setOurFamilyName(lastName);
-			return;
-		}
-	}
-	for(int i=0; i<gameObjects->size(); i++) {
-		LiveObject *o = gameObjects->getElement( i );
-		if (!isRelated(o)) continue;
-		char lastName[32];
-		getLastName(lastName, o->name);
-		if (lastName[0] == 0) continue;
-		setOurFamilyName(lastName);
-		return;
-	}
-	ourFamilyName = hetuwDefaultOurFamilyName;
-	bFoundFamilyName = false;
 }
 
 bool HetuwMod::isRelated( LiveObject* player ) {
@@ -3148,7 +3084,7 @@ void HetuwMod::drawHighlightedPlayer() {
 	char str[16]; char age[8];
 	livingLifePage->hetuwGetStringAge( age, player );
 	char gender = getObject(player->displayID)->male ? 'M' : 'F';
-	sprintf(str, "%c %s", gender, age);
+	snprintf(str, sizeof(str), "%c %s", gender, age);
 	setDrawColor( 0.0, 0.0, 0.0, 0.8 );
 	textWidth = livingLifePage->hetuwMeasureScaledHandwritingFont( str, guiScale );
 	drawRect( playerNamePos, textWidth/2 + 6*guiScale, 16*guiScale );
@@ -3162,7 +3098,7 @@ void HetuwMod::useTileRelativeToMe( int x, int y ) {
 	x = livingLifePage->sendX(x);
 	y = livingLifePage->sendY(y);
 	char msg[32];
-	sprintf( msg, "USE %d %d#", x, y);
+	snprintf( msg, sizeof(msg), "USE %d %d#", x, y);
 	livingLifePage->hetuwSetNextActionMessage( msg, x, y );
 }
 
@@ -3172,7 +3108,7 @@ void HetuwMod::dropTileRelativeToMe( int x, int y ) {
 	x = livingLifePage->sendX(x);
 	y = livingLifePage->sendY(y);
 	char msg[32];
-	sprintf( msg, "DROP %d %d -1#", x, y);
+	snprintf( msg, sizeof(msg), "DROP %d %d -1#", x, y);
 	livingLifePage->hetuwSetNextActionMessage( msg, x, y );
 }
 
@@ -3182,7 +3118,7 @@ void HetuwMod::remvTileRelativeToMe( int x, int y ) {
 	x = livingLifePage->sendX(x);
 	y = livingLifePage->sendY(y);
 	char msg[32];
-	sprintf( msg, "REMV %d %d -1#", x, y);
+	snprintf( msg, sizeof(msg), "REMV %d %d -1#", x, y);
 	livingLifePage->hetuwSetNextActionMessage( msg, x, y );
 }
 
@@ -3240,9 +3176,9 @@ void HetuwMod::actionAlphaRelativeToMe( int x, int y ) {
 	x = livingLifePage->sendX(x);
 	y = livingLifePage->sendY(y);
 	char msg[32];
-	if (remove) sprintf( msg, "REMV %d %d -1#", x, y);
-	else if (use) sprintf( msg, "USE %d %d#", x, y);
-	else sprintf( msg, "DROP %d %d -1#", x, y);
+	if (remove) snprintf( msg, sizeof(msg), "REMV %d %d -1#", x, y);
+	else if (use) snprintf( msg, sizeof(msg), "USE %d %d#", x, y);
+	else snprintf( msg, sizeof(msg), "DROP %d %d -1#", x, y);
 	livingLifePage->hetuwSetNextActionMessage( msg, x, y );
 }
 
@@ -3276,9 +3212,9 @@ void HetuwMod::actionBetaRelativeToMe( int x, int y ) {
 	x = livingLifePage->sendX(x);
 	y = livingLifePage->sendY(y);
 	char msg[32];
-	if (use) sprintf( msg, "USE %d %d#", x, y);
-	else if (remove) sprintf( msg, "REMV %d %d -1#", x, y);
-	else sprintf( msg, "DROP %d %d -1#", x, y);
+	if (use) snprintf( msg, sizeof(msg), "USE %d %d#", x, y);
+	else if (remove) snprintf( msg, sizeof(msg), "REMV %d %d -1#", x, y);
+	else snprintf( msg, sizeof(msg), "DROP %d %d -1#", x, y);
 	livingLifePage->hetuwSetNextActionMessage( msg, x, y );
 }
 
@@ -3289,7 +3225,7 @@ void HetuwMod::actionGammaRelativeToMe( int x, int y ) {
 	x = livingLifePage->sendX(x);
 	y = livingLifePage->sendY(y);
 	char msg[32];
-	sprintf( msg, "SWAP %d %d#", x, y);
+	snprintf( msg, sizeof(msg), "SWAP %d %d#", x, y);
 	livingLifePage->hetuwSetNextActionMessage( msg, x, y );
 }
 
@@ -3310,16 +3246,16 @@ void HetuwMod::useBackpack(bool replace) {
 
 	if ( ourLiveObject->holdingID > 0 ) {
 		if (replace) {
-			sprintf( msg, "DROP %d %d %d#", x, y, clothingSlot );
+			snprintf( msg, sizeof(msg), "DROP %d %d %d#", x, y, clothingSlot );
 		} else {
 			/* If this SELF message is sent without an item in hand (from the
 			 * server's perspective!) the bp is taken into hand. */
 			if (!pendingDropAcknowledgement) {
-				sprintf( msg, "SELF %d %d %d#", x, y, clothingSlot );
+				snprintf( msg, sizeof(msg), "SELF %d %d %d#", x, y, clothingSlot );
 			}
 		}
 	} else {
-		sprintf( msg, "SREMV %d %d %d %d#", x, y, clothingSlot, -1 );
+		snprintf( msg, sizeof(msg), "SREMV %d %d %d %d#", x, y, clothingSlot, -1 );
 	}
 
 	if (msg[0] != 0) {
@@ -3341,10 +3277,10 @@ void HetuwMod::usePocket(int clothingID) {
 
 	char msg[32];
 	if( ourLiveObject->holdingID > 0 ) {
-		sprintf( msg, "DROP %d %d %d#", x, y, clothingID );
+		snprintf( msg, sizeof(msg), "DROP %d %d %d#", x, y, clothingID );
 		livingLifePage->hetuwSetNextActionMessage( msg, x, y );
 	} else {
-		sprintf( msg, "SREMV %d %d %d %d#", x, y, clothingID, -1 );
+		snprintf( msg, sizeof(msg), "SREMV %d %d %d %d#", x, y, clothingID, -1 );
 		livingLifePage->hetuwSetNextActionMessage( msg, x, y );
 	}
 }
@@ -3356,7 +3292,7 @@ void HetuwMod::useOnSelf() {
 	if( ourLiveObject->holdingID <= 0 ) return;
 
 	char msg[32];
-	sprintf( msg, "SELF %d %d %d#", x, y, -1 );
+	snprintf( msg, sizeof(msg), "SELF %d %d %d#", x, y, -1 );
 	livingLifePage->hetuwSetNextActionMessage( msg, x, y );
 
 	if( getObject( ourLiveObject->holdingID )->foodValue > 0)
@@ -3365,7 +3301,7 @@ void HetuwMod::useOnSelf() {
 
 void HetuwMod::pickUpBaby( int x, int y ) {
 	char msg[32];
-	sprintf( msg, "BABY %d %d#", x, y );
+	snprintf( msg, sizeof(msg), "BABY %d %d#", x, y );
 	livingLifePage->hetuwSetNextActionMessage( msg, x, y );
 }
 
@@ -3420,14 +3356,8 @@ void HetuwMod::pickUpBabyInRange() {
 
 void HetuwMod::takeOffBackpack() {
 	char message[32];
-	sprintf(message, "SELF %i %i 5#", ourLiveObject->xd, ourLiveObject->yd);
+	snprintf(message, sizeof(message), "SELF %i %i 5#", ourLiveObject->xd, ourLiveObject->yd);
 	livingLifePage->sendToServerSocket( message );
-}
-
-char* HetuwMod::stringToChar(string str) { // dont forget to delete[] cstr
-	char *cstr = new char[str.length() + 1];
-	strcpy(cstr, str.c_str());
-	return cstr;
 }
 
 void HetuwMod::setEmote(int id) {
@@ -3436,22 +3366,19 @@ void HetuwMod::setEmote(int id) {
 }
 
 void HetuwMod::sendEmote(string emoteName) {
-	char* cstr = stringToChar(emoteName);
-	int emoteIndex = getEmotionIndex( cstr );
-	sendEmote(emoteIndex);
-	delete[] cstr;
+	sendEmote(getEmotionIndex(emoteName.c_str()));
 }
 
 void HetuwMod::sendEmote(int emoteId) {
 	string message = "EMOT 0 0 "+to_string(emoteId)+"#";
-	char* cstr = stringToChar(message);
-	livingLifePage->sendToServerSocket( cstr );
+	char* cstr = stringDuplicate(message.c_str());
+	livingLifePage->sendToServerSocket(cstr);
 	delete[] cstr;
 }
 
 void HetuwMod::causeDisconnect() {
 	char message[64];
-	sprintf( message, "EMOT 0 0 \\][###");
+	snprintf( message, sizeof(message), "EMOT 0 0 \\][###");
 	livingLifePage->sendToServerSocket( message );
 }
 
@@ -3482,7 +3409,7 @@ bool HetuwMod::livingLifeKeyDown(unsigned char inASCII) {
 
 	if (sendKeyEvents) {
 		char message[32];
-		sprintf(message, "KEY_EVENT %c#", inASCII);
+		snprintf(message, sizeof(message), "KEY_EVENT %c#", inASCII);
 		livingLifePage->sendToServerSocket( message );
 	}
 
@@ -3578,9 +3505,7 @@ bool HetuwMod::livingLifeKeyDown(unsigned char inASCII) {
 			bDrawInputString = false;
 			getSearchInput = 0;
 			if (strSearch.size() < 1) return true;
-			char *cstrSearchWord = new char[strSearch.size()+1];
-			strcpy(cstrSearchWord, strSearch.c_str());
-			searchWordList.push_back(cstrSearchWord);
+			searchWordList.push_back(stringDuplicate(strSearch.c_str()));
 			searchWordStartPos.push_back(new doublePair());
 			searchWordEndPos.push_back(new doublePair());
 			searchWordListDelete.push_back(false);
@@ -3643,7 +3568,7 @@ bool HetuwMod::livingLifeKeyDown(unsigned char inASCII) {
 			if (jic > 6) jic += 2;
 			currentEmote = -1;
 			char message[64];
-			sprintf( message, "EMOT 0 0 %i#", jic);
+			snprintf( message, sizeof(message), "EMOT 0 0 %i#", jic);
 	        livingLifePage->sendToServerSocket( message );
 			return true;
 		}
@@ -3678,11 +3603,6 @@ bool HetuwMod::livingLifeKeyDown(unsigned char inASCII) {
 	if (!commandKey && shiftKey && isCharKey(inASCII, charKey_ShowCords)) {
 		cordOffset.x = -ourLiveObject->xd;
 		cordOffset.y = -ourLiveObject->yd;
-		return true;
-	}
-	if (!commandKey && isCharKey(inASCII, charKey_ShowPlayersInRange)) {
-		iDrawPlayersInRangePanel++;
-		if (iDrawPlayersInRangePanel >= 3) iDrawPlayersInRangePanel = 0;
 		return true;
 	}
 	if (!commandKey && isCharKey(inASCII, charKey_ShowDeathMessages)) {
@@ -3968,10 +3888,17 @@ bool HetuwMod::livingLifeKeyUp(unsigned char inASCII) {
 			r = true;
 		}
 	}
+	if (!commandKey && isCharKey(inASCII, charKey_ShowPlayersInRange)) {
+		iDrawPlayersInRangePanel++;
+		iDrawPlayersInRangePanel %= 3;
+		familiesInRange.clear();
+		r = true;
+	}
 	if (!commandKey && !shiftKey && isCharKey(inASCII, charKey_ShowGrid)) {
 		if (bHoldDownTo_ShowGrid) {
 			bDrawGrid = false;
 		}
+		r = true;
 	}
 
 	if (inASCII == charKey_MapZoomIn || inASCII == toupper(charKey_MapZoomIn)) {
@@ -4328,7 +4255,7 @@ void HetuwMod::move() {
 		waitForDoorToOpen = false;
 	} else if (tileHasClosedDoor( x, y )) {
 		char msg[32];
-		sprintf( msg, "USE %d %d#", livingLifePage->sendX(x), livingLifePage->sendY(y));
+		snprintf( msg, sizeof(msg), "USE %d %d#", livingLifePage->sendX(x), livingLifePage->sendY(y));
 		livingLifePage->hetuwSetNextActionMessage( msg, x, y );
 		waitForDoorToOpen = true;
 		lastDoorToOpenX = (int)x;
@@ -4363,27 +4290,18 @@ void HetuwMod::removeLastName(char *newName, const char* name) {
 	else newName[k] = 0;
 }
 
-void HetuwMod::getLastName(char* lastName, const char* name) {
-	if (!name) {
-		lastName[0] = 0;
-		return;
+string HetuwMod::getLastName(const char* name) {
+	if (name == NULL) {
+		return "";
 	}
-	int k = -1;
-	for (int i=0; name[i] != 0; i++) {
-		if (name[i] == ' ') {
-			if (k >= 0) break;
-			else {
-				k = 0;
-				continue;
-			}
-		}
-		if (k >= 0) {
-			lastName[k] = name[i];
-			k++;
-		}
+
+	stringstream ss(name);
+	string lastName;
+	while (ss >> lastName) {
+		/* nothing to do, just keeping the last one */
 	}
-	if (k < 0) lastName[0] = 0;
-	else lastName[k] = 0;
+
+	return lastName;
 }
 
 void HetuwMod::getLastNameColor(const char* lastName, float rgba[]) {
@@ -4487,15 +4405,9 @@ void HetuwMod::updatePlayerToMap(LiveObject *o, bool deathMsg) {
 		pInMap->gender = getObject(o->displayID)->male ? 'M' : 'F';
 		playersInMap.push_back(pInMap);	
 	}
-	if (!playersInMap[p]->name && o->name) {
-		playersInMap[p]->name = new char[64];
-		strcpy(playersInMap[p]->name, o->name);
-		playersInMap[p]->lastName = new char[32];
-		getLastName( playersInMap[p]->lastName, playersInMap[p]->name );
-		if (playersInMap[p]->lastName[0] == 0) {
-			delete[] playersInMap[p]->lastName;
-			playersInMap[p]->lastName = NULL;
-		}
+	if (playersInMap[p]->name.empty() && o->name != NULL) {
+		playersInMap[p]->name = o->name;
+		playersInMap[p]->lastName = getLastName(playersInMap[p]->name.c_str());
 		playersInMap[p]->lastTime = timeNow;
 	}
 	if (o->xd != hetuwFakeCoord || o->yd != hetuwFakeCoord) {
@@ -4514,22 +4426,34 @@ void HetuwMod::updateMap() {
 	}
 }
 
+bool HetuwMod::compareFamilies(const FamilyInRange &a, const FamilyInRange &b) {
+	if (a.eveID == ourLiveObject->lineageEveID && b.eveID != a.eveID) {
+		// always sort our family first
+		return true;
+	} else if (a.count > b.count) {
+		return true;
+	} else if (b.count > a.count) {
+		return false;
+	} else if (a.eveID < b.eveID) {
+		return true;
+	} else {
+		return false;
+	}
+}
+
 #define hetuwPlayersInRangeDistance 50
 void HetuwMod::updatePlayersInRangePanel() {
 	playersInRangeNum = 0;
-	char lastName[32];
 
-	for(int i=0; (unsigned)i<familiesInRange.size(); i++)
-		familiesInRange[i]->reset();
+	familiesInRange.clear();
 
 	for(int i=0; i<gameObjects->size(); i++) {
 		LiveObject *o = gameObjects->getElement( i );
-
-		if ( o == ourLiveObject ) continue;
 		
-		if (iDrawPlayersInRangePanel == 1) {
+		if (iDrawPlayersInRangePanel == 1 && o != ourLiveObject) {
 			if ( o->outOfRange ) continue;
 
+			// TODO: should we remove this and just consider in range exactly what the server does?
 			int distX = o->xd - ourLiveObject->xd;
 			if ( distX > hetuwPlayersInRangeDistance || distX < -hetuwPlayersInRangeDistance)
 				continue;
@@ -4541,54 +4465,46 @@ void HetuwMod::updatePlayersInRangePanel() {
 		playersInRangeNum++;
 
 		ObjectRecord *obj = getObject(o->displayID);
-		int youngWoman = 0;
-		if ( !obj->male )
-			if ( livingLifePage->hetuwGetAge( o ) < 40 )
-				youngWoman = 1;
+		bool youngWoman = (!obj->male && livingLifePage->hetuwGetAge( o ) < 40);
 
-		if (isRelated(o)) {
-			familiesInRange[0]->count++;
-			familiesInRange[0]->youngWomenCount += youngWoman;
-			continue;
-		}
+		string lastName = getLastName(o->name);
 
-
-		getLastName(lastName, o->name);
-		if (lastName[0] != 0) {
-			FamilyInRange *fam = NULL;
-			for (int k=1; (unsigned)k < familiesInRange.size(); k++) {
-				if (familiesInRange[k]->nameEqualsName(lastName)) {
-					fam = familiesInRange[k];
-					break;
+		bool found = false;
+		for (size_t j = 0; j < familiesInRange.size(); j++) {
+			FamilyInRange &fam = familiesInRange[j];
+			if (o->lineageEveID == fam.eveID) {
+				// TODO: it's not as simple as one last name per fam. most frequently seen?
+				if (!lastName.empty()) {
+					fam.name = lastName;
 				}
-			}
-			if (!fam) {
-				fam = new FamilyInRange();
-				fam->setName(lastName);
-				fam->generation = o->lineage.size()+1;
-				fam->raceName = getRaceName(obj); 
-				familiesInRange.push_back(fam);
-			}
-			fam->count++;
-			fam->youngWomenCount += youngWoman;
-			continue;
-		}
-		// person without family name
-		FamilyInRange *fam = NULL;
-		for (int k=1; (unsigned)k < familiesInRange.size(); k++) {
-			if (familiesInRange[k]->nameEqualsName("UNKNOWN")) {
-				fam = familiesInRange[k];
+				fam.generation = max(fam.generation, o->lineage.size() + 1);
+				fam.raceName = getRaceName(obj);
+				fam.count++;
+				if (youngWoman) fam.youngWomenCount++;
+				found = true;
 				break;
 			}
 		}
-		if (!fam) {
-			fam = new FamilyInRange();
-			fam->setName("UNKNOWN");
+
+		if (!found) {
+			FamilyInRange fam;
+			if (!lastName.empty()) {
+				fam.name = lastName;
+			} else if (o->lineageEveID == ourLiveObject->lineageEveID) {
+				fam.name = "OUR FAMILY";
+			} else {
+				fam.name = "UNKNOWN";
+			}
+			fam.count = 1;
+			fam.youngWomenCount = (youngWoman ? 1 : 0);
+			fam.generation = o->lineage.size()+1;
+			fam.eveID = o->lineageEveID;
+			fam.raceName = getRaceName(obj);
 			familiesInRange.push_back(fam);
 		}
-		fam->count++;
-		fam->youngWomenCount += youngWoman;
 	}
+
+	sort(familiesInRange.begin(), familiesInRange.end(), compareFamilies);
 }
 
 void HetuwMod::onOurDeath() {
@@ -4598,7 +4514,10 @@ void HetuwMod::onOurDeath() {
 	for(unsigned k=0; k<playersInMap.size(); k++) {
 		if (playersInMap[k]->x == 999999) continue;
 
-		string name = playersInMap[k]->name ? string(playersInMap[k]->name) : "unknownName";
+		string name = playersInMap[k]->name;
+		if (name.empty()) {
+			name = "unknownName";
+		}
 		string data = to_string(playersInMap[k]->id) + hetuwLogSeperator + name + hetuwLogSeperator;
 		LiveObject *p = livingLifePage->getLiveObject(playersInMap[k]->id);
 		string age = "age:";
@@ -4643,11 +4562,11 @@ void HetuwMod::onPlayerUpdate( LiveObject* inO, const char* line ) {
 	if (o == ourLiveObject) onOurDeath();
 
 	DeathMsg* deathMsg = new DeathMsg();
-	deathMsg->description = new char[128];
 
 	string strLine(line);
 	string reasonKilled = "reason_killed_"; // reason_killed_
 	size_t reasonKilledIndex = strLine.find(reasonKilled);
+	char description[128] = "";
 	if (reasonKilledIndex != string::npos) {
 		deathMsg->deathReason = 2; // killer
 		string sstr = strLine.substr(reasonKilledIndex + reasonKilled.length());
@@ -4669,19 +4588,20 @@ void HetuwMod::onPlayerUpdate( LiveObject* inO, const char* line ) {
 				capitalDesc[k] = toupper(ko->description[k]);
 			}
 			capitalDesc[k] = 0;
-			sprintf( deathMsg->description, "KILLED BY %s", capitalDesc );
+			snprintf( description, sizeof(description), "KILLED BY %s", capitalDesc );
 		} else {
-			sprintf( deathMsg->description, "KILLED BY ID %i", killerObjId );
+			snprintf( description, sizeof(description), "KILLED BY ID %i", killerObjId );
 		}
 	} else if ( strLine.find("reason_hunger") != string::npos ) {
-		sprintf( deathMsg->description, "KILLED BY STARVATION" );
+		snprintf( description, sizeof(description), "KILLED BY STARVATION" );
 	} else if ( strLine.find("reason_SID") != string::npos ) {
-		sprintf( deathMsg->description, "SUDDEN INFANT DEATH" );
+		snprintf( description, sizeof(description), "SUDDEN INFANT DEATH" );
 	} else if ( strLine.find("reason_age") != string::npos ) {
-		sprintf( deathMsg->description, "KILLED BY OLD AGE" );
+		snprintf( description, sizeof(description), "KILLED BY OLD AGE" );
 	} else {
-		sprintf( deathMsg->description, "KILLED BY UNKNOWN" );
+		snprintf( description, sizeof(description), "KILLED BY UNKNOWN" );
 	}
+	deathMsg->description = description;
 
 	deathMsg->age = (int)livingLifePage->hetuwGetAge( o );
 	if ( getObject( o->displayID ) )
@@ -4702,8 +4622,7 @@ void HetuwMod::onPlayerUpdate( LiveObject* inO, const char* line ) {
 	if ( diffX > hetuwDeathMessageRange || diffX < -hetuwDeathMessageRange) { delete deathMsg; return; }
 	if ( diffY > hetuwDeathMessageRange || diffY < -hetuwDeathMessageRange) { delete deathMsg; return; }
 
-	deathMsg->name = new char[64];
-	sprintf( deathMsg->name, "%s", o->name); 
+	deathMsg->name = o->name;
 
 	deathMsg->timeReci = time(NULL);
 
@@ -4765,7 +4684,7 @@ void HetuwMod::drawDeathMessages() {
 	char age[8];
 	sprintf( age, "%d ", dm->age);
 
-	double nameWidth = livingLifePage->hetuwMeasureScaledHandwritingFont( dm->name, guiScale );
+	double nameWidth = livingLifePage->hetuwMeasureScaledHandwritingFont( dm->name.c_str(), guiScale );
 	double ripWidth = livingLifePage->hetuwMeasureScaledHandwritingFont( "RIP ", guiScale );
 	double genderWidth = livingLifePage->hetuwMeasureScaledHandwritingFont( gender, guiScale );
 	double ageWidth = livingLifePage->hetuwMeasureScaledHandwritingFont( age, guiScale );
@@ -4794,7 +4713,7 @@ void HetuwMod::drawDeathMessages() {
 	drawPos.x += ageWidth;
 
 	setDrawColor( dm->nameColor[0], dm->nameColor[1], dm->nameColor[2], 1 );
-	livingLifePage->hetuwDrawScaledHandwritingFont( dm->name , drawPos, guiScale );
+	livingLifePage->hetuwDrawScaledHandwritingFont( dm->name.c_str() , drawPos, guiScale );
 
 	int mouseX, mouseY;
 	livingLifePage->hetuwGetMouseXY( mouseX, mouseY );
@@ -4807,8 +4726,8 @@ void HetuwMod::drawDeathMessages() {
 	if (mouseX >= recStartX && mouseX <= recEndX) {
 		if (mouseY >= recStartY && mouseY <= recEndY) {
 			doublePair descDrawPos = { (double)mouseX, (double)mouseY };
-			if ( dm->description )
-				drawTextWithBckgr( descDrawPos, dm->description );
+			if ( !dm->description.empty() )
+				drawTextWithBckgr( descDrawPos, dm->description.c_str() );
 			else
 				drawTextWithBckgr( descDrawPos, "UNKNOWN DEATH" );
 		}
@@ -4832,8 +4751,7 @@ void HetuwMod::drawMap() {
 	drawRect( screenCenter, viewWidth/2, viewHeight/2 );
 	setDrawColor( 1, 1, 1, 1 );
 
-	char names[32][32];
-	int namesCount = 0;
+	unordered_set<string> names;
 	double minX = screenCenter.x - viewWidth/2;
 	double minY = screenCenter.y - viewHeight/2;
 	double maxX = screenCenter.x + viewWidth/2;
@@ -4844,7 +4762,7 @@ void HetuwMod::drawMap() {
 	int recHeightHalf = 10*zoomScale;
 	for(unsigned k=0; k<playersInMap.size(); k++) {
 		if (playersInMap[k]->x == 999999) continue;
-		if (!playersInMap[k]->name) continue;
+		if (playersInMap[k]->name.empty()) continue;
 		drawPos.x = (playersInMap[k]->x - ourLiveObject->xd) / mapScale;
 		drawPos.y = (playersInMap[k]->y - ourLiveObject->yd) / mapScale;
 		drawPos.x += mapOffsetX;
@@ -4858,25 +4776,15 @@ void HetuwMod::drawMap() {
 		if (drawPos.x > mouseX-recWidthHalf && drawPos.x < mouseX+recWidthHalf &&
 			drawPos.y > mouseY-recHeightHalf && drawPos.y < mouseY+recHeightHalf) {
 			bDrawMouseOver = true;
-			if (playersInMap[k]->lastName) {
-				sprintf(drawMouseOver, "%s X:%d Y:%d", playersInMap[k]->name, playersInMap[k]->x, playersInMap[k]->y);
+			if (!playersInMap[k]->name.empty()) {
+				snprintf(drawMouseOver, sizeof(drawMouseOver), "%s X:%d Y:%d", playersInMap[k]->name.c_str(), playersInMap[k]->x, playersInMap[k]->y);
 			} else {
-				sprintf(drawMouseOver, "X:%d Y:%d", playersInMap[k]->x, playersInMap[k]->y);
+				snprintf(drawMouseOver, sizeof(drawMouseOver), "X:%d Y:%d", playersInMap[k]->x, playersInMap[k]->y);
 			}
 		}
-		
-		if (playersInMap[k]->lastName) {
-			bool nameFound = false;
-			for (int i=0; i<namesCount; i++) {
-				if (strcmp(names[i], playersInMap[k]->lastName) == 0) {
-					nameFound = true;
-					break;
-				}
-			}
-			if (!nameFound) {
-				strcpy( names[namesCount], playersInMap[k]->lastName );
-				namesCount++;
-			}
+
+		if (!playersInMap[k]->lastName.empty()) {
+			names.insert(playersInMap[k]->lastName);
 		}
 		
 		float alpha = 1.0f;
@@ -4884,7 +4792,7 @@ void HetuwMod::drawMap() {
 
 		if (ourLiveObject->id == playersInMap[k]->id) 
 			setDrawColor( colorRainbow->color[0], 1.0f, colorRainbow->color[2], 1 );
-		else setLastNameColor( playersInMap[k]->lastName, alpha );
+		else setLastNameColor( playersInMap[k]->lastName.c_str(), alpha );
 
 		drawRect( drawPos, recWidthHalf, recHeightHalf );
 	}
@@ -4923,7 +4831,7 @@ void HetuwMod::drawMap() {
 	drawNameRecPos.x = screenCenter.x - viewWidth/2 + 50*guiScale;
 	drawNameRecPos.y = drawKeysRecPos.y + 15*guiScale;
 	float drawNameRecWidth = 100*guiScale;
-	float drawNameRecHeight = namesCount*15*guiScale + 10*guiScale;
+	float drawNameRecHeight = names.size()*15*guiScale + 10*guiScale;
 	drawNameRecPos.y += drawNameRecHeight;
 	drawRect( drawNameRecPos, drawNameRecWidth, drawNameRecHeight );
 
@@ -4931,9 +4839,9 @@ void HetuwMod::drawMap() {
 	drawNamesPos.x = screenCenter.x - viewWidth/2;
 	drawNamesPos.y = drawKeysRecPos.y + 40*guiScale;
 	drawNamesPos.x += 20*guiScale;
-	for (int i=0; i<namesCount; i++) {
-		setLastNameColor( names[i] , 1.0f );
-		livingLifePage->hetuwDrawScaledHandwritingFont( names[i], drawNamesPos, guiScale );
+	for (auto it = names.begin(); it != names.end(); it++) {
+		setLastNameColor( (*it).c_str() , 1.0f );
+		livingLifePage->hetuwDrawScaledHandwritingFont( (*it).c_str(), drawNamesPos, guiScale );
 		drawNamesPos.y += 30*guiScale;
 	}
 
@@ -4957,8 +4865,8 @@ void HetuwMod::drawMap() {
 
 void HetuwMod::drawPlayersInRangePanel() {
 	int listSize = 0;
-	for (int k=0; (unsigned)k < familiesInRange.size(); k++) {
-		if (k != 0 && familiesInRange[k]->count <= 0) continue;
+	for (size_t k=0; k < familiesInRange.size(); k++) {
+		if (k != 0 && familiesInRange[k].count <= 0) continue;
 		listSize++;
 	}
 
@@ -4976,18 +4884,18 @@ void HetuwMod::drawPlayersInRangePanel() {
 	drawSearchListTopY = bckgrRecPos.y - bckgrRecHeightHalf - (int)(10*guiScale);
 
 	setDrawColor( 1, 1, 1, 1 );
-	char text[32];
+	char text[64];
 	textPos.y -= 20*guiScale;
 	textPos.x -= 20*guiScale;
 	
 	if (iDrawPlayersInRangePanel == 1) {
-		if (playersInRangeNum < 10) sprintf(text, "PLAYERS IN RANGE:   %d", playersInRangeNum);
-		else if (playersInRangeNum < 100) sprintf(text, "PLAYERS IN RANGE:  %d", playersInRangeNum);
-		else sprintf(text, "PLAYERS IN RANGE: %d", playersInRangeNum);
+		if (playersInRangeNum < 10) snprintf(text, sizeof(text), "PLAYERS IN RANGE:   %d", playersInRangeNum);
+		else if (playersInRangeNum < 100) snprintf(text, sizeof(text), "PLAYERS IN RANGE:  %d", playersInRangeNum);
+		else snprintf(text, sizeof(text), "PLAYERS IN RANGE: %d", playersInRangeNum);
 	} else {
-		if (playersInRangeNum < 10) sprintf(text, "PLAYERS ON SERVER:   %d", playersInRangeNum);
-		else if (playersInRangeNum < 100) sprintf(text, "PLAYERS ON SERVER:  %d", playersInRangeNum);
-		else sprintf(text, "PLAYERS ON SERVER: %d", playersInRangeNum);
+		if (playersInRangeNum < 10) snprintf(text, sizeof(text), "PLAYERS ON SERVER:   %d", playersInRangeNum);
+		else if (playersInRangeNum < 100) snprintf(text, sizeof(text), "PLAYERS ON SERVER:  %d", playersInRangeNum);
+		else snprintf(text, sizeof(text), "PLAYERS ON SERVER: %d", playersInRangeNum);
 	}
 	livingLifePage->hetuwDrawScaledHandwritingFont( text, textPos, guiScale, alignRight );
 
@@ -5000,18 +4908,17 @@ void HetuwMod::drawPlayersInRangePanel() {
 	float lineHeight = 25*guiScale;
 
 	doublePair drawPos = { textPos.x, textPos.y };
-	for (int k=0; (unsigned)k < familiesInRange.size(); k++) {
-		FamilyInRange* fam = familiesInRange[k];
-		if (k != 0 && fam->count <= 0) continue;
+	for (size_t k=0; k < familiesInRange.size(); k++) {
+		const FamilyInRange &fam = familiesInRange[k];
+		if (k != 0 && fam.count <= 0) continue;
 		textPos.y -= lineHeight;
-		setLastNameColor(fam->name, 1.0f);
-		char text[32];
-		sprintf( text, "%s  F:%i  %i", fam->name, fam->youngWomenCount, fam->count);
+		setLastNameColor(fam.name.c_str(), 1.0f);
+		snprintf( text, sizeof(text), "%s  F:%i  %i", fam.name.c_str(), fam.youngWomenCount, fam.count);
 		livingLifePage->hetuwDrawScaledHandwritingFont( text, textPos, guiScale, alignRight );
 	}
-	for (int k=0; (unsigned)k < familiesInRange.size(); k++) {
-		FamilyInRange* fam = familiesInRange[k];
-		if (k != 0 && fam->count <= 0) continue;
+	for (size_t k=0; k < familiesInRange.size(); k++) {
+		const FamilyInRange &fam = familiesInRange[k];
+		if (k != 0 && fam.count <= 0) continue;
 		drawPos.y -= lineHeight;
 
 		recStartY = drawPos.y - lineHeight/2;
@@ -5019,9 +4926,9 @@ void HetuwMod::drawPlayersInRangePanel() {
 		if (mouseX >= recStartX && mouseX <= recEndX) {
 			if (mouseY >= recStartY && mouseY <= recEndY) {
 				doublePair descDrawPos = { (double)mouseX, (double)mouseY };
-				sprintf( text, "%s GEN:%i", fam->raceName.c_str(), fam->generation);
+				snprintf( text, sizeof(text), "%s GEN:%i", fam.raceName.c_str(), fam.generation);
 				float rgba[4];
-				getLastNameColor(fam->name, rgba);
+				getLastNameColor(fam.name.c_str(), rgba);
 				drawTextWithBckgr(descDrawPos, text, rgba);
 			}
 		}
@@ -5104,7 +5011,7 @@ void HetuwMod::drawAge() {
 	int age = (int)(ourAge*10);
 	int ageDecimal = age - int(age*0.1)*10;
 	age = (int)((age-ageDecimal)*0.1);
-	sprintf(sBuf, "%c  %i.%i", ourGender, age, ageDecimal);
+	snprintf(sBuf, sizeof(sBuf), "%c  %i.%i", ourGender, age, ageDecimal);
 	drawPos = lastScreenViewCenter;
 	drawPos.x += 290;
 	drawPos.y -= viewHeight/2 - 25;
@@ -5116,10 +5023,10 @@ void HetuwMod::drawCords() {
 	int y = round(ourLiveObject->currentPos.y+cordOffset.y);
 
 	char sBufA[16];
-	sprintf(sBufA, "%d", x );
+	snprintf(sBufA, sizeof(sBufA), "%d", x );
 	float textWidthA = livingLifePage->hetuwMeasureScaledHandwritingFont( sBufA, guiScale );
 	char sBufB[16];
-	sprintf(sBufB, "%d", y );
+	snprintf(sBufB, sizeof(sBufB), "%d", y );
 	float textWidthB = livingLifePage->hetuwMeasureScaledHandwritingFont( sBufB, guiScale );
 
 	doublePair drawPosA = lastScreenViewCenter;
@@ -5225,7 +5132,7 @@ void HetuwMod::drawHelp() {
 	drawPos.y += viewHeight/2 - 30*guiScale;
 	char serverIPupperCase[128];
 	strToUpper(serverIP, serverIPupperCase, 128);
-	sprintf(str, "%s:%d", serverIPupperCase, serverPort);
+	snprintf(str, sizeof(str), "%s:%d", serverIPupperCase, serverPort);
 	livingLifePage->hetuwDrawScaledHandwritingFont( str, drawPos, guiScale );
 
 	// emotion words
@@ -5238,9 +5145,9 @@ void HetuwMod::drawHelp() {
 		char *emote = emotions.getElement(i)->triggerWord;
 		if (strstr(emote, "/")) {
 			if (j < 10) {
-				sprintf(str, " %i: %s", j++, emote);
+				snprintf(str, sizeof(str), " %i: %s", j++, emote);
 			} else {
-				sprintf(str, "F%i: %s", j++ - 9, emote);
+				snprintf(str, sizeof(str), "F%i: %s", j++ - 9, emote);
 			}
 			livingLifePage->hetuwDrawScaledHandwritingFont( str, drawPos, guiScale );
 			drawPos.y -= lineHeight;
@@ -5253,7 +5160,7 @@ void HetuwMod::drawHelp() {
 	drawPos.y -= lineHeight;
 
 	drawPos.y -= lineHeight;
-	sprintf(str, "YOU CAN CHANGE KEYS AND SETTINGS BY MODIFYING THE HETUW.CFG FILE");
+	snprintf(str, sizeof(str), "YOU CAN CHANGE KEYS AND SETTINGS BY MODIFYING THE HETUW.CFG FILE");
 	livingLifePage->hetuwDrawScaledHandwritingFont( str, drawPos, guiScale );
 	drawPos.y -= lineHeight;
 
@@ -5265,87 +5172,81 @@ void HetuwMod::drawHelp() {
 	drawPos.y -= lineHeight;
 
 	setHelpColorSpecial();
-	sprintf(str, "%c TOGGLE SHOW HELP", toupper(charKey_ShowHelp));
+	snprintf(str, sizeof(str), "%c TOGGLE SHOW HELP", toupper(charKey_ShowHelp));
 	livingLifePage->hetuwDrawScaledHandwritingFont( str, drawPos, guiScale );
 	drawPos.y -= lineHeight;
 
 	if (cameraIsFixed) setHelpColorSpecial();
 	else setHelpColorNormal();
-	sprintf(str, "%c TOGGLE FIX CAMERA", toupper(charKey_FixCamera));
+	snprintf(str, sizeof(str), "%c TOGGLE FIX CAMERA", toupper(charKey_FixCamera));
 	livingLifePage->hetuwDrawScaledHandwritingFont( str, drawPos, guiScale );
 	drawPos.y -= lineHeight;
 
 	if (iDrawNames > 0) setHelpColorSpecial();
 	else setHelpColorNormal();
-	sprintf(str, "%c TOGGLE SHOW NAMES", toupper(charKey_ShowNames));
+	snprintf(str, sizeof(str), "%c TOGGLE SHOW NAMES", toupper(charKey_ShowNames));
 	livingLifePage->hetuwDrawScaledHandwritingFont( str, drawPos, guiScale );
 	drawPos.y -= lineHeight;
 
 	if (bDrawCords) setHelpColorSpecial();
 	else setHelpColorNormal();
-	sprintf(str, "%c TOGGLE SHOW CORDS", toupper(charKey_ShowCords));
+	snprintf(str, sizeof(str), "%c TOGGLE SHOW CORDS", toupper(charKey_ShowCords));
 	livingLifePage->hetuwDrawScaledHandwritingFont( str, drawPos, guiScale );
 	drawPos.y -= lineHeight;
 
 	if (iDrawPlayersInRangePanel > 0) setHelpColorSpecial();
 	else setHelpColorNormal();
-	sprintf(str, "%c TOGGLE SHOW PLAYERS IN RANGE", toupper(charKey_ShowPlayersInRange));
+	snprintf(str, sizeof(str), "%c TOGGLE SHOW PLAYERS IN RANGE", toupper(charKey_ShowPlayersInRange));
 	livingLifePage->hetuwDrawScaledHandwritingFont( str, drawPos, guiScale );
 	drawPos.y -= lineHeight;
 
-	//if (bDrawDeathMessages) setHelpColorSpecial();
-	//else setHelpColorNormal();
-	//sprintf(str, "%c TOGGLE SHOW DEATH MESSAGES", toupper(charKey_ShowDeathMessages));
-	//livingLifePage->hetuwDrawScaledHandwritingFont( str, drawPos, guiScale );
-	//drawPos.y -= lineHeight;
-
 	if (bDrawHomeCords) setHelpColorSpecial();
 	else setHelpColorNormal();
-	sprintf(str, "%c TOGGLE SHOW HOME CORDS", toupper(charKey_ShowHomeCords));
+	snprintf(str, sizeof(str), "%c TOGGLE SHOW HOME CORDS", toupper(charKey_ShowHomeCords));
 	livingLifePage->hetuwDrawScaledHandwritingFont( str, drawPos, guiScale );
 	drawPos.y -= lineHeight;
 
 	if (bDrawHostileTiles) setHelpColorSpecial();
 	else setHelpColorNormal();
-	sprintf(str, "%c TOGGLE SHOW HOSTILE TILES", toupper(charKey_ShowHostileTiles));
+	snprintf(str, sizeof(str), "%c TOGGLE SHOW HOSTILE TILES", toupper(charKey_ShowHostileTiles));
 	livingLifePage->hetuwDrawScaledHandwritingFont( str, drawPos, guiScale );
 	drawPos.y -= lineHeight;
 
 	if (bxRay) setHelpColorSpecial();
 	else setHelpColorNormal();
-	sprintf(str, "%c X-RAY VISION", toupper(charKey_xRay));
+	snprintf(str, sizeof(str), "%c X-RAY VISION", toupper(charKey_xRay));
 	livingLifePage->hetuwDrawScaledHandwritingFont( str, drawPos, guiScale );
 	drawPos.y -= lineHeight;
 
 	if (bDrawYum) setHelpColorSpecial();
 	else setHelpColorNormal();
-	sprintf(str, "%c FIND YUM", toupper(charKey_FindYum));
+	snprintf(str, sizeof(str), "%c FIND YUM", toupper(charKey_FindYum));
 	livingLifePage->hetuwDrawScaledHandwritingFont( str, drawPos, guiScale );
 	drawPos.y -= lineHeight;
 
 	if (bDrawGrid) setHelpColorSpecial();
 	else setHelpColorNormal();
-	sprintf(str, "%c SHOW GRID", toupper(charKey_ShowGrid));
+	snprintf(str, sizeof(str), "%c SHOW GRID", toupper(charKey_ShowGrid));
 	livingLifePage->hetuwDrawScaledHandwritingFont( str, drawPos, guiScale );
 	drawPos.y -= lineHeight;
 
 	setHelpColorNormal();
 
-	sprintf(str, "%c - USE SHORTS POCKET", toupper(charKey_Pocket));
+	snprintf(str, sizeof(str), "%c - USE SHORTS POCKET", toupper(charKey_Pocket));
 	livingLifePage->hetuwDrawScaledHandwritingFont( str, drawPos, guiScale );
 	drawPos.y -= lineHeight;
 
-	sprintf(str, "SHIFT+%c - USE APRON POCKET", toupper(charKey_Pocket));
+	snprintf(str, sizeof(str), "SHIFT+%c - USE APRON POCKET", toupper(charKey_Pocket));
 	livingLifePage->hetuwDrawScaledHandwritingFont( str, drawPos, guiScale );
 	drawPos.y -= lineHeight;
 
 	if (minitechEnabled) {
 		drawPos.y -= lineHeight;
 
-		sprintf(str, "%c TOGGLE CRAFTING GUIDE", toupper(charKey_Minitech));
+		snprintf(str, sizeof(str), "%c TOGGLE CRAFTING GUIDE", toupper(charKey_Minitech));
 		livingLifePage->hetuwDrawScaledHandwritingFont( str, drawPos, guiScale );
 		drawPos.y -= lineHeight;
-		sprintf(str, "CTRL+%c TOGGLE MAKE/USE", toupper(charKey_Minitech));
+		snprintf(str, sizeof(str), "CTRL+%c TOGGLE MAKE/USE", toupper(charKey_Minitech));
 		livingLifePage->hetuwDrawScaledHandwritingFont( str, drawPos, guiScale );
 		drawPos.y -= lineHeight;
 	}
@@ -5354,43 +5255,43 @@ void HetuwMod::drawHelp() {
 	drawPos.x -= viewWidth/2 - 640*guiScale;
 	drawPos.y += viewHeight/2 - 80*guiScale;
 
-	sprintf(str, "%c - USE BACKPACK", toupper(charKey_Backpack));
+	snprintf(str, sizeof(str), "%c - USE BACKPACK", toupper(charKey_Backpack));
 	livingLifePage->hetuwDrawScaledHandwritingFont( str, drawPos, guiScale );
 	drawPos.y -= lineHeight;
-	sprintf(str, "SHIFT+%c - USE BACKPACK", toupper(charKey_Backpack));
+	snprintf(str, sizeof(str), "SHIFT+%c - USE BACKPACK", toupper(charKey_Backpack));
 	livingLifePage->hetuwDrawScaledHandwritingFont( str, drawPos, guiScale );
 	drawPos.y -= lineHeight;
-	sprintf(str, "%c - TAKE OFF BACKPACK", toupper(charKey_TakeOffBackpack));
+	snprintf(str, sizeof(str), "%c - TAKE OFF BACKPACK", toupper(charKey_TakeOffBackpack));
 	livingLifePage->hetuwDrawScaledHandwritingFont( str, drawPos, guiScale );
 	drawPos.y -= lineHeight;
-	sprintf(str, "%c - EAT / PUT CLOTHES ON", toupper(charKey_Eat));
+	snprintf(str, sizeof(str), "%c - EAT / PUT CLOTHES ON", toupper(charKey_Eat));
 	livingLifePage->hetuwDrawScaledHandwritingFont( str, drawPos, guiScale );
 	drawPos.y -= lineHeight;
-	sprintf(str, "%c - PICK UP / DROP BABY", toupper(charKey_Baby));
+	snprintf(str, sizeof(str), "%c - PICK UP / DROP BABY", toupper(charKey_Baby));
 	livingLifePage->hetuwDrawScaledHandwritingFont( str, drawPos, guiScale );
 	drawPos.y -= lineHeight;
-	sprintf(str, "%c%c%c%c - MOVE", toupper(charKey_Up), toupper(charKey_Left), toupper(charKey_Down), toupper(charKey_Right));
+	snprintf(str, sizeof(str), "%c%c%c%c - MOVE", toupper(charKey_Up), toupper(charKey_Left), toupper(charKey_Down), toupper(charKey_Right));
 	livingLifePage->hetuwDrawScaledHandwritingFont( str, drawPos, guiScale );
 	drawPos.y -= lineHeight;
-	sprintf(str, "SHIFT+%c%c%c%c - USE/PICK UP ITEM", toupper(charKey_Up), toupper(charKey_Left), toupper(charKey_Down), toupper(charKey_Right));
+	snprintf(str, sizeof(str), "SHIFT+%c%c%c%c - USE/PICK UP ITEM", toupper(charKey_Up), toupper(charKey_Left), toupper(charKey_Down), toupper(charKey_Right));
 	livingLifePage->hetuwDrawScaledHandwritingFont( str, drawPos, guiScale );
 	drawPos.y -= lineHeight;
-	sprintf(str, "CTRL+%c%c%c%c - DROP / PICK ITEM FROM CONTAINER", toupper(charKey_Up), toupper(charKey_Left), toupper(charKey_Down), toupper(charKey_Right));
+	snprintf(str, sizeof(str), "CTRL+%c%c%c%c - DROP / PICK ITEM FROM CONTAINER", toupper(charKey_Up), toupper(charKey_Left), toupper(charKey_Down), toupper(charKey_Right));
 	livingLifePage->hetuwDrawScaledHandwritingFont( str, drawPos, guiScale );
 	drawPos.y -= lineHeight;
-	sprintf(str, "ALT+%c%c%c%c - SWAP ITEM (WITH CONTAINER)", toupper(charKey_Up), toupper(charKey_Left), toupper(charKey_Down), toupper(charKey_Right));
+	snprintf(str, sizeof(str), "ALT+%c%c%c%c - SWAP ITEM (WITH CONTAINER)", toupper(charKey_Up), toupper(charKey_Left), toupper(charKey_Down), toupper(charKey_Right));
 	livingLifePage->hetuwDrawScaledHandwritingFont( str, drawPos, guiScale );
 	drawPos.y -= lineHeight;
-	if (charKey_TileStandingOn == ' ') sprintf(str, "SPACE - USE/PICK UP ITEM ON THE TILE YOU ARE STANDING ON");
-	else sprintf(str, "%c - USE/PICK UP ITEM ON THE TILE YOU ARE STANDING ON", toupper(charKey_TileStandingOn));
+	if (charKey_TileStandingOn == ' ') snprintf(str, sizeof(str), "SPACE - USE/PICK UP ITEM ON THE TILE YOU ARE STANDING ON");
+	else snprintf(str, sizeof(str), "%c - USE/PICK UP ITEM ON THE TILE YOU ARE STANDING ON", toupper(charKey_TileStandingOn));
 	livingLifePage->hetuwDrawScaledHandwritingFont( str, drawPos, guiScale );
 	drawPos.y -= lineHeight;
-	if (charKey_TileStandingOn == ' ') sprintf(str, "CTRL+SPACE - DROP / PICK ITEM FROM CONTAINER");
-	else sprintf(str, "CTRL+%c - DROP / PICK ITEM FROM CONTAINER", toupper(charKey_TileStandingOn));
+	if (charKey_TileStandingOn == ' ') snprintf(str, sizeof(str), "CTRL+SPACE - DROP / PICK ITEM FROM CONTAINER");
+	else snprintf(str, sizeof(str), "CTRL+%c - DROP / PICK ITEM FROM CONTAINER", toupper(charKey_TileStandingOn));
 	livingLifePage->hetuwDrawScaledHandwritingFont( str, drawPos, guiScale );
 	drawPos.y -= lineHeight;
-	if (charKey_TileStandingOn == ' ') sprintf(str, "ALT+SPACE - SWAP ITEM (WITH CONTAINER)");
-	else sprintf(str, "ALT+%c - SWAP ITEM (WITH CONTAINER)", toupper(charKey_TileStandingOn));
+	if (charKey_TileStandingOn == ' ') snprintf(str, sizeof(str), "ALT+SPACE - SWAP ITEM (WITH CONTAINER)");
+	else snprintf(str, sizeof(str), "ALT+%c - SWAP ITEM (WITH CONTAINER)", toupper(charKey_TileStandingOn));
 	livingLifePage->hetuwDrawScaledHandwritingFont( str, drawPos, guiScale );
 	drawPos.y -= lineHeight;
 	livingLifePage->hetuwDrawScaledHandwritingFont( "LEFTARROWKEY ZOOM IN", drawPos, guiScale );
@@ -5399,33 +5300,27 @@ void HetuwMod::drawHelp() {
 	drawPos.y -= lineHeight;
 	livingLifePage->hetuwDrawScaledHandwritingFont( "CTRL+ARROWKEYS SCALE GUI", drawPos, guiScale );
 	drawPos.y -= lineHeight;
-	sprintf(str, "%c THEN KEY - REMEMBER CORDS", toupper(charKey_CreateHome));
+	snprintf(str, sizeof(str), "%c THEN KEY - REMEMBER CORDS", toupper(charKey_CreateHome));
 	livingLifePage->hetuwDrawScaledHandwritingFont( str, drawPos, guiScale );
 	drawPos.y -= lineHeight;
-	sprintf(str, "SHIFT+%c THEN KEY - REMEMBER CUSTOM CORDS", toupper(charKey_CreateHome));
+	snprintf(str, sizeof(str), "SHIFT+%c THEN KEY - REMEMBER CUSTOM CORDS", toupper(charKey_CreateHome));
 	livingLifePage->hetuwDrawScaledHandwritingFont( str, drawPos, guiScale );
 	drawPos.y -= lineHeight;
-	sprintf(str, "SHIFT+%c - RESET CORDS TO WHERE YOU ARE STANDING", toupper(charKey_ShowCords));
+	snprintf(str, sizeof(str), "SHIFT+%c - RESET CORDS TO WHERE YOU ARE STANDING", toupper(charKey_ShowCords));
 	livingLifePage->hetuwDrawScaledHandwritingFont( str, drawPos, guiScale );
 	drawPos.y -= lineHeight;
 
 	if (searchWordList.size() > 0) setHelpColorSpecial();
 	else setHelpColorNormal();
-	sprintf(str, "%c - SEARCH FOR AN OBJECT", toupper(charKey_Search));
+	snprintf(str, sizeof(str), "%c - SEARCH FOR AN OBJECT", toupper(charKey_Search));
 	livingLifePage->hetuwDrawScaledHandwritingFont( str, drawPos, guiScale );
 	drawPos.y -= lineHeight;
 	setHelpColorNormal();
-	sprintf(str, "SHIFT+%c - DELETE LAST SEARCH WORD", toupper(charKey_Search));
+	snprintf(str, sizeof(str), "SHIFT+%c - DELETE LAST SEARCH WORD", toupper(charKey_Search));
 	livingLifePage->hetuwDrawScaledHandwritingFont( str, drawPos, guiScale );
 	drawPos.y -= lineHeight;
 
-	//if (bTeachLanguage) setHelpColorSpecial();
-	//else setHelpColorNormal();
-	//sprintf(str, "%c - TEACH LANGUAGE", toupper(charKey_TeachLanguage));
-	//livingLifePage->hetuwDrawScaledHandwritingFont( str, drawPos, guiScale );
-	//drawPos.y -= lineHeight;
-
-	sprintf(str, "CTRL+MOUSECLICK - TILE BASED CLICK");
+	snprintf(str, sizeof(str), "CTRL+MOUSECLICK - TILE BASED CLICK");
 	livingLifePage->hetuwDrawScaledHandwritingFont( str, drawPos, guiScale );
 	drawPos.y -= lineHeight;
 
@@ -5433,7 +5328,7 @@ void HetuwMod::drawHelp() {
 		drawPos = lastScreenViewCenter;
 		drawPos.x += viewWidth/2 - 440*guiScale;
 		drawPos.y += viewHeight/2 - 30*guiScale;
-		sprintf(str, "MAP RUNNING SINCE: %s", getArcTimeStr().c_str());
+		snprintf(str, sizeof(str), "MAP RUNNING SINCE: %s", getArcTimeStr().c_str());
 		livingLifePage->hetuwDrawScaledHandwritingFont( str, drawPos, guiScale );
 	}
 }
