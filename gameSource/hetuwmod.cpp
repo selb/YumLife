@@ -290,8 +290,14 @@ bool HetuwMod::phexIsEnabled = true;
 std::string HetuwMod::phexIp = "chat.onelifeglobal.chat";
 int HetuwMod::phexPort = 6567;
 bool HetuwMod::debugPhex = false;
-bool HetuwMod::phexForceLeft = false;
 bool HetuwMod::phexStartOffline = false;
+
+enum {
+	PHEX_AUTO_SIDE,
+	PHEX_ON_LEFT,
+	PHEX_ON_RIGHT,
+};
+static int phexSide = PHEX_AUTO_SIDE;
 
 bool HetuwMod::sendKeyEvents = false;
 
@@ -921,8 +927,22 @@ bool HetuwMod::setSetting( const char* name, const char* value ) {
 		Phex::bSendFakeLife = bool(value[0]-'0');
 		return true;
 	}
+	// for migration; no longer produced on write
 	if (strstr(name, "phex_forceleft")) {
-		phexForceLeft = bool(value[0]-48);
+		if (value[0] == '1') {
+			phexSide = PHEX_ON_LEFT;
+		}
+		return true;
+	}
+	if (strstr(name, "phex_side")) {
+		// please future selb, refactor the config handling... please...
+		if (0 == strncmp(value, "left", 4)) {
+			phexSide = PHEX_ON_LEFT;
+		} else if (0 == strncmp(value, "right", 5)) {
+			phexSide = PHEX_ON_RIGHT;
+		} else {
+			phexSide = PHEX_AUTO_SIDE;
+		}
 		return true;
 	}
 	if (strstr(name, "phex_start_offline")) {
@@ -1149,7 +1169,13 @@ void HetuwMod::writeSettings(ofstream &ofs) {
 	if (Phex::forceChannel.length() > 1) ofs << "phex_channel = " << Phex::forceChannel << endl;
 	if (Phex::bSendFakeLife) ofs << "phex_send_fake_life = " << (char)(Phex::bSendFakeLife+48) << endl;
 	if (debugPhex) ofs << "phex_debug = " << (char)(debugPhex+48) << endl;
-	ofs << "phex_forceleft = " << (char)(phexForceLeft+48) << " // 1 = phex on left even if minitech disabled" << endl;
+	ofs << "phex_side = ";
+	switch (phexSide) {
+		case PHEX_ON_LEFT: ofs << "left"; break;
+		case PHEX_ON_RIGHT: ofs << "right"; break;
+		default: ofs << "auto"; break;
+	}
+	ofs << "  // auto = avoid minitech, left = always left, right = always right" << endl;
 	ofs << "phex_start_offline = " << (char)(phexStartOffline+48) << " // 1 = don't auto connect to phex" << endl;
 	if (sendKeyEvents) {
 		ofs << endl;
@@ -1512,8 +1538,18 @@ void HetuwMod::RainbowColor::step() {
 	}
 }
 
-void HetuwMod::zoomCalc() {
-	zoomScale = zoomScales[zoomLevel];
+bool HetuwMod::phexOnLeft()
+{
+	switch (phexSide) {
+		case PHEX_ON_LEFT:  return true; break;
+		case PHEX_ON_RIGHT: return false; break;
+		default:            return minitechEnabled; break;
+	}
+}
+
+void HetuwMod::zoomCalc()
+{
+    zoomScale = zoomScales[zoomLevel];
 	if (zoomDisabled) {
 		zoomScale = 1.0f;
 	}

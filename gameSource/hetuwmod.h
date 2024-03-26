@@ -325,7 +325,6 @@ public:
 	static std::string phexIp;
 	static int phexPort;
 	static bool debugPhex;
-	static bool phexForceLeft;
 	static bool phexStartOffline;
 
 	static std::string fontFilename;
@@ -630,6 +629,8 @@ public:
 	static bool minitechEnabled;
 	static bool minitechStayMinimized;
 	static bool minitechTooltipsEnabled;
+
+	static bool phexOnLeft();
 
 private:
 

@@ -129,7 +129,7 @@ void Phex::init() {
 	textInRecPaddingX = 0.01;
 	textInRecPaddingY = textInRecPaddingX * HetuwMod::viewWidthToHeightFactor;
 
-	if (HetuwMod::phexForceLeft || HetuwMod::minitechEnabled) {
+	if (HetuwMod::phexOnLeft()) {
 		setArray(recBckgrBig, (const double[]){ 0.0f, 0.0f, 0.3f, 1.0f }, 4);
 	} else {
 		setArray(recBckgrBig, (const double[]){ 0.7f, 0.0f, 1.0f, 1.0f }, 4);
@@ -223,7 +223,7 @@ void Phex::initFont() {
 }
 
 void Phex::fontSetMaxX() {
-	if (HetuwMod::phexForceLeft || HetuwMod::minitechEnabled) {
+	if (HetuwMod::phexOnLeft()) {
 		mainFont->hetuwMaxX = - HetuwMod::viewWidth/2.0 * 0.4;
 	} else {
 		mainFont->hetuwMaxX = HetuwMod::viewWidth/2.0;
@@ -259,7 +259,7 @@ void Phex::initButtons() {
 	double butPhexHeight = butPhexWidth * HetuwMod::viewWidthToHeightFactor;
 	double butPhexPaddingX = 0.01;
 	double butPhexPaddingY = butPhexPaddingX * HetuwMod::viewWidthToHeightFactor;
-	if (HetuwMod::phexForceLeft || HetuwMod::minitechEnabled) {
+	if (HetuwMod::phexOnLeft()) {
 		butPhex.setPosition(butPhexPaddingX, butPhexPaddingY);
 	} else {
 		butPhex.setPosition(1.0-butPhexWidth-butPhexPaddingX, butPhexPaddingY);
@@ -290,7 +290,7 @@ void Phex::initButtons() {
 
 	butMaximize.init("Maximize", &maximize);
 	setButtonStyle(&butMaximize);
-	if (HetuwMod::phexForceLeft || HetuwMod::minitechEnabled) {
+	if (HetuwMod::phexOnLeft()) {
 		butMaximize.setPosition(0, 0);
 	} else {
 		butMaximize.setPosition(1.0-recBckgrWidth, 0);
