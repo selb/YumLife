@@ -53,8 +53,7 @@ certain fix.
 
 ## Still not working?
 
-Open a bug report using the Issues tab above, or ping me (@selb) on the OHOL
-Discord.
+Open a bug report using the Issues tab above.
 
 # Compiling
 
