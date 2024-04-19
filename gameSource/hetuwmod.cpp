@@ -21,6 +21,7 @@
 #include "phex.h"
 #include "hetuwFont.h"
 #include "yumBlob.h"
+#include "yumConfig.h"
 
 using namespace std;
 
@@ -75,9 +76,6 @@ float HetuwMod::lastPosY;
 int HetuwMod::magnetMoveDir = -1;
 int HetuwMod::magnetWrongMoveDir = -1;
 int HetuwMod::magnetMoveCount = 0;
-
-int HetuwMod::cfgVersionNumber = 5;
-int HetuwMod::cfgVersionRead = 5;
 
 unsigned char HetuwMod::charKey_Up;
 unsigned char HetuwMod::charKey_Down;
@@ -287,7 +285,8 @@ bool HetuwMod::isMovingInVog = false;
 HetuwMod::IntervalTimed HetuwMod::intervalVogMove(0.1);
 
 bool HetuwMod::phexIsEnabled = true;
-std::string HetuwMod::phexIp = "chat.onelifeglobal.chat";
+static const char *defaultPhexIP = "chat.onelifeglobal.chat";
+std::string HetuwMod::phexIp = defaultPhexIP;
 int HetuwMod::phexPort = 6567;
 bool HetuwMod::debugPhex = false;
 bool HetuwMod::phexStartOffline = false;
@@ -307,13 +306,19 @@ bool HetuwMod::minitechEnabled = true;
 bool HetuwMod::minitechStayMinimized = false;
 bool HetuwMod::minitechTooltipsEnabled = true;
 
-static string autoNameMode = "shuffle";
+enum {
+	NAME_MODE_NONE,
+	NAME_MODE_SHUFFLE,
+	NAME_MODE_SEQUENTIAL
+};
+static int autoNameMode = NAME_MODE_SHUFFLE;
 static vector<string> autoMaleNames;
 static size_t autoMaleNameIndex = 0;
 static vector<string> autoFemaleNames;
 static size_t autoFemaleNameIndex = 0;
 
-std::string HetuwMod::fontFilename = "font_32_64_yum.tga";
+static const char *defaultFontFilename = "font_32_64_yum.tga";
+std::string HetuwMod::fontFilename = defaultFontFilename;
 
 HetuwFont *HetuwMod::customFont = NULL;
 
@@ -782,492 +787,196 @@ void HetuwMod::initClosedDoorIDs() {
 	closedDoorIDs[9] = 2962; // 2962.txt:Property Gate# +owned
 }
 
-// outputs name[] and value[] - input line
-void HetuwMod::getSettingsFileLine( char* name, size_t nameSize, char* value, size_t valueSize, string line ) {
-	size_t n = 0;
-	size_t v = 0;
-	bool readName = true;
-	for (unsigned i=0; i<line.length(); i++) {
-		if (line[i] == ' ') continue;
+static void validateNames(std::vector<std::string>& names) {
+	for (size_t i = 0; i < names.size(); i++) {
+		std::string& name = names[i];
 
-		if (readName) {
-			if (line[i] == '=') {
-				readName = false;
-				continue;
-			}
-			if (n+1 >= nameSize) break;
-			name[n] = line[i];
-			n++;
-		} else {
-			if (v+1 >= valueSize) break;
-			if (line[i] != '\r') {
-				value[v] = line[i];
-				v++;
+		bool valid = true;
+		for (size_t j = 0; valid && j < name.size(); j++) {
+			char c = name[j];
+			if (c >= 'a' && c <= 'z') {
+				name[j] -= 'a' - 'A';
+			} else if (c < 'A' || c > 'Z') {
+				valid = false;
 			}
 		}
-	}
-	name[n] = 0;
-	value[v] = 0;
-}
 
-bool HetuwMod::setCharKey( char unsigned &key, const char *value ) {
-	if (value[0] != '<') {
-		key = value[0];
-		return true;
-	}
-	if (strstr(value, "<space>")) {
-		key = ' ';
-		return true;
-	}
-	return false;
-}
-
-bool HetuwMod::setSetting( const char* name, const char* value ) {
-	if (strlen(value) < 1) return false;
-
-	if (strstr(name, "cfg_version")) {
-		cfgVersionRead = stoi(value);
-		return true;
-	}
-
-	if (strstr(name, "key_up")) return setCharKey( charKey_Up, value );
-	if (strstr(name, "key_down")) return setCharKey( charKey_Down, value );
-	if (strstr(name, "key_left")) return setCharKey( charKey_Left, value );
-	if (strstr(name, "key_right")) return setCharKey( charKey_Right, value );
-	if (strstr(name, "key_center")) return setCharKey( charKey_TileStandingOn, value );
-	if (strstr(name, "key_backpack")) return setCharKey( charKey_Backpack, value );
-	if (strstr(name, "key_takeOffBackpack")) return setCharKey( charKey_TakeOffBackpack, value );
-	if (strstr(name, "key_pocket")) return setCharKey( charKey_Pocket, value );
-	if (strstr(name, "key_eat")) return setCharKey( charKey_Eat, value );
-	if (strstr(name, "key_baby")) return setCharKey( charKey_Baby, value );
-	if (strstr(name, "key_show_help")) return setCharKey( charKey_ShowHelp, value );
-	if (strstr(name, "key_show_names")) return setCharKey( charKey_ShowNames, value );
-	if (strstr(name, "key_show_cords")) return setCharKey( charKey_ShowCords, value );
-	if (strstr(name, "key_show_playersinrange")) return setCharKey( charKey_ShowPlayersInRange, value );
-	if (strstr(name, "key_show_deathmessages")) return setCharKey( charKey_ShowDeathMessages, value );
-	if (strstr(name, "key_show_homecords")) return setCharKey( charKey_ShowHomeCords, value );
-	if (strstr(name, "key_show_hostiletiles")) return setCharKey( charKey_ShowHostileTiles, value );
-	if (strstr(name, "key_xray")) return setCharKey( charKey_xRay, value );
-	if (strstr(name, "key_remembercords")) return setCharKey( charKey_CreateHome, value );
-	if (strstr(name, "key_fixcamera")) return setCharKey( charKey_FixCamera, value );
-	if (strstr(name, "key_search")) return setCharKey( charKey_Search, value );
-	if (strstr(name, "key_teachlanguage")) return setCharKey( charKey_TeachLanguage, value );
-	if (strstr(name, "key_findyum")) return setCharKey( charKey_FindYum, value );
-	if (strstr(name, "key_hideplayers")) return setCharKey( charKey_HidePlayers, value );
-	if (strstr(name, "key_showgrid")) return setCharKey( charKey_ShowGrid, value );
-	if (strstr(name, "key_takephoto")) return setCharKey( charKey_MakePhoto, value );
-	if (strstr(name, "key_phex")) return setCharKey( charKey_Phex, value );
-	if (strstr(name, "key_minitech")) return setCharKey( charKey_Minitech, value );
-	if (strstr(name, "key_confirmexit")) return setCharKey( charKey_ConfirmExit, value );
-
-	if (strstr(name, "font_filename")) {
-		std::ifstream ifs(std::string("graphics/") + value);
-		if (ifs.good()) {
-			fontFilename = string(value);
+		if (!valid) {
+			names.erase(names.begin() + i);
+			i--;
 		}
-		ifs.close();
-		return true;
 	}
-
-	if (strstr(name, "init_show_names")) {
-		iDrawNames = (int)(value[0]-'0');
-		return true;
-	}
-	if (strstr(name, "init_show_selectedplayerinfo")) {
-		bDrawSelectedPlayerInfo = (int)(value[0]-'0');
-		return true;
-	}
-	if (strstr(name, "init_show_cords")) {
-		bDrawCords = bool(value[0]-'0');
-		return true;
-	}
-	if (strstr(name, "init_show_playersinrange")) {
-		iDrawPlayersInRangePanel = (int)(value[0]-'0');
-		return true;
-	}
-	if (strstr(name, "init_show_deathmessages")) {
-		bDrawDeathMessages = bool(value[0]-48);
-		return true;
-	}
-	if (strstr(name, "init_show_homecords")) {
-		bDrawHomeCords = bool(value[0]-48);
-		return true;
-	}
-	if (strstr(name, "init_show_hostiletiles")) {
-		bDrawHostileTiles = bool(value[0]-48);
-		return true;
-	}
-
-	if (strstr(name, "phex_enabled")) {
-		phexIsEnabled = bool(value[0]-48);
-		return true;
-	}
-	// YumLife: config version 5 migrated from phexonelife.duckdns.org
-	if (strstr(name, "phex_ip") && cfgVersionRead >= 5) {
-		phexIp = string(value);
-		return true;
-	}
-	if (strstr(name, "phex_port")) {
-		phexPort = atoi(value);
-		return true;
-	}
-	if (strstr(name, "phex_coords")) {
-		Phex::allowServerCoords = bool(value[0]-48);
-		return true;
-	}
-	if (strstr(name, "phex_debug")) {
-		debugPhex = bool(value[0]-48);
-		return true;
-	}
-	if (strstr(name, "phex_channel")) {
-		Phex::forceChannel = string(value);
-		return true;
-	}
-	if (strstr(name, "phex_send_fake_life")) {
-		Phex::bSendFakeLife = bool(value[0]-'0');
-		return true;
-	}
-	// for migration; no longer produced on write
-	if (strstr(name, "phex_forceleft")) {
-		if (value[0] == '1') {
-			phexSide = PHEX_ON_LEFT;
-		}
-		return true;
-	}
-	if (strstr(name, "phex_side")) {
-		// please future selb, refactor the config handling... please...
-		if (0 == strncmp(value, "left", 4)) {
-			phexSide = PHEX_ON_LEFT;
-		} else if (0 == strncmp(value, "right", 5)) {
-			phexSide = PHEX_ON_RIGHT;
-		} else {
-			phexSide = PHEX_AUTO_SIDE;
-		}
-		return true;
-	}
-	if (strstr(name, "phex_start_offline")) {
-		phexStartOffline = bool(value[0]-48);
-		return true;
-	}
-	if (strstr(name, "send_keyevents")) {
-		sendKeyEvents = bool(value[0]-48);
-		return true;
-	}
-	if (strstr(name, "drawbiomeinfo")) {
-		bDrawBiomeInfo = bool(value[0]-48);
-		return true;
-	}
-
-	if (strstr(name, "keep_button_pressed_to_fixcamera")) {
-		bHoldDownTo_FixCamera = bool(value[0]-48);
-		return true;
-	}
-	if (strstr(name, "keep_button_pressed_to_findyum")) {
-		bHoldDownTo_FindYum = bool(value[0]-48);
-		return true;
-	}
-	if (strstr(name, "keep_button_pressed_to_showgrid")) {
-		bHoldDownTo_ShowGrid = bool(value[0]-48);
-		return true;
-	}
-
-	if (strstr(name, "keep_button_pressed_to_xray")) {
-		bHoldDownTo_XRay = bool(value[0]-48);
-		return true;
-	}
-	if (strstr(name, "xray_opacity")) {
-		xRayOpacity = ((int)(value[0]-48)/10.0f);
-		return true;
-	}
-
-	if (strstr(name, "draw_yumcolor")) {
-		b_drawYumColor = bool(value[0]-48);
-		return true;
-	}
-	if (strstr(name, "draw_yumpulsate")) {
-		b_drawYumPulsate = bool(value[0]-48);
-		return true;
-	}
-	if (strstr(name, "search_include_hash_text")) {
-		searchIncludeHashText = bool(value[0]-48);
-		return true;
-	}
-	if (strstr(name, "draw_searchtext")) {
-		b_drawSearchText = bool(value[0]-48);
-		return true;
-	}
-	if (strstr(name, "draw_searchrec")) {
-		b_drawSearchTileRec = bool(value[0]-48);
-		return true;
-	}
-	if (strstr(name, "draw_searchpulsate")) {
-		b_drawSearchPulsate = bool(value[0]-48);
-		return true;
-	}
-
-	if (strstr(name, "add_baby_coords_to_list")) {
-		addBabyCoordsToList = bool(value[0]-48);
-		return true;
-	}
-
-	if (strstr(name, "automatic_data_update")) {
-		bAutoDataUpdate = bool(value[0]-48);
-		return true;
-	}
-	if (strstr(name, "hetuw_log")) {
-		bWriteLogs = bool(value[0]-48);
-		return true;
-	}
-	if (strstr(name, "chat_delay")) {
-		sayDelay = stoi(value)/10.0f;
-		return true;
-	}
-	if (strstr(name, "remap_start_enabled")) {
-		bRemapStart = bool(value[0]-'0');
-		return true;
-	}
-	if (strstr(name, "draw_hunger_warning")) {
-		bDrawHungerWarning = bool(value[0]-'0');
-		return true;
-	}
-	if (strstr(name, "minitech_enabled")) {
-		minitechEnabled = bool(value[0]-'0');
-		return true;
-	}
-	if (strstr(name, "minitech_stay_minimized")) {
-		minitechStayMinimized = bool(value[0]-'0');
-		return true;
-	}
-	if (strstr(name, "minitech_tooltips_enabled")) {
-		minitechTooltipsEnabled = bool(value[0]-'0');
-		return true;
-	}
-	if (strstr(name, "reduce_delay")) {
-		delayReduction = stoi(value);
-		if (delayReduction < 0)
-			delayReduction = 0;
-		if (delayReduction > 50)
-			delayReduction = 50;
-		return true;
-	}
-	if (strstr(name, "zoom_limit")) {
-		zoomLimit = stoi(value);
-		if (zoomLimit < 0)
-			zoomLimit = 0;
-		if (zoomLimit > maxZoomLevel)
-			zoomLimit = maxZoomLevel;
-		return true;
-	}
-	if (strstr(name, "auto_male_names") || strstr(name, "auto_female_names")) {
-		vector<string> &names = (strstr(name, "female") ? autoFemaleNames : autoMaleNames);
-		std::stringstream ss(value);
-		std::vector<std::string> splitValue = HetuwMod::splitStrXTimes(value, ',', 1024);
-		for (size_t i = 0; i < splitValue.size(); i++) {
-			std::string name = splitValue[i];
-			bool valid = true;
-			for (size_t i = 0; valid && i < name.size(); ++i) {
-				char c = name[i];
-				if (c >= 'a' && c <= 'z') {
-					name[i] -= 'a' - 'A';
-				} else if (c < 'A' || c > 'Z') {
-					valid = false;
-				}
-			}
-			if (valid && !name.empty())
-				names.push_back(name);
-		}
-		return true;
-	}
-	if (strstr(name, "auto_name_mode")) {
-		string v(value);
-		v = v.substr(0, v.find("//"));
-		if (v == "sequential" || v == "shuffle" || v == "off") {
-			autoNameMode = v;
-		}
-		return true;
-	}
-
-	return false;
-}
-
-void HetuwMod::writeCharKeyToStream( ofstream &ofs, const char* keyName, char key ) {
-	ofs << keyName << " = ";
-	if (key == ' ')
-		ofs << "<space>";
-	else
-		ofs << key;
-	ofs << endl;
-}
-
-void HetuwMod::writeSettings(ofstream &ofs) {
-	ofs << "// this file will be created whenever you start the mod" << endl;
-	ofs << "// if you want to reset this file, just delete it" << endl;
-	ofs << endl;
-
-	ofs << "cfg_version = " << cfgVersionNumber << endl;
-	ofs << endl;
-
-	writeCharKeyToStream( ofs, "key_up", charKey_Up );
-	writeCharKeyToStream( ofs, "key_down", charKey_Down );
-	writeCharKeyToStream( ofs, "key_left", charKey_Left );
-	writeCharKeyToStream( ofs, "key_right", charKey_Right );
-	writeCharKeyToStream( ofs, "key_center", charKey_TileStandingOn );
-	ofs << endl;
-	writeCharKeyToStream( ofs, "key_backpack", charKey_Backpack );
-	writeCharKeyToStream( ofs, "key_eat", charKey_Eat );
-	writeCharKeyToStream( ofs, "key_baby", charKey_Baby );
-	ofs << endl;
-	writeCharKeyToStream( ofs, "key_show_help", charKey_ShowHelp );
-	writeCharKeyToStream( ofs, "key_show_names", charKey_ShowNames );
-	writeCharKeyToStream( ofs, "key_show_cords", charKey_ShowCords );
-	writeCharKeyToStream( ofs, "key_show_playersinrange", charKey_ShowPlayersInRange );
-	writeCharKeyToStream( ofs, "key_show_deathmessages", charKey_ShowDeathMessages );
-	writeCharKeyToStream( ofs, "key_show_homecords", charKey_ShowHomeCords );
-	writeCharKeyToStream( ofs, "key_show_hostiletiles", charKey_ShowHostileTiles );
-	ofs << endl;
-	writeCharKeyToStream( ofs, "key_remembercords", charKey_CreateHome );
-	writeCharKeyToStream( ofs, "key_fixcamera", charKey_FixCamera );
-	writeCharKeyToStream( ofs, "key_xray", charKey_xRay );
-	writeCharKeyToStream( ofs, "key_search", charKey_Search );
-	writeCharKeyToStream( ofs, "key_teachlanguage", charKey_TeachLanguage );
-	writeCharKeyToStream( ofs, "key_findyum", charKey_FindYum );
-	writeCharKeyToStream( ofs, "key_hideplayers", charKey_HidePlayers );
-	writeCharKeyToStream( ofs, "key_takeOffBackpack", charKey_TakeOffBackpack );
-	writeCharKeyToStream( ofs, "key_pocket", charKey_Pocket );
-	writeCharKeyToStream( ofs, "key_showgrid", charKey_ShowGrid );
-	ofs << endl;
-	writeCharKeyToStream( ofs, "key_confirmexit", charKey_ConfirmExit );
-	ofs << endl;
-	writeCharKeyToStream( ofs, "key_phex", charKey_Phex );
-	writeCharKeyToStream( ofs, "key_minitech", charKey_Minitech );
-	ofs << endl;
-	ofs << "// WARNING: Jason doesnt want us to upload bogus photos and you might get banned if you do, read: OneLife/photoServer/protocol.txt" << endl;
-	ofs << "// How to use:" << endl;
-	ofs << "// 1. Set key_takephoto to a key you want" << endl;
-	ofs << "// 2. Press the key in game, a photo frame will appear, move the mouse around and zoom in and out to choose your photo" << endl;
-	ofs << "// 3. Press the key again to make the photo, it will be saved in the screenshots folder" << endl;
-	ofs << "// 4. If you want to upload it make an image with the camera in game, the last photo you took will be uploaded" << endl;
-	ofs << "//    Hold a camera and rightclick on a 'Protected Stack of Photo Paper'" << endl;
-	ofs << "//    Place the camera on the ground and rightlick it while it is rewinding" << endl;
-	writeCharKeyToStream( ofs, "key_takephoto", charKey_MakePhoto );
-	ofs << endl;
-	ofs << "// filename of the main font (in the graphics directory)" << endl;
-	ofs << "font_filename = " << fontFilename << endl;
-	ofs << endl;
-	ofs << "init_show_names = " << (char)(iDrawNames+48) << " // 0 = dont show names, 1 = show first name, 2 = show first and last name" << endl;
-	ofs << "init_show_selectedplayerinfo = " << (char)(bDrawSelectedPlayerInfo+48) << " // 1 = draw names bigger and show age when hovering over a player" << endl;
-	ofs << "init_show_cords = " << (char)(bDrawCords+48) << endl;
-	ofs << "init_show_playersinrange = " << (char)(iDrawPlayersInRangePanel+48) << endl;
-	ofs << "init_show_deathmessages = " << (char)(bDrawDeathMessages+48) << endl;
-	ofs << "init_show_homecords = " << (char)(bDrawHomeCords+48) << endl;
-	ofs << "init_show_hostiletiles = " << (char)(bDrawHostileTiles+48) << endl;
-	ofs << endl;
-	ofs << "phex_enabled = " << (char)(phexIsEnabled+48) << endl;
-	ofs << "phex_ip = " << phexIp << endl;
-	ofs << "phex_port = " << phexPort << endl;
-	ofs << "phex_coords = " << (char)(Phex::allowServerCoords+48) << endl;
-	if (Phex::forceChannel.length() > 1) ofs << "phex_channel = " << Phex::forceChannel << endl;
-	if (Phex::bSendFakeLife) ofs << "phex_send_fake_life = " << (char)(Phex::bSendFakeLife+48) << endl;
-	if (debugPhex) ofs << "phex_debug = " << (char)(debugPhex+48) << endl;
-	ofs << "phex_side = ";
-	switch (phexSide) {
-		case PHEX_ON_LEFT: ofs << "left"; break;
-		case PHEX_ON_RIGHT: ofs << "right"; break;
-		default: ofs << "auto"; break;
-	}
-	ofs << "  // auto = avoid minitech, left = always left, right = always right" << endl;
-	ofs << "phex_start_offline = " << (char)(phexStartOffline+48) << " // 1 = don't auto connect to phex" << endl;
-	if (sendKeyEvents) {
-		ofs << endl;
-		ofs << "send_keyevents = " << (char)(sendKeyEvents+48) << endl;
-	}
-	ofs << endl;
-	ofs << "keep_button_pressed_to_fixcamera = " << (char)(bHoldDownTo_FixCamera+48) << endl;
-	ofs << "keep_button_pressed_to_findyum = " << (char)(bHoldDownTo_FindYum+48) << endl;
-	ofs << "keep_button_pressed_to_showgrid = " << (char)(bHoldDownTo_ShowGrid+48) << endl;
-	ofs << endl;
-	ofs << "keep_button_pressed_to_xray = " << (char)(bHoldDownTo_XRay+48) << endl;
-	ofs << "xray_opacity = " << (char)(xRayOpacity*10+48) << " // how visible objects should be, can be 0 - 10" << endl;
-	ofs << endl;
-	ofs << "draw_yumcolor = " << (char)(b_drawYumColor+48) << endl;
-	ofs << "draw_yumpulsate = " << (char)(b_drawYumPulsate+48) << endl;
-	ofs << endl;
-	ofs << "search_include_hash_text = " << (char)(searchIncludeHashText+48) << endl;
-	ofs << "draw_searchtext = " << (char)(b_drawSearchText+48) << endl;
-	ofs << "draw_searchrec = " << (char)(b_drawSearchTileRec+48) << endl;
-	ofs << "draw_searchpulsate = " << (char)(b_drawSearchPulsate+48) << endl;
-	ofs << endl;
-	ofs << "add_baby_coords_to_list = " << (char)(addBabyCoordsToList+48) << endl;
-	ofs << endl;
-	ofs << "automatic_data_update = " << (char)(bAutoDataUpdate+48) << endl;
-	ofs << "hetuw_log = " << (char)(bWriteLogs+48) << " // will create a log file '" << hetuwLogFileName << "' that logs different events" << endl;
-	ofs << endl;
-	ofs << "chat_delay = " << to_string((int)(sayDelay*10)) << " // wait atleast X time before sending the next text (10 = 1 second) - set it to 0 to deactivate it" << endl;
-	ofs << endl;
-	ofs << "remap_start_enabled = " << (char)(bRemapStart+48) << " // enable mushroom effect" << endl;
-	ofs << "draw_hunger_warning = " << (char)(bDrawHungerWarning+48) << endl;
-	ofs << endl;
-	ofs << "// Reduce action delay by the given percentage, 0-50." << endl;
-	ofs << "// Higher values may cause server disconnects." << endl;
-	ofs << "reduce_delay = " << delayReduction << endl;
-	ofs << "// Set max zoom out. This one goes to 11." << endl;
-	ofs << "zoom_limit = " << zoomLimit << endl;
-	ofs << endl;
-	ofs << "minitech_enabled = " << (char)(minitechEnabled+48) << endl;
-	ofs << "minitech_stay_minimized = " << (char)(minitechStayMinimized+48) << endl;
-	ofs << "minitech_tooltips_enabled = " << (char)(minitechTooltipsEnabled+48) << endl;
-	ofs << endl;
-
-	ofs << "// names to automatically give when holding your bb; separate with commas" << endl;
-	ofs << "// for example: auto_male_names = MATTHEW, MARK, LUKE, JOHN" << endl;
-	ofs << "auto_male_names = ";
-	for (size_t i = 0; i < autoMaleNames.size(); i++)
-		ofs << (i == 0 ? "" : ", ") << autoMaleNames[i];
-	ofs << endl;
-	ofs << "auto_female_names = ";
-	for (size_t i = 0; i < autoFemaleNames.size(); i++)
-		ofs << (i == 0 ? "" : ", ") << autoFemaleNames[i];
-	ofs << endl;
-	ofs << "auto_name_mode = " << autoNameMode << "  // sequential, shuffle, or off" << endl;
 }
 
 void HetuwMod::initSettings() {
-	ifstream ifs;
-	ifs.open( hetuwSettingsFileName );
-	if (ifs.good()) { // file exists
-		string line;
-		while (getline(ifs, line)) {
-			//printf("hetuw read line: %s\n", line.c_str());
-			if (line.length() < 3) continue;
-			if (line[0] == '/' && line[1] == '/') continue;
-			char name[256];
-			char value[4096];
-			getSettingsFileLine( name, sizeof(name), value, sizeof(value), line );
-			if (strlen(name) < 1) continue;
-			//printf("hetuw name: %s, value: %s\n", name, value);
-			try {
-				if (!setSetting( name, value ))
-					printf("hetuw WARNING invalid %s line: %s\n", hetuwSettingsFileName, line.c_str());
-			} catch (...) {
-				printf("hetuw WARNING %s, exception thrown at line: %s\n", hetuwSettingsFileName, line.c_str());
-			}
-		}
-	}
-	ifs.close();
+	const int cfgVersionLatest = 6;
+	static int cfgVersionActive = cfgVersionLatest;
 
-	if (cfgVersionRead < 2) {
+	yumConfig::registerSetting("cfg_version", cfgVersionActive, {preComment: "// this file will be created whenever you start the mod\n// if you want to reset this file, just delete it\n\n"});
+	
+	yumConfig::registerSetting("key_up", charKey_Up, {preComment: "\n"});
+	yumConfig::registerSetting("key_down", charKey_Down);
+	yumConfig::registerSetting("key_left", charKey_Left);
+	yumConfig::registerSetting("key_right", charKey_Right);
+	yumConfig::registerSetting("key_center", charKey_TileStandingOn);
+
+	yumConfig::registerSetting("key_backpack", charKey_Backpack, {preComment: "\n"});
+	yumConfig::registerSetting("key_takeOffBackpack", charKey_TakeOffBackpack);
+	yumConfig::registerSetting("key_pocket", charKey_Pocket);
+	yumConfig::registerSetting("key_eat", charKey_Eat);
+	yumConfig::registerSetting("key_baby", charKey_Baby);
+
+	yumConfig::registerSetting("key_show_help", charKey_ShowHelp, {preComment: "\n"});
+	yumConfig::registerSetting("key_show_names", charKey_ShowNames);
+	yumConfig::registerSetting("key_show_cords", charKey_ShowCords);
+	yumConfig::registerSetting("key_show_playersinrange", charKey_ShowPlayersInRange);
+	yumConfig::registerSetting("key_show_deathmessages", charKey_ShowDeathMessages);
+	yumConfig::registerSetting("key_show_homecords", charKey_ShowHomeCords);
+	yumConfig::registerSetting("key_show_hostiletiles", charKey_ShowHostileTiles);
+
+	yumConfig::registerSetting("key_remembercords", charKey_CreateHome, {preComment: "\n"});
+	yumConfig::registerSetting("key_fixcamera", charKey_FixCamera);
+	yumConfig::registerSetting("key_xray", charKey_xRay);
+	yumConfig::registerSetting("key_search", charKey_Search);
+	// yumConfig::registerSetting("key_teachlanguage", charKey_TeachLanguage);
+	yumConfig::registerSetting("key_findyum", charKey_FindYum);
+	yumConfig::registerSetting("key_hideplayers", charKey_HidePlayers);
+	yumConfig::registerSetting("key_showgrid", charKey_ShowGrid);
+
+	yumConfig::registerSetting("key_confirmexit", charKey_ConfirmExit, {preComment: "\n"});
+
+	yumConfig::registerSetting("key_phex", charKey_Phex, {preComment: "\n"});
+	yumConfig::registerSetting("key_minitech", charKey_Minitech);
+
+	const char *photoInstructions =
+	    "\n"
+		"// WARNING: Jason doesnt want us to upload bogus photos and you might get banned if you do, read: OneLife/photoServer/protocol.txt\n"
+		"// How to use:\n"
+		"// 1. Set key_takephoto to a key you want\n"
+		"// 2. Press the key in game, a photo frame will appear, move the mouse around and zoom in and out to choose your photo\n"
+		"// 3. Press the key again to make the photo, it will be saved in the screenshots folder\n"
+		"// 4. If you want to upload it make an image with the camera in game, the last photo you took will be uploaded\n"
+		"//    Hold a camera and rightclick on a 'Protected Stack of Photo Paper'\n"
+		"//    Place the camera on the ground and rightlick it while it is rewinding\n";
+	yumConfig::registerSetting("key_takephoto", charKey_MakePhoto, {preComment: photoInstructions});
+
+	yumConfig::registerSetting("font_filename", fontFilename, {preComment: "\n// filename of the main font (in the graphics directory)\n"});
+
+	static std::map<std::string, int> drawNamesMap = {
+		{"none", 0},
+		{"first", 1},
+		{"full", 2}
+	};
+	yumConfig::registerMappedSetting("init_show_names", iDrawNames, drawNamesMap, {preComment: "\n", postComment: " // none, first, or full"});
+	yumConfig::registerSetting("init_show_selectedplayerinfo", bDrawSelectedPlayerInfo, {postComment: " // draw names bigger and show age when hovering over a player"});
+	yumConfig::registerSetting("init_show_cords", bDrawCords);
+	yumConfig::registerSetting("init_show_playersinrange", iDrawPlayersInRangePanel);
+	yumConfig::registerSetting("init_show_deathmessages", bDrawDeathMessages);
+	yumConfig::registerSetting("init_show_homecords", bDrawHomeCords);
+	yumConfig::registerSetting("init_show_hostiletiles", bDrawHostileTiles);
+
+	yumConfig::registerSetting("phex_enabled", phexIsEnabled, {preComment: "\n"});
+	yumConfig::registerSetting("phex_ip", phexIp);
+	yumConfig::registerSetting("phex_port", phexPort);
+	yumConfig::registerSetting("phex_coords", Phex::allowServerCoords);
+	yumConfig::registerSetting("phex_channel", Phex::forceChannel, {savePredicate: []() { return !Phex::forceChannel.empty(); }});
+	yumConfig::registerSetting("phex_send_fake_life", Phex::bSendFakeLife, {savePredicate: []() { return Phex::bSendFakeLife; }});
+	yumConfig::registerSetting("phex_debug", debugPhex, {savePredicate: []() { return debugPhex; }});
+
+	static std::map<std::string, int> phexSideMap = {
+		{"auto", PHEX_AUTO_SIDE},
+		{"left", PHEX_ON_LEFT},
+		{"right", PHEX_ON_RIGHT}
+	};
+	yumConfig::registerMappedSetting("phex_side", phexSide, phexSideMap, {postComment: " // auto = avoid minitech, left = always left, right = always right"});
+	yumConfig::registerSetting("phex_start_offline", phexStartOffline, {postComment: " // disable auto connect to phex"});
+	yumConfig::registerSetting("send_keyevents", sendKeyEvents, {savePredicate: []() { return sendKeyEvents; }});
+	yumConfig::registerSetting("drawbiomeinfo", bDrawBiomeInfo, {savePredicate: []() { return bDrawBiomeInfo; }});
+
+	yumConfig::registerSetting("keep_button_pressed_to_fixcamera", bHoldDownTo_FixCamera, {preComment: "\n"});
+	yumConfig::registerSetting("keep_button_pressed_to_findyum", bHoldDownTo_FindYum);
+	yumConfig::registerSetting("keep_button_pressed_to_showgrid", bHoldDownTo_ShowGrid);
+
+	yumConfig::registerSetting("keep_button_pressed_to_xray", bHoldDownTo_XRay, {preComment: "\n"});
+	yumConfig::registerScaledSetting("xray_opacity", xRayOpacity, 10, {postComment: " // how visible objects should be, can be 0 - 10"});
+
+	yumConfig::registerSetting("draw_yumcolor", b_drawYumColor, {preComment: "\n"});
+	yumConfig::registerSetting("draw_yumpulsate", b_drawYumPulsate);
+
+	yumConfig::registerSetting("search_include_hash_text", searchIncludeHashText, {preComment: "\n"});
+	yumConfig::registerSetting("draw_searchtext", b_drawSearchText);
+	yumConfig::registerSetting("draw_searchrec", b_drawSearchTileRec);
+	yumConfig::registerSetting("draw_searchpulsate", b_drawSearchPulsate);
+
+	yumConfig::registerSetting("add_baby_coords_to_list", addBabyCoordsToList, {preComment: "\n"});
+
+	yumConfig::registerSetting("automatic_data_update", bAutoDataUpdate, {preComment: "\n"});
+	yumConfig::registerSetting("hetuw_log", bWriteLogs, {postComment: " // will create a log file '" hetuwLogFileName "' that logs different events"});
+
+	yumConfig::registerScaledSetting("chat_delay", sayDelay, 10, {postComment: " // wait atleast X time before sending the next text (10 = 1 second) - set it to 0 to deactivate it"});
+
+	yumConfig::registerSetting("draw_mushroom_effect", bRemapStart, {preComment: "\n"});
+	yumConfig::registerSetting("draw_hunger_warning", bDrawHungerWarning);
+
+	yumConfig::registerSetting("reduce_delay", delayReduction, {preComment: "\n// Reduce action delay by the given percentage, 0-50.\n// Higher values may cause server disconnects.\n"});
+	yumConfig::registerSetting("zoom_limit", zoomLimit, {preComment: "// Set max zoom out. This one goes to 11.\n"});
+
+	yumConfig::registerSetting("minitech_enabled", minitechEnabled, {preComment: "\n"});
+	yumConfig::registerSetting("minitech_stay_minimized", minitechStayMinimized);
+	yumConfig::registerSetting("minitech_tooltips_enabled", minitechTooltipsEnabled);
+
+	yumConfig::registerSetting("auto_male_names", autoMaleNames, {preComment: "\n// names to automatically give when holding your bb; separate with commas\n// for example: auto_male_names = MATTHEW, MARK, LUKE, JOHN\n"});
+	yumConfig::registerSetting("auto_female_names", autoFemaleNames);
+	static std::map<std::string, int> autoNameModeMap = {
+		{"sequential", NAME_MODE_SEQUENTIAL},
+		{"shuffle", NAME_MODE_SHUFFLE},
+		{"off", NAME_MODE_NONE}
+	};
+	yumConfig::registerMappedSetting("auto_name_mode", autoNameMode, autoNameModeMap, {postComment: " // sequential, shuffle, or off"});
+
+	// Compatibility options
+
+	// replaced by phex_side
+	static bool compatPhexForceLeft = false;
+	yumConfig::registerSetting("phex_forceleft", compatPhexForceLeft, {savePredicate: []() { return false; }});
+	// replaced by draw_mushroom_effect
+	yumConfig::registerSetting("remap_start_enabled", bRemapStart, {savePredicate: []() { return false; }});
+
+	yumConfig::loadSettings(hetuwSettingsFileName);
+
+	// version migrations
+	if (cfgVersionActive < 2) {
 		Phex::allowServerCoords = true;
 	}
-	if (cfgVersionRead < 3) {
+	if (cfgVersionActive < 3) {
 		charKey_ShowDeathMessages = 254;
 	}
-	if (cfgVersionRead < 4) {
+	if (cfgVersionActive < 4) {
 		bWriteLogs = true;
 	}
+	if (cfgVersionActive < 5) {
+		// version 5 migrated from phexonelife.duckdns.org
+		phexIp = defaultPhexIP;
+	}
+	if (compatPhexForceLeft) {
+		phexSide = PHEX_ON_LEFT;
+	}
 
-	ofstream ofs( hetuwSettingsFileName, ofstream::out );
-	writeSettings(ofs);
-	ofs.close();
+	// value clamping/validation
+	delayReduction = std::max(0, std::min(50, delayReduction));
+	zoomLimit = std::max(0, std::min(maxZoomLevel, zoomLimit));
+	if (fontFilename != defaultFontFilename) {
+		std::ifstream ifs(std::string("graphics/") + fontFilename);
+		if (!ifs.good()) {
+			fontFilename = defaultFontFilename;
+		}
+		ifs.close();
+	}
+	validateNames(autoMaleNames);
+	validateNames(autoFemaleNames);
+
+	cfgVersionActive = cfgVersionLatest;
+	yumConfig::saveSettings(hetuwSettingsFileName);
 }
 
 void HetuwMod::onGotServerAddress(char inUsingCustomServer, char *inServerIP, int inServerPort) {
@@ -1334,7 +1043,7 @@ void HetuwMod::initOnBirth() { // will be called from LivingLifePage.cpp
 	Phex::onBirth();
 
 	namesSeen.clear();
-	if (autoNameMode == "shuffle") {
+	if (autoNameMode == NAME_MODE_SHUFFLE) {
 		shuffle(autoFemaleNames);
 		shuffle(autoMaleNames);
 	}
@@ -5405,7 +5114,7 @@ void HetuwMod::autoNameBB() {
 	static string yourSon;
 	static string yourDaughter;
 
-	if (autoNameMode == "off") {
+	if (autoNameMode == NAME_MODE_NONE) {
 		return;
 	}
 

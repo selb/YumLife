@@ -257,9 +257,6 @@ public:
 	static int panelOffsetY;
 	static int tutMessageOffsetX;
 	static int tutMessageOffsetX2;
-	
-	static int cfgVersionNumber;
-	static int cfgVersionRead;
 
 	static unsigned char charKey_Up;
 	static unsigned char charKey_Down;
@@ -509,10 +506,6 @@ public:
 	static void addPersonHomeLocation( int x, int y, int personId );
 
 	static GridPos cordOffset;
-
-	static void getSettingsFileLine( char* name, size_t nameSize, char* value, size_t valueSize, string line );
-	static bool setSetting( const char* name, const char* value );
-	static bool setCharKey( unsigned char &key, const char *value );
 
 	static std::vector<std::string> splitStrXTimes(const std::string &str, char splitChar, int count);
 

@@ -20,6 +20,7 @@ hetuwFont.cpp \
 hetuwTCPConnection.cpp \
 phex.cpp \
 yumBlob.cpp \
+yumConfig.cpp \
 game.cpp \
 spriteBank.cpp \
 objectBank.cpp \
