@@ -870,7 +870,12 @@ void HetuwMod::initSettings() {
 	yumConfig::registerMappedSetting("init_show_names", iDrawNames, drawNamesMap, {preComment: "\n", postComment: " // none, first, or full"});
 	yumConfig::registerSetting("init_show_selectedplayerinfo", bDrawSelectedPlayerInfo, {postComment: " // draw names bigger and show age when hovering over a player"});
 	yumConfig::registerSetting("init_show_cords", bDrawCords);
-	yumConfig::registerSetting("init_show_playersinrange", iDrawPlayersInRangePanel);
+	static std::map<std::string, int> drawPlayersInRangePanelMap = {
+		{"no", 0},
+		{"nearby", 1},
+		{"server", 2}
+	};
+	yumConfig::registerMappedSetting("init_show_playersinrange", iDrawPlayersInRangePanel, drawPlayersInRangePanelMap, {postComment: " // no, nearby, or server"});
 	yumConfig::registerSetting("init_show_deathmessages", bDrawDeathMessages);
 	yumConfig::registerSetting("init_show_homecords", bDrawHomeCords);
 	yumConfig::registerSetting("init_show_hostiletiles", bDrawHostileTiles);
