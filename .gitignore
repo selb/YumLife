@@ -33,3 +33,9 @@ server/lifeLog/
 server/categories
 server/objects
 server/transitions
+
+cmakebuild/
+SDL-1.2.15/
+
+.vscode/
+*.code-workspace

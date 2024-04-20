@@ -6,7 +6,7 @@
 
 #include "minorGems/util/SimpleVector.h"
 
-#include "OneLife/gameSource/hetuwmod.h"
+#include "gameSource/hetuwmod.h"
 
 static float lastR, lastG, lastB, lastA;
 
