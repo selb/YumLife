@@ -63,3 +63,24 @@ cd cmakebuild
 cmake ..
 make -j8
 ```
+
+# Merging upstream changes
+
+First, set up remotes for Jason's OneLife and minorGems repos. This only needs to be
+done once. Note that upstream OHOL is two repos, which YumLife condenses into one for
+easier forking.
+
+```
+$ git remote add OneLife git@github.com:jasonrohrer/OneLife.git
+$ git remote add minorGems git@github.com:jasonrohrer/minorGems.git
+```
+
+To merge in changes from the OneLife repo, do a `git pull OneLife master` and resolve any
+merge conflicts carefully.
+
+Similarly, the minorGems repo can be merged with `git pull minorGems master`. Note that you
+will need to move (as in `git mv`) any _new_ files added to that repo into the `minorGems`
+directory.
+
+Since YumLife uses CMake instead of Jason's build scripts, manual updates to `CMakeLists.txt`
+are needed when upstream source files are added, removed, or moved.
