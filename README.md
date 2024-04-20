@@ -57,7 +57,9 @@ Open a bug report using the Issues tab above.
 
 # Compiling
 
-See the original [hetuw](https://github.com/hetuw/OneLife) mod's instructions
-for the most straightforward approach. If you already compile other mods or
-the base game, you can ignore the hetuw build scripts and build however you
-prefer.
+```
+mkdir cmakebuild
+cd cmakebuild
+cmake ..
+make -j8
+```
