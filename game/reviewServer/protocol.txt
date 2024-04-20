@@ -1,0 +1,184 @@
+
+
+
+server.php
+?action=get_sequence_number
+&email=[email address]
+
+Return:
+sequence number
+OK
+
+Gets next valid sequence number associated with email.  Note that even if
+email is unknown to server, 0 will be returned so that first score can be
+submitted.
+
+
+
+server.php
+?action=get_stats
+&email=[email address]
+&sequence_number=[number]
+&hash_value=[hash value]
+
+Return:
+game_count
+game_total_seconds
+OK
+-or-
+DENIED
+
+Used by game servers to request game stats.
+
+hash_value is computed on both ends with:
+
+HMAC_SHA1( $shared_secret, $sequence_number )
+
+
+Where $shared_secret is a secret string known to both the reviewServer and
+the game servers that have permission to request game stats.
+
+If sequence number is <= previously used sequence number for this email address,
+request will be rejected.
+
+
+
+
+
+server.php
+?action=log_game
+&email=[email address]
+&game_seconds=[integer]
+&sequence_number=[number]
+&hash_value=[hash value]
+
+Return:
+OK
+-or-
+DENIED
+
+Used by game servers to log game stats.
+
+hash_value is computed on both ends with:
+
+HMAC_SHA1( $shared_secret, $sequence_number )
+
+
+Where $shared_secret is a secret string known to both the reviewServer and
+the game servers that have permission to post game stats.
+
+If sequence number is <= previously used sequence number for this email address,
+request will be rejected.
+
+
+
+
+
+server.php
+?action=submit_review
+&email=[email address]
+&review_score=[positive integer]
+&review_name=[url-encoded text]
+&review_text=[url-encoded text]
+&hash_value=[hash value]
+
+Return:
+OK
+-or-
+DENIED
+
+Used by game clients to submit or replace user reviews.
+
+hash_value computed by concatonating review_score with decoded review_name and 
+review_text 
+
+hash_value is computed on both ends with:
+
+HMAC_SHA1( $ticket_id, $review_score . 
+                       sha1( $plain_review_name ) . 
+                       sha1( $plain_review_text ) )
+
+
+
+
+server.php
+?action=remove_review
+&email=[email address]
+&sequence_number=[number]
+&hash_value=[hash value]
+
+Return:
+OK
+-or-
+DENIED
+
+Used by game clients to request review removal.
+
+hash_value is computed on both ends with:
+
+HMAC_SHA1( $ticket_id, $sequence_number )
+
+If sequence number is <= previously used sequence number for this email address,
+request will be rejected.
+
+
+
+
+
+server.php
+?action=update_html
+
+Return:
+OK
+
+Used by cron job to trigger regeneration of static html
+
+
+
+
+
+
+
+
+
+server.php
+?action=check_for_poll
+&email=[email address]
+
+
+Return:
+DENIED
+-or-
+poll_id
+question
+answerA
+answerB
+answerC
+...
+OK
+
+
+DENIED if no poll available for this email address
+
+
+
+
+server.php
+?action=poll_vote
+&email=[email address]
+&poll_id=id
+&vote_number=number
+&hash_value=[hash value]
+
+Return:
+OK
+-or-
+DENIED
+
+
+Vote for answer number for a given poll.
+
+
+Hash computed by:
+
+HMAC_SHA1( $ticket_id, $poll_id . "v" . $vote_number )

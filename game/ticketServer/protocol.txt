@@ -1,0 +1,153 @@
+
+
+// creates a ticket record and returns a ticket code
+
+server.php
+?action=sell_ticket
+&name=[human name]
+&email=[email address]
+&reference=[order number]
+&tags=[ticket_type]
+&security_data=[data]
+&security_hash=[md5 hash]
+
+ticket_type can be:
+
+april_9
+april_12
+
+
+
+// checks if download code is valid
+
+server.php
+?action=check_ticket
+&ticket_id=[ID]
+
+Return:
+VALID
+-or-
+INVALID
+
+
+
+
+// gets email address associated with a download ticket
+
+server.php
+?action=get_ticket_email
+&ticket_id=[ID]
+
+Return:
+email
+-or-
+INVALID
+
+
+
+
+// shows download links
+
+server.php
+?action=show_downloads
+&ticket_id=[ID]
+
+
+
+// serve a file
+
+server.php
+?action=download
+&ticket_id=[ID]
+&file_name=[file name]
+
+
+
+
+// gets a user's download code (encrypted)
+
+server.php
+?action=get_ticket_id
+&email=[email address]
+
+
+Returned code is encrypted in the following fashion:
+
+
+  substring( toBits( HMAC_SHA1( $sharedEncryptionSecret, $email ) ), LENGTH ) 
+  XOR 
+  toBits( ticket_id )
+
+
+Where LENGTH is the number of bits in ticket_id.  If LENGTH is longer than
+160 bits (sha1 length), extra bits are generated and appended via:
+
+  HMAC_SHA1( $sharedEncryptionSecret,
+             HMAC_SHA1( $sharedEncryptionSecret, $email ) )
+
+If more bits are needed, extra bits are generated and appended via:
+
+  HMAC_SHA1( $sharedEncryptionSecret,
+             HMAC_SHA1( $sharedEncryptionSecret,
+                        HMAC_SHA1( $sharedEncryptionSecret, $email ) ) )
+
+And so on.
+
+
+ticket_id values are in "readable base-32", which is base 32 with possibly
+confused characters (0/O and 1/I) removed for readability, and hyphens added
+to break the string into clusters of 5 digits.
+
+Numbers 0, ..., 31 are encoded by the following characters:
+
+"2", "3", "4", "5", "6", "7", "8", "9",
+"A", "B", "C", "D", "E", "F", "G", "H", "J", "K", "L", "M",
+"N", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"
+
+
+toBits simply converts a given encoding (hex or base-32) into binary.
+
+
+and XOR is a bit-wise XOR operation.
+
+
+The resulting bit string is re-encoded in readable base-32, without hyphens
+
+
+
+Returns DENIED if email not found or user blocked.
+
+
+
+
+
+
+// verifies a hash using a user's secret ticket_id as the key
+// this allows remote checking of download codes without sending them accross
+
+server.php
+?action=check_ticket_hash
+&email=[email address]
+&hash_value=[hash value]
+&string_to_hash=[string]
+
+
+Return:
+VALID
+-or-
+INVALID
+
+
+string_to_hash must contain only the charcters 0-9, A-Z, and a-z
+
+hash_value is computed on both ends with:
+
+HMAC_SHA1( $ticket_id, $string_to_hash )
+
+
+Where $ticket_id has hyphens removed and is all uppercase.
+
+
+Note that string_to_hash should not be re-used for subsequent checks to avoid
+replay attacks.  HOWEVER, the ticketServer does NOT track this or prevent
+replays.  It is up to the other server to handle this.

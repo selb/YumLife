@@ -1,0 +1,66 @@
+All returns are whitespace-delimited.
+
+
+
+=== Call:
+server.php?action=is_update_available
+          &platform=[platform code]
+          &old_version==[version number]
+
+Returns:
+size_of_update
+
+or
+
+0
+
+or
+
+URLS
+#
+UPDATE A->B size
+URL1
+URL2
+...
+URLM
+#
+UPDATE B->C size
+URL1
+URL2
+...
+URLN
+#
+UPDATE C->D size
+URL1
+URL2
+...
+URLP
+#
+...
+
+This is for when server is set up to serve URLS to mirrors instead of .dbz
+files directly.  This also allows multi-step incremental updates (instead
+of serving _full files to clients that have missed an update).
+
+The URLS tag indicates that the response contains URL batches.
+The batches are delimited by #
+Each batch has an "UPDATE A->B size" header, indicating that this update is 
+incremental from version A to version B and has a given download size, followed
+by one URL mirror of that update per line.
+
+
+
+
+Valid platform codes are currently "mac", "win", and "linux"
+
+
+
+
+=== Call:
+server.php?action=get_update
+          &platform=[platform code]
+          &old_version=[version number]
+          
+
+Serves a .dbz diff bundle file that is sufficient to update old_version
+to the latest version.
