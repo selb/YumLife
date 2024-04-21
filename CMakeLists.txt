@@ -198,13 +198,14 @@ if(WIN32)
 else()
     add_definitions(-DLINUX)
 
+    add_executable(YumLife_linux ${CLIENT_SOURCE_FILES} ${MINORGEMS_SOURCE_FILES})
+
     find_package(SDL REQUIRED)
     include_directories(${SDL_INCLUDE_DIR})
-    target_link_libraries(YumLife ${SDL_LIBRARY})
+    target_link_libraries(YumLife_linux ${SDL_LIBRARY})
 
     find_package(OpenGL REQUIRED)
     include_directories(${OPENGL_INCLUDE_DIR})
 
-    add_executable(YumLife_linux ${CLIENT_SOURCE_FILES} ${MINORGEMS_SOURCE_FILES})
     target_link_libraries(YumLife_linux ${OPENGL_LIBRARIES})
 endif()
