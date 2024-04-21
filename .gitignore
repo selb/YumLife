@@ -34,7 +34,7 @@ server/categories
 server/objects
 server/transitions
 
-cmakebuild/
+build/
 SDL-1.2.15/
 
 .vscode/

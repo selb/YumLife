@@ -57,11 +57,53 @@ Open a bug report using the Issues tab above.
 
 # Compiling
 
+## Windows
+
+Download and extract [SDL 1.2.15](https://www.libsdl.org/release/SDL-devel-1.2.15-mingw32.tar.gz), placing the `SDL-1.2.15` directory in the root of the repo.
+
+Install [MSYS2](https://www.msys2.org/) and (optionally) [VS Code](https://code.visualstudio.com/).
+
+In an MSYS2 terminal:
+
 ```
-mkdir cmakebuild
-cd cmakebuild
-cmake ..
-make -j8
+pacman -S mingw-w64-i686-{gcc,cmake,make}
+```
+
+### VS Code
+
+(If you don't want to use VS Code, jump to the next section.)
+
+Install the CMake plugin and tell it to configure the project, scan for toolkits, then select the `GCC ... i686-w64-mingw32` option.
+
+Pressing F7 or using the "CMake: Build" action will build YumLife_windows.exe in the `build/` directory.
+
+### MSYS2
+
+(If you just want to use VS Code, you can skip this section.)
+
+Launch the "MSYS2 MINGW32" shortcut that MSYS2 installed.
+
+```
+$ cd /c/Users/yourname/wherever/you/cloned/this/repo
+$ mkdir build
+$ cd build
+$ cmake ..
+$ cmake --build .
+```
+
+YumLife_windows.exe will be in that `build/` directory.
+
+## Linux
+
+```
+mkdir build
+cd build
+```
+
+Repeat until you have all the correct development libraries installed:
+
+```
+cmake .. && make -j8
 ```
 
 # Merging upstream changes
