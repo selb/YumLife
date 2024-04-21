@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.13)
 
 project(YumLife)
 
@@ -187,14 +187,21 @@ set(CLIENT_SOURCE_FILES
 include_directories(.)
 
 if(WIN32)
-    add_definitions(-DWIN32)
+    add_definitions(-DWIN32 -DWIN_32 -DSTATICLIB)
 
     set(SDL_DIR "SDL-1.2.15")
     include_directories("${SDL_DIR}/include")
     link_directories("${SDL_DIR}/lib")
 
+    get_filename_component(SDL_ABS_DIR "${CMAKE_SOURCE_DIR}/SDL-1.2.15" ABSOLUTE)
+    if (NOT EXISTS ${SDL_ABS_DIR})
+        message(FATAL_ERROR "SDL directory not found: ${SDL_DIR}")
+    endif()
+
     add_executable(YumLife_windows ${CLIENT_SOURCE_FILES} ${MINORGEMS_SOURCE_FILES})
-    target_link_libraries(YumLife_windows mingw32 SDLmain SDL opengl32 glu32 winmm ws2_32)
+    target_compile_options(YumLife_windows PRIVATE -Wall -Wwrite-strings -Wchar-subscripts -Wparentheses -g -O0)
+    target_link_libraries(YumLife_windows opengl32 glu32 mingw32 SDLmain SDL wsock32 winmm)
+    target_link_options(YumLife_windows PRIVATE -mwindows -static-libstdc++ -static-libgcc)
 else()
     add_definitions(-DLINUX)
 
