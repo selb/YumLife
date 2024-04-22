@@ -35,7 +35,7 @@ do
 		ssh -n $user@$server "$serverStartupCommand"
 	fi
 	i=$((i + 1))
-done <  <( grep "" ~/www/reflector/remoteServerList.ini )
+done <  <( grep "" ~/www/ahapReflector/remoteServerList.ini )
 
 
 
@@ -56,7 +56,7 @@ do
 		ssh -n $user@$server '~/checkout/OneLife/scripts/remoteServerCodeUpdate.sh'
 	fi
 	i=$((i + 1))  
-done <  <( grep "" ~/www/reflector/remoteServerList.ini )
+done <  <( grep "" ~/www/ahapReflector/remoteServerList.ini )
 
 
 
@@ -75,4 +75,4 @@ do
 		ssh -n $user@$server "$serverStartupCommand"
 	fi
 	i=$((i + 1))
-done <  <( grep "" ~/www/reflector/remoteServerList.ini )
+done <  <( grep "" ~/www/ahapReflector/remoteServerList.ini )

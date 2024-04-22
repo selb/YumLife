@@ -1,4 +1,4 @@
-int versionNumber = 415;
+int versionNumber = 416;
 int dataVersionNumber = 0;
 
 int binVersionNumber = versionNumber;
@@ -106,6 +106,8 @@ CustomRandomSource randSource( 34957197 );
 #include "PollPage.h"
 #include "GeneticHistoryPage.h"
 #include "ServicesPage.h"
+#include "AHAPResultPage.h"
+#include "AHAPSettingsPage.h"
 //#include "TestPage.h"
 
 #include "ServerActionPage.h"
@@ -143,6 +145,11 @@ int userTwinCount = 0;
 char userReconnect = false;
 
 
+char *ahapAccountURL = NULL;
+char *ahapSteamKey = NULL;
+
+
+
 // these are needed by ServerActionPage, but we don't use them
 int userID = -1;
 int serverSequenceNumber = 0;
@@ -169,6 +176,8 @@ TwinPage *twinPage;
 PollPage *pollPage;
 GeneticHistoryPage *geneticHistoryPage;
 ServicesPage *servicesPage;
+AHAPResultPage *ahapResultsPage;
+AHAPSettingsPage *ahapSettingsPage;
 //TestPage *testPage = NULL;
 
 
@@ -773,6 +782,15 @@ void initFrameDrawer( int inWidth, int inHeight, int inTargetFrameRate,
     
     servicesPage = new ServicesPage();
     
+    ahapResultsPage = new AHAPResultPage();
+    
+
+    char *gateServerURL =
+        SettingsManager::getStringSetting( "ahapGateServerURL", "" );
+            
+    ahapSettingsPage = new AHAPSettingsPage( gateServerURL );
+    delete [] gateServerURL;
+    
 
     // 0 music headroom needed, because we fade sounds before playing music
     setVolumeScaling( 10, 0 );
@@ -856,6 +874,8 @@ void freeFrameDrawer() {
     delete pollPage;
     delete geneticHistoryPage;
     delete servicesPage;
+    delete ahapResultsPage;
+    delete ahapSettingsPage;
 
     //if( testPage != NULL ) {
     //    delete testPage;
@@ -904,6 +924,13 @@ void freeFrameDrawer() {
         }
     if( userTwinCode != NULL ) {
         delete [] userTwinCode;
+        }
+
+    if( ahapAccountURL != NULL ) {
+        delete [] ahapAccountURL;
+        }
+    if( ahapSteamKey != NULL ) {
+        delete [] ahapSteamKey;
         }
     }
 
@@ -2056,6 +2083,20 @@ void drawFrame( char inUpdate ) {
                 currentGamePage->base_makeActive( true );
                 }
             }
+        else if( currentGamePage == ahapResultsPage ) {
+            if( ahapResultsPage->checkSignal( "done" ) ) {
+                existingAccountPage->setStatus( NULL, false );
+                currentGamePage = existingAccountPage;
+                currentGamePage->base_makeActive( true );
+                }
+            }
+        else if( currentGamePage == ahapSettingsPage ) {
+            if( ahapSettingsPage->checkSignal( "back" ) ) {
+                existingAccountPage->setStatus( NULL, false );
+                currentGamePage = existingAccountPage;
+                currentGamePage->base_makeActive( true );
+                }
+            }
         else if( currentGamePage == existingAccountPage ) {    
             if( existingAccountPage->checkSignal( "quit" ) ) {
                 quitGame();
@@ -2082,6 +2123,10 @@ void drawFrame( char inUpdate ) {
                 }
             else if( existingAccountPage->checkSignal( "services" ) ) {
                 currentGamePage = servicesPage;
+                currentGamePage->base_makeActive( true );
+                }
+            else if( existingAccountPage->checkSignal( "ahapSettings" ) ) {
+                currentGamePage = ahapSettingsPage;
                 currentGamePage->base_makeActive( true );
                 }
             else if( existingAccountPage->checkSignal( "done" )
@@ -2466,6 +2511,22 @@ void drawFrame( char inUpdate ) {
                 currentGamePage->base_makeActive( true );
                 }
 
+            else if( livingLifePage->checkSignal( "rodeRocket" ) ) {
+                existingAccountPage->setStatus( NULL, false );
+
+                userReconnect = false;
+    
+                lastScreenViewCenter.x = 0;
+                lastScreenViewCenter.y = 0;
+                
+                setViewCenterPosition( lastScreenViewCenter.x, 
+                                       lastScreenViewCenter.y );
+                
+                currentGamePage = ahapResultsPage;
+    
+                currentGamePage->base_makeActive( true );
+                }
+                
                 notLiving = (notLiving || currentGamePage != livingLifePage);
                 if (!notLiving)
                     HetuwMod::onNotLiving();

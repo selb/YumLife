@@ -3,6 +3,60 @@ This file only list changes to game code.  Changes to content can be found here:
 http://onehouronelife.com/updateLog.php
 
 
+Version 416   2024-April-21
+
+--Fixed a memory leak in transitionBank.
+
+--Fixed crash if a soundBank sound is not mono and thus fails to load.
+
+--Support for stereo OGG files in soundBank.
+
+--Support for suppressing music when a longer (usually OGG) soundBank sound
+  plays.  Hunger chime music suppression also uses this same new supression
+  system now.
+
+--Added support for LNCH arrow to rocket site.  Fixed so that monument arrows
+  are displayed even if player is too close to the monument to hear the distant
+  sound (before, if they were too close to hear the distant sound, no arrow
+  would be added for them, even if they walked away later).
+
+--Support for showing rocket launch scene to all players, server-wide.
+
+--Support in client for displaying AHAP Grant result to player who rode rocket.
+
+--Support for AHAP settings in client (so that player can specify their github
+  account name and vote for content leader).
+
+--Support in client/server protocol for all these things.
+
+
+
+
+Server Fixes:
+
+--AHAP Steam Build script now includes snapshot of most recent AHAP content
+  data, so that new users on Steam don't face a huge content download as their
+  initial experience.  Note that as AHAP development progresses, binary updates
+  will be infrequent, so the content included with the Steam binary bundle will
+  lag behind over time.  But at least they won't have to download absolutely
+  every bit of content from scratch (there's already about 50MB of it, just in
+  the starter content alone).
+
+--New script for bundling latest AHAP data with most recent base Windows and
+  Linux binary distributions (what people first download to play AHAP
+  off-Steam).
+
+--New ahapGate web service for granting AHAP to people, passing out Steam keys,
+  and tracking content leader votes.
+
+--Support for server triggering rocket ride, and stalling all hunger and aging
+  while players watch the animation server-wide.
+
+--Support for updating AHAP servers too in postPlatformDiffBundle script.
+
+
+
+
 Version 415   2024-March-15
 
 --Moving bulk download portion of a web request into a separate thread for

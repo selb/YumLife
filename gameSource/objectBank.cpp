@@ -966,6 +966,19 @@ static void setupGiveClue( ObjectRecord *inR ) {
     }
 
 
+
+static void setupRideRocket( ObjectRecord *inR ) {
+    inR->rideRocket = false;    
+    
+    char *pos = strstr( inR->description, "+rideRocket" );
+
+    if( pos != NULL ) {
+        inR->rideRocket = true;
+        }
+    }
+
+
+
 static void setupNearPop( ObjectRecord *inR ) {
     inR->nearPop = false;    
     inR->nearPopFraction = 0;
@@ -1242,6 +1255,7 @@ ObjectRecord *scanObjectRecordFromString( const char *inString ) {
         setupHideRider( r );
         setupNeverDrop( r );
         setupGiveClue( r );
+        setupRideRocket( r );
         setupNearPop( r );
         setupContainOffset( r );
                 
@@ -4258,6 +4272,7 @@ int addObject( const char *inDescription,
     setupHideRider( r );
     setupNeverDrop( r );
     setupGiveClue( r );
+    setupRideRocket( r );
     setupNearPop( r );
     setupContainOffset( r );
     

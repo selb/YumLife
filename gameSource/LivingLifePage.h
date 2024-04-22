@@ -385,6 +385,10 @@ typedef struct LiveObject {
         
         char isGhost;
 
+        // for players that shouldn't be drawn for some reason
+        // (like after someone rides the rocket)
+        char skipDrawing;        
+
     } LiveObject;
 
 
@@ -598,6 +602,18 @@ class LivingLifePage : public GamePage, public ActionListener {
 		
         virtual void actionPerformed( GUIComponent *inTarget );
         
+
+        // inSpeaker can be NULL
+        void drawChalkBackgroundString( doublePair inPos, 
+                                        const char *inString,
+                                        double inFade,
+                                        double inMaxWidth,
+                                        LiveObject *inSpeaker = NULL,
+                                        int inForceMinChalkBlots = -1,
+                                        FloatColor *inForceBlotColor = NULL,
+                                        FloatColor *inForceTextColor = NULL,
+                                        bool tinyStyle = false,
+                                        bool scaleWithGui = false );
 
     protected:
 
@@ -1046,21 +1062,6 @@ class LivingLifePage : public GamePage, public ActionListener {
         protected: // hetuw mod
 
         void clearLiveObjects();
-        
-		public: // hetuw mod
-        // inSpeaker can be NULL
-        void drawChalkBackgroundString( doublePair inPos, 
-                                        const char *inString,
-                                        double inFade,
-                                        double inMaxWidth,
-                                        LiveObject *inSpeaker = NULL,
-                                        int inForceMinChalkBlots = -1,
-                                        FloatColor *inForceBlotColor = NULL,
-                                        FloatColor *inForceTextColor = NULL,
-                                        bool tinyStyle = false,
-                                        bool scaleWithGui = false );
-        
-        protected: // hetuw mod
         
         void drawOffScreenSounds();
         

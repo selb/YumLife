@@ -85,6 +85,20 @@ reviewUpdated "REVIEW HAS BEEN UPDATED"
 reviewRemoved "REVIEW HAS BEEN REMOVED"
 
 
+
+ahapSettings "PLANET"
+
+githubAccountName "YOUR GITHUB ACCOUNT NAME:"
+contentLeaderVote "LEADER EMAIL (YOUR VOTE):"
+
+contentLeaderExplain "CURRENTLY ELECTED CONTENT LEADER:"
+
+postAHAPSettingsTip "POST TO SERVER"
+
+githubAccountUpdateSuccess "POSTING SUCCEEDED"
+
+
+
 poll "USER POLL:"
 submit "SUBMIT"
 
@@ -466,7 +480,7 @@ property "PROP"
 mother2 "MOM"
 bell "BELL"
 hell "HELL"
-
+rocket "LNCH"
 
 
 babyLabel "+BABY+"
@@ -584,6 +598,19 @@ ping "PING"
 ms "MS"
 
 youDied "YOU DIED"
+
+youWin "YOU WIN THE GAME"
+
+ahapAccess "ANOTHER PLANET ACCESS GRANTED"
+
+
+ahapCopyURL "COPY ACCOUNT URL"
+
+
+ahapCopySteamKey "COPY STEAM KEY"
+
+steamKey "STEAM KEY:"
+
 
 deathAgeOne "AGE:  1 YEAR"
 deathAge "AGE:  %d YEARS"

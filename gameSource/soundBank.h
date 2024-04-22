@@ -32,6 +32,8 @@ typedef struct SoundRecord {
         
 
         int liveUseageCount;
+
+        double lengthInSeconds;
         
     } SoundRecord;
 
@@ -113,6 +115,11 @@ void playSound( SoundUsage inUsage,
 void playSound( SoundSpriteHandle inSoundSprite,
                 double inVolumeTweak,
                 doublePair inVectorFromCameraToSoundSource );
+
+
+
+// gets length of a sound in bank
+double getSoundLengthInSeconds( int inID );
 
 
 
