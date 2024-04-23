@@ -1062,7 +1062,6 @@ class LivingLifePage : public GamePage, public ActionListener {
 
 		public: // hetuw mod
         LiveObject *getOurLiveObject();
-        LiveObject *getLiveObject( int inID );
         protected: // hetuw mod
 
         void clearLiveObjects();
