@@ -9145,6 +9145,14 @@ int processLoggedInPlayer( int inAllowOrForceReconnect,
     
     newObject.isTutorial = false;
     
+    int tutorialEnabled = 
+        SettingsManager::getIntSetting( "tutorialEnabled", 0 );
+
+    if( ! tutorialEnabled ) {
+        inTutorialNumber = 0;
+        }
+
+
     if( inTutorialNumber > 0 ) {
         newObject.isTutorial = true;
         }
@@ -17962,6 +17970,16 @@ void removeOwnership( int inX, int inY ) {
 
 
 void startAHAPGrant( int inX, int inY, LiveObject *inPlayer ) {
+    int rocketEnabled =
+        SettingsManager::getIntSetting( "rocketEnabled", 0 );
+
+    if( ! rocketEnabled ) {
+        AppLog::errorF( "Player %d rode rocket at %d,%d but rocketEnabled not "
+                        "set in settings", inPlayer->id, inX, inY );    
+        return;
+        }
+
+
     useContentSettings();
         
     int rocketObjectID =
@@ -26927,8 +26945,9 @@ int main() {
                     // self id is killer
                     killerID = nextPlayer->id;
                     }
-                
-                
+                else if( nextPlayer->rodeRocket ) {
+                    killerID = -999999999;
+                    }
                 
                 char male = ! getFemale( nextPlayer );
                 

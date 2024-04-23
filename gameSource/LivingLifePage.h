@@ -615,6 +615,10 @@ class LivingLifePage : public GamePage, public ActionListener {
                                         bool tinyStyle = false,
                                         bool scaleWithGui = false );
 
+        
+        LiveObject *getLiveObject( int inID );
+        
+        
     protected:
 
         int mServerSocket;

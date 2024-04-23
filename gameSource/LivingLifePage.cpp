@@ -14947,7 +14947,7 @@ void LivingLifePage::step() {
                     
                         rocketAnimationStarted = true;
                         initRocketAnimation( this,
-                                             ridingPlayer, rocketO,
+                                             p_id, rocketO,
                                              lengthInSeconds );
 
                         if( ahapSteamKey != NULL ) {

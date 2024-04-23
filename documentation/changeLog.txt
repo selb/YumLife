@@ -3,6 +3,32 @@ This file only list changes to game code.  Changes to content can be found here:
 http://onehouronelife.com/updateLog.php
 
 
+
+Version 418   2024-April-22
+
+--Fixed player swap in rocket animation that was being caused by passing
+  pointer to an item in a mutable vector of players (so that if a player dies
+  or joins and changes the vector, the player being pointed to would change).
+
+--Added support for paste into fields in AHAP Settings (PLANET) screen.
+
+
+
+
+Server Fixes:
+
+--New tutorialEnabled setting for server, so AHAP servers can skip tutorial.
+
+--Added rocketEnable server setting, to ensure that rockets can only take off
+  from bigserver2.
+
+--Fixed updateGate so that error message doesn't divulge content leader email.
+
+--Support for Rode Rocket as cause of death in family tree server.
+
+
+
+
 Version 416   2024-April-21
 
 --Fixed a memory leak in transitionBank.
