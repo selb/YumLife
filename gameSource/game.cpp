@@ -1,4 +1,4 @@
-int versionNumber = 418;
+int versionNumber = 419;
 int dataVersionNumber = 0;
 
 int binVersionNumber = versionNumber;
@@ -2160,7 +2160,7 @@ void drawFrame( char inUpdate ) {
 
                 startConnecting();
                 }
-            else if( autoUpdatePage->checkSignal( "relaunchFailed" ) ) {
+            else if( existingAccountPage->checkSignal( "relaunchFailed" ) ) {
                 currentGamePage = finalMessagePage;
                         
                 finalMessagePage->setMessageKey( "manualRestartMessage" );
