@@ -3366,6 +3366,12 @@ bool HetuwMod::livingLifeKeyDown(unsigned char inASCII) {
 		bDrawHomeCords = !bDrawHomeCords;
 		return true;
 	}
+	if (!commandKey && isCharKey(inASCII, charKey_ShowPlayersInRange)) {
+		iDrawPlayersInRangePanel++;
+		iDrawPlayersInRangePanel %= 3;
+		familiesInRange.clear();
+		return true;
+	}
 	if (!commandKey && !shiftKey && isCharKey(inASCII, charKey_CreateHome)) {
 		bNextCharForHome = true;
 		return true;
@@ -3640,12 +3646,6 @@ bool HetuwMod::livingLifeKeyUp(unsigned char inASCII) {
 			resetObjectsColor();
 			r = true;
 		}
-	}
-	if (!commandKey && isCharKey(inASCII, charKey_ShowPlayersInRange)) {
-		iDrawPlayersInRangePanel++;
-		iDrawPlayersInRangePanel %= 3;
-		familiesInRange.clear();
-		r = true;
 	}
 	if (!commandKey && !shiftKey && isCharKey(inASCII, charKey_ShowGrid)) {
 		if (bHoldDownTo_ShowGrid) {
@@ -4183,6 +4183,8 @@ bool HetuwMod::compareFamilies(const FamilyInRange &a, const FamilyInRange &b) {
 	if (a.eveID == ourLiveObject->lineageEveID && b.eveID != a.eveID) {
 		// always sort our family first
 		return true;
+	} else if (b.eveID == ourLiveObject->lineageEveID && a.eveID != b.eveID) {
+		return false;
 	} else if (a.count > b.count) {
 		return true;
 	} else if (b.count > a.count) {
