@@ -4259,7 +4259,29 @@ void HetuwMod::updatePlayersInRangePanel() {
 		}
 	}
 
+	FamilyInRange soloEveFam;
+	soloEveFam.name = "SOLO EVES";
+	soloEveFam.count = 0;
+	soloEveFam.youngWomenCount = 0;
+	soloEveFam.generation = 1;
+	soloEveFam.eveID = 0;
+	soloEveFam.raceName = "";
+
+	for (ssize_t i = 0; i < (ssize_t)familiesInRange.size(); i++) {
+		FamilyInRange &fam = familiesInRange[i];
+		if (fam.generation == 1 && fam.count == 1 && fam.eveID != ourLiveObject->lineageEveID) {
+			soloEveFam.count += fam.count;
+			soloEveFam.youngWomenCount += fam.youngWomenCount;
+			familiesInRange.erase(familiesInRange.begin() + i);
+			i--;
+		}
+	}
+
 	sort(familiesInRange.begin(), familiesInRange.end(), compareFamilies);
+
+	if (soloEveFam.count != 0) {
+		familiesInRange.push_back(soloEveFam);
+	}
 }
 
 void HetuwMod::onOurDeath() {
