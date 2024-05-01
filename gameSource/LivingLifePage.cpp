@@ -22048,6 +22048,16 @@ void LivingLifePage::step() {
             
             setViewCenterPosition( lastScreenViewCenter.x, 
                                    lastScreenViewCenter.y );
+								   
+            getLastMouseScreenPos( &lastScreenMouseX, &lastScreenMouseY );
+            screenToWorld( lastScreenMouseX,
+                            lastScreenMouseY,
+                            &lastMouseX,
+                            &lastMouseY );
+						   
+            // camera moved, simulate a pointer move to the last known position
+            // to check again what the pointer is hitting
+            pointerMove( lastMouseX, lastMouseY );
             
             }
 
