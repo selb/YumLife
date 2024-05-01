@@ -24599,7 +24599,9 @@ static void freeSavedPath() {
 
 void LivingLifePage::pointerDown( float inX, float inY ) {
 	
-	if (minitech::livingLifePageMouseDown( inX, inY )) return;
+    if (!mForceGroundClick && 
+        !isLastMouseButtonRight() &&
+        minitech::livingLifePageMouseDown( inX, inY )) return;
 	
 	if (!mForceGroundClick && HetuwMod::livingLifePageMouseDown( inX, inY ))
 		return;
