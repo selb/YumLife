@@ -1788,6 +1788,9 @@ void HetuwMod::logHomeLocation(HomePos* hp) {
 			typeName = "phex";
 			if (hp->text.length() > 0) typeName += " "+hp->text;
 			break;
+		case hpt_rocket:
+			typeName = "rocket";
+			break;
 		default:
 			typeName = "unknowntype";
 	}
@@ -2511,6 +2514,7 @@ void HetuwMod::createCordsDrawStr() {
 	int babyCount = 0;
 	int expertCount = 0;
 	int phexCount = 0;
+	int rocketCount = 0;
 
 	for (unsigned i=0; i<homePosStack.size(); i++) {
 		double dx = double(homePosStack[i]->x) - ourLiveObject->currentPos.x;
@@ -2610,6 +2614,10 @@ void HetuwMod::createCordsDrawStr() {
 				snprintf( sBufA, sizeof(sBufA), "%s %d %d%s", str.c_str(), homePosStack[i]->x+cordOffset.x, homePosStack[i]->y+cordOffset.y, eta.c_str() );
 				phexCount++;
 				break; }
+			case hpt_rocket:
+				snprintf( sBufA, sizeof(sBufA), "ROCKET %c %d %d%s", (char)(rocketCount+65), homePosStack[i]->x+cordOffset.x, homePosStack[i]->y+cordOffset.y, eta.c_str() );
+				rocketCount++;
+				break;
 		}
 		homePosStack[i]->drawStr = string(sBufA);
 
@@ -2653,6 +2661,8 @@ void HetuwMod::setDrawColorToCoordType(homePosType type) {
 		case hpt_phex:
 			setDrawColor( 0.5, 0.5, 0.5, 1.0 );
 			break;
+		case hpt_rocket:
+			setDrawColor( 1.0, 0.8, 0.2, 1.0 );
 	}
 }
 

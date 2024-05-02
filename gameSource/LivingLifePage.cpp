@@ -15267,7 +15267,6 @@ void LivingLifePage::step() {
                          monumentID == HetuwMod::OBJID_EndTower4 ) {
                             hpt = HetuwMod::hpt_apoc;
                         }
-                    HetuwMod::addHomeLocation( posX, posY, hpt );
                     
                     isAncientHomePosHell = false;
                     isAncientHomePosRocket = false;
@@ -15284,6 +15283,11 @@ void LivingLifePage::step() {
                             isAncientHomePosRocket = true;
                             }
                         }
+
+                    if (isAncientHomePosRocket) {
+                        hpt = HetuwMod::hpt_rocket;
+                        }
+                    HetuwMod::addHomeLocation( posX, posY, hpt );
 
                     if( d > 32 ) {
                         
