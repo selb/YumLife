@@ -180,6 +180,7 @@ bool HetuwMod::mapZoomOutKeyDown;
 
 int HetuwMod::playersInRangeNum = 0;
 int HetuwMod::iDrawPlayersInRangePanel;
+static bool playersInRangeIncludesSelf = true;
 std::vector<HetuwMod::FamilyInRange> HetuwMod::familiesInRange;
 
 bool HetuwMod::bDrawDeathMessages;
@@ -896,6 +897,7 @@ void HetuwMod::initSettings() {
 		{"server", 2}
 	};
 	yumConfig::registerMappedSetting("init_show_playersinrange", iDrawPlayersInRangePanel, drawPlayersInRangePanelMap, {postComment: " // no, nearby, or server"});
+	yumConfig::registerSetting("playersinrange_counts_self", playersInRangeIncludesSelf);
 	yumConfig::registerSetting("init_show_deathmessages", bDrawDeathMessages);
 	yumConfig::registerSetting("init_show_homecords", bDrawHomeCords);
 	yumConfig::registerSetting("init_show_hostiletiles", bDrawHostileTiles);
@@ -4245,6 +4247,10 @@ void HetuwMod::updatePlayersInRangePanel() {
 			int distY = o->yd - ourLiveObject->yd;
 			if ( distY > hetuwPlayersInRangeDistance || distY < -hetuwPlayersInRangeDistance)
 				continue;
+		}
+
+		if (!playersInRangeIncludesSelf && o == ourLiveObject) {
+			continue;
 		}
 
 		playersInRangeNum++;
