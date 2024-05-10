@@ -323,6 +323,7 @@ public:
 	static int phexPort;
 	static bool debugPhex;
 	static bool phexStartOffline;
+	static bool phexSkipTOS;
 
 	static std::string fontFilename;
 

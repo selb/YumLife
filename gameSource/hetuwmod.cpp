@@ -291,6 +291,8 @@ std::string HetuwMod::phexIp = defaultPhexIP;
 int HetuwMod::phexPort = 6567;
 bool HetuwMod::debugPhex = false;
 bool HetuwMod::phexStartOffline = false;
+bool HetuwMod::phexSkipTOS = false;
+
 
 enum {
 	PHEX_AUTO_SIDE,
@@ -917,6 +919,7 @@ void HetuwMod::initSettings() {
 	};
 	yumConfig::registerMappedSetting("phex_side", phexSide, phexSideMap, {postComment: " // auto = avoid minitech, left = always left, right = always right"});
 	yumConfig::registerSetting("phex_start_offline", phexStartOffline, {postComment: " // disable auto connect to phex"});
+	yumConfig::registerSetting("phex_skip_tos", phexSkipTOS, {postComment: " // skip auto /tos (terms of service) on connect"});
 	yumConfig::registerSetting("send_keyevents", sendKeyEvents, {savePredicate: []() { return sendKeyEvents; }});
 	yumConfig::registerSetting("drawbiomeinfo", bDrawBiomeInfo, {savePredicate: []() { return bDrawBiomeInfo; }});
 

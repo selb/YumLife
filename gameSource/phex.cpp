@@ -1031,6 +1031,9 @@ void Phex::joinChannel(std::string inChannelName) {
 	mainChatWindow.clear();
 	tcp.send("GETLAST "+channelName+" 30");
 	sendServerLife(bSendFakeLife ? 1 : HetuwMod::ourLiveObject->id);
+	if (!HetuwMod::phexSkipTOS) {
+		tcp.send("USER_CMD tos");
+	}
 }
 
 void Phex::sendServerLife(int life) {
