@@ -340,7 +340,18 @@ static unordered_set<std::string> namesSeen;
 
 static bool pendingDropAcknowledgement;
 
+extern char isAHAP;
+
 void HetuwMod::init() {
+	/* this is from vanilla initFrameDrawer(), which is just too late for us */
+	File isAHAPFile( NULL, "isAHAP.txt" );
+    if( isAHAPFile.exists() ) {
+        int val = isAHAPFile.readFileIntContents( 0 );
+        if( val == 1 ) {
+            isAHAP = true;
+            }
+        }
+
 	blobs::font_32_64_yum.write("graphics/font_32_64_yum.tga");
 
 	mouseRelativeToView = {0, 0};
@@ -745,6 +756,9 @@ bool HetuwMod::strContainsDangerousAnimal(const char* str) {
 }
 
 void HetuwMod::initDangerousAnimals() {
+	// bypass for now
+	if (isAHAP) return;
+
 	if (isDangerousAnimal) delete[] isDangerousAnimal;
 	isDangerousAnimal = new bool[maxObjects];
 
@@ -768,6 +782,12 @@ void HetuwMod::initDangerousAnimals() {
 }
 
 void HetuwMod::initClosedDoorIDs() {
+	// bypass for now
+	if (isAHAP) {
+		closedDoorIDsLength = 0;
+		return;
+	}
+
 	if (closedDoorIDs != NULL) {
 		delete[] closedDoorIDs;
 		closedDoorIDs = NULL;
@@ -2294,7 +2314,7 @@ void HetuwMod::drawHostileTiles() {
 		for (int y = startY; y < endY; y++) {
 			int objId = livingLifePage->hetuwGetObjId( x, y );
 			if (objId >= 0 && objId < maxObjects) {
-				if (isDangerousAnimal[objId]) drawTileRect( x, y );
+				if (isDangerousAnimal != NULL && isDangerousAnimal[objId]) drawTileRect( x, y );
 			}
 		}
 	}
@@ -3888,7 +3908,7 @@ bool HetuwMod::tileHasNoDangerousAnimals(int x, int y) {
 		if (objId == 645) return false; // Fed Grizzly Bear
 		if (objId == 4762) return false; // Sleepy Grizzly Bear
 	} else { // moving by walking / not riding
-		if (objId < maxObjects && isDangerousAnimal[objId]) return false;
+		if (objId < maxObjects && isDangerousAnimal != NULL && isDangerousAnimal[objId]) return false;
 	}
 	return true;
 }
@@ -4363,7 +4383,7 @@ void HetuwMod::onPlayerUpdate( LiveObject* inO, const char* line ) {
 			strKillerId += sstr[i]; 
 		}
 		int killerObjId = stoi(strKillerId); // object id - like knife or grizzly bear
-		if (killerObjId >= 0 && killerObjId < maxObjects && isDangerousAnimal[killerObjId]) {
+		if (killerObjId >= 0 && killerObjId < maxObjects && isDangerousAnimal != NULL && isDangerousAnimal[killerObjId]) {
 			deathMsg->deathReason = 1; // animal
 		}
 		ObjectRecord *ko = getObject( killerObjId );
