@@ -3711,6 +3711,18 @@ bool HetuwMod::livingLifeKeyUp(unsigned char inASCII) {
 	return r;
 }
 
+static const std::map<unsigned char, std::string> keyEmoteMap = {
+	{ MG_KEY_F1, "/HMPH" },
+	{ MG_KEY_F2, "/LOVE" },
+	{ MG_KEY_F3, "/OREALLY" },
+	{ MG_KEY_F4, "/SHOCK" },
+	{ MG_KEY_F5, "/POINT" },
+	{ MG_KEY_F6, "/WAIT" },
+	{ MG_KEY_F7, "/WAVE" },
+	{ MG_KEY_F8, "/HERE" },
+	{ MG_KEY_F9, "/UPYOURS" }
+};
+
 bool HetuwMod::livingLifeSpecialKeyDown(unsigned char inKeyCode) {
 	bool commandKey = isCommandKeyDown();
 	bool shiftKey = isShiftKeyDown();
@@ -3732,58 +3744,10 @@ bool HetuwMod::livingLifeSpecialKeyDown(unsigned char inKeyCode) {
 	}
 
 	if (!commandKey && !shiftKey) {
-		if ( inKeyCode == MG_KEY_F1 ) {
+		auto it = keyEmoteMap.find(inKeyCode);
+		if (it != keyEmoteMap.end()) {
+			sendEmote(it->second);
 			currentEmote = -1;
-			char message[] = "EMOT 0 0 12#"; // HMPH
-	        livingLifePage->sendToServerSocket( message );
-			r = true;
-		}
-		if ( inKeyCode == MG_KEY_F2 ) {
-			currentEmote = -1;
-			char message[] = "EMOT 0 0 13#"; // LOVE
-	        livingLifePage->sendToServerSocket( message );
-			r = true;
-		}
-		if ( inKeyCode == MG_KEY_F3 ) {
-			currentEmote = -1;
-			char message[] = "EMOT 0 0 14#"; // OREALLY
-	        livingLifePage->sendToServerSocket( message );
-			r = true;
-		}
-		if ( inKeyCode == MG_KEY_F4 ) {
-			currentEmote = -1;
-			char message[] = "EMOT 0 0 15#"; // SHOCK
-	        livingLifePage->sendToServerSocket( message );
-			r = true;
-		}
-		if ( inKeyCode == MG_KEY_F5 ) {
-			currentEmote = -1;
-			char message[] = "EMOT 0 0 34#"; // POINT
-	        livingLifePage->sendToServerSocket( message );
-			r = true;
-		}
-		if ( inKeyCode == MG_KEY_F6 ) {
-			currentEmote = -1;
-			char message[] = "EMOT 0 0 35#"; // WAIT
-	        livingLifePage->sendToServerSocket( message );
-			r = true;
-		}
-		if ( inKeyCode == MG_KEY_F7 ) {
-			currentEmote = -1;
-			char message[] = "EMOT 0 0 36#"; // WAVE
-	        livingLifePage->sendToServerSocket( message );
-			r = true;
-		}
-		if ( inKeyCode == MG_KEY_F8 ) {
-			currentEmote = -1;
-			char message[] = "EMOT 0 0 37#"; // HERE
-	        livingLifePage->sendToServerSocket( message );
-			r = true;
-		}
-		if ( inKeyCode == MG_KEY_F9 ) {
-			currentEmote = -1;
-			char message[] = "EMOT 0 0 38#"; // UPYOURS
-	        livingLifePage->sendToServerSocket( message );
 			r = true;
 		}
 	}
