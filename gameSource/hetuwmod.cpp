@@ -3158,6 +3158,7 @@ void HetuwMod::sendEmote(string emoteName) {
 }
 
 void HetuwMod::sendEmote(int emoteId) {
+	if (emoteId == -1) return;
 	string message = "EMOT 0 0 "+to_string(emoteId)+"#";
 	char* cstr = stringDuplicate(message.c_str());
 	livingLifePage->sendToServerSocket(cstr);
