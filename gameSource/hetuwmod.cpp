@@ -323,6 +323,8 @@ static size_t autoFemaleNameIndex = 0;
 static const char *defaultFontFilename = "font_32_64_yum.tga";
 std::string HetuwMod::fontFilename = defaultFontFilename;
 
+bool HetuwMod::skipRocketCutscene = false;
+
 HetuwFont *HetuwMod::customFont = NULL;
 
 std::string HetuwMod::helpTextSearch[6];
@@ -947,6 +949,7 @@ void HetuwMod::initSettings() {
 
 	yumConfig::registerSetting("draw_mushroom_effect", bRemapStart, {preComment: "\n"});
 	yumConfig::registerSetting("draw_hunger_warning", bDrawHungerWarning);
+	yumConfig::registerSetting("skip_rocket_cutscene", skipRocketCutscene);
 
 	yumConfig::registerSetting("reduce_delay", delayReduction, {preComment: "\n// Reduce action delay by the given percentage, 0-50.\n// Higher values may cause server disconnects.\n"});
 	yumConfig::registerSetting("zoom_limit", zoomLimit, {preComment: "// Set max zoom out. This one goes to 11.\n"});

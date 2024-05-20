@@ -15046,10 +15046,12 @@ void LivingLifePage::step() {
                         
                         // Show Rocket-Riding animation sequence to everyone
                     
-                        rocketAnimationStarted = true;
-                        initRocketAnimation( this,
-                                             p_id, rocketO,
-                                             lengthInSeconds );
+                        if (!HetuwMod::skipRocketCutscene) {
+                            rocketAnimationStarted = true;
+                            initRocketAnimation( this,
+                                                p_id, rocketO,
+                                                lengthInSeconds );
+                        }
 
                         delayAgingMusic( lengthInSeconds );
 

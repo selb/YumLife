@@ -326,6 +326,7 @@ public:
 	static bool phexSkipTOS;
 
 	static std::string fontFilename;
+	static bool skipRocketCutscene;
 
 	static bool sendKeyEvents;
 
