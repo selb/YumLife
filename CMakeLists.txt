@@ -209,6 +209,7 @@ else()
     add_definitions(-DLINUX)
 
     add_executable(YumLife_linux ${CLIENT_SOURCE_FILES} ${MINORGEMS_SOURCE_FILES})
+    target_compile_options(YumLife_linux PRIVATE -Wall -Wwrite-strings -Wchar-subscripts -Wparentheses -g -O0)
 
     find_package(SDL REQUIRED)
     include_directories(${SDL_INCLUDE_DIR})
