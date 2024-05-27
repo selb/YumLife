@@ -182,6 +182,9 @@ set(CLIENT_SOURCE_FILES
     gameSource/exporter.cpp
     gameSource/importer.cpp
     gameSource/settingsToggle.cpp
+    gameSource/AHAPResultPage.cpp
+    gameSource/AHAPSettingsPage.cpp
+    gameSource/rocketAnimation.cpp
 )
 
 include_directories(.)
