@@ -187,6 +187,10 @@ set(CLIENT_SOURCE_FILES
     gameSource/rocketAnimation.cpp
 )
 
+# These are the compile options from the original build system. Note that -O0
+# in particular is sadly necessary to prevent some OHOL crashes.
+set(CLIENT_COMPILE_OPTIONS -Wall -Wwrite-strings -Wchar-subscripts -Wparentheses -g -O0)
+
 include_directories(.)
 
 if(WIN32)
@@ -202,14 +206,14 @@ if(WIN32)
     endif()
 
     add_executable(YumLife_windows ${CLIENT_SOURCE_FILES} ${MINORGEMS_SOURCE_FILES})
-    target_compile_options(YumLife_windows PRIVATE -Wall -Wwrite-strings -Wchar-subscripts -Wparentheses -g -O0)
+    target_compile_options(YumLife_windows PRIVATE ${CLIENT_COMPILE_OPTIONS})
     target_link_libraries(YumLife_windows opengl32 glu32 mingw32 SDLmain SDL wsock32 winmm)
     target_link_options(YumLife_windows PRIVATE -mwindows -static-libstdc++ -static-libgcc)
 else()
     add_definitions(-DLINUX)
 
     add_executable(YumLife_linux ${CLIENT_SOURCE_FILES} ${MINORGEMS_SOURCE_FILES})
-    target_compile_options(YumLife_linux PRIVATE -Wall -Wwrite-strings -Wchar-subscripts -Wparentheses -g -O0)
+    target_compile_options(YumLife_linux PRIVATE ${CLIENT_COMPILE_OPTIONS})
 
     find_package(SDL REQUIRED)
     include_directories(${SDL_INCLUDE_DIR})
