@@ -495,6 +495,11 @@ typedef struct ObjectRecord {
 
         // gives clue whenever player is newly holding this object
         char giveClue;
+
+        
+        // the player that triggers the creation of this transition rides
+        // the rocket
+        char rideRocket;
         
 
         // if enabled, object can only be created if nearPopFraction
@@ -957,9 +962,9 @@ void computeHeldDrawPos( HoldingPos inHoldingPos, doublePair inPos,
 
 
 
-// sets vis flags in inSpriteVis based on inUsesRemaining
+// sets skipDrawing flags in inSpriteSkipDrawing based on inUsesRemaining
 void setupSpriteUseVis( ObjectRecord *inObject, int inUsesRemaining,
-                        char *inSpriteVis );
+                        char *inSpriteSkipDrawing );
 
 
 // sets vis flags in inSpriteVis based on inVarNumber

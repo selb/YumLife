@@ -45,6 +45,7 @@
 #include "triggers.h"
 #include "playerStats.h"
 #include "lineageLog.h"
+#include "ahapGate.h"
 #include "serverCalls.h"
 #include "failureLog.h"
 #include "names.h"
@@ -62,6 +63,7 @@
 #include "cravings.h"
 #include "offspringTracker.h"
 #include "ipBanList.h"
+#include "periodicPlacements.h"
 
 
 #include "minorGems/util/random/JenkinsRandomSource.h"
@@ -968,7 +970,8 @@ typedef struct LiveObject {
         
         char error;
         const char *errorCauseString;
-        
+
+        char rodeRocket;
         
 
         int customGraveID;
@@ -2440,6 +2443,8 @@ void quitCleanup() {
         }
     pastPlayers.deleteAll();
     
+    
+    freeAHAPGate();
 
     freeLineageLimit();
     
@@ -2475,6 +2480,8 @@ void quitCleanup() {
     
     freeIPBanList();
 
+    freePeriodicPlacements();
+    
 
     freeMap();
 
@@ -2902,6 +2909,7 @@ typedef enum messageType {
     ORDR,
     FLIP,
     MOTH,
+    APVT,
     UNKNOWN
     } messageType;
 
@@ -2924,6 +2932,9 @@ typedef struct ClientMessage {
         // null if type not SAY
         char *saidText;
         
+        // NULL if type not APVT
+        char *voteGithubUsername;
+
         // null if type not BUG
         char *bugText;
         
@@ -2962,6 +2973,7 @@ ClientMessage parseMessage( LiveObject *inPlayer, char *inMessage ) {
     m.numExtraPos = 0;
     m.extraPos = NULL;
     m.saidText = NULL;
+    m.voteGithubUsername = NULL;
     m.bugText = NULL;
     m.photoIDString = NULL;
     m.sequenceNumber = -1;
@@ -3253,7 +3265,7 @@ ClientMessage parseMessage( LiveObject *inPlayer, char *inMessage ) {
     else if( strcmp( nameBuffer, "SAY" ) == 0 ) {
         m.type = SAY;
 
-        // look after second space
+        // look after third space
         char *firstSpace = strstr( inMessage, " " );
         
         if( firstSpace != NULL ) {
@@ -3363,6 +3375,27 @@ ClientMessage parseMessage( LiveObject *inPlayer, char *inMessage ) {
         }
     else if( strcmp( nameBuffer, "MOTH" ) == 0 ) {
         m.type = MOTH;
+        }
+    else if( strcmp( nameBuffer, "APVT" ) == 0 ) {
+        m.type = APVT;
+
+        // look after third space
+        char *firstSpace = strstr( inMessage, " " );
+        
+        if( firstSpace != NULL ) {
+            
+            char *secondSpace = strstr( &( firstSpace[1] ), " " );
+            
+            if( secondSpace != NULL ) {
+
+                char *thirdSpace = strstr( &( secondSpace[1] ), " " );
+                
+                if( thirdSpace != NULL ) {
+                    m.voteGithubUsername = 
+                        stringDuplicate( &( thirdSpace[1] ) );
+                    }
+                }
+            }
         }
     else {
         m.type = UNKNOWN;
@@ -9116,6 +9149,18 @@ int processLoggedInPlayer( int inAllowOrForceReconnect,
     
     newObject.isTutorial = false;
     
+    useContentSettings();
+
+    int tutorialEnabled = 
+        SettingsManager::getIntSetting( "tutorialEnabled", 0 );
+
+    useMainSettings();
+
+    if( ! tutorialEnabled ) {
+        inTutorialNumber = 0;
+        }
+
+
     if( inTutorialNumber > 0 ) {
         newObject.isTutorial = true;
         }
@@ -10656,6 +10701,9 @@ int processLoggedInPlayer( int inAllowOrForceReconnect,
     newObject.error = false;
     newObject.errorCauseString = "";
     
+    newObject.rodeRocket = false;
+    
+
     newObject.customGraveID = -1;
     newObject.deathReason = NULL;
     
@@ -11156,7 +11204,8 @@ int processLoggedInPlayer( int inAllowOrForceReconnect,
               newObject.xd,
               newObject.yd,
               players.size(),
-              newObject.parentChainLength );
+              newObject.parentChainLength,
+              ( newObject.curseStatus.curseLevel != 0 ) );
     
     AppLog::infoF( "New player %s connected as player %d (tutorial=%d) (%d,%d)"
                    " (maxPlacementX=%d)",
@@ -16346,13 +16395,108 @@ char isHungryWorkBlocked( LiveObject *inPlayer,
 
 
 
+const char *numberToWords( int inNumber ) {
+    switch( inNumber ) {
+        case 1:
+            return "ONE";
+        case 2:
+            return "TWO";
+        case 3:
+            return "THREE";
+        case 4:
+            return "FOUR";
+        case 5:
+            return "FIVE";
+        case 6:
+            return "SIX";
+        case 7:
+            return "SEVEN";
+        case 8:
+            return "EIGHT";
+        case 9:
+            return "NINE";
+        case 10:
+            return "TEN";
+        case 11:
+            return "ELEVEN";
+        case 12:
+            return "TWELVE";
+        case 13:
+            return "THIRTEEN";
+        case 14:
+            return "FOURTEEN";
+        case 15:
+            return "FIFTEEN";
+        case 16:
+            return "SIXTEEN";
+        case 17:
+            return "SEVENTEEN";
+        case 18:
+            return "EIGHTEEN";
+        case 19:
+            return "NINETEEN";
+        case 20:
+            return "TWENTY";
+        default:
+            return "MANY";
+        }
+    }
 
-void sendNearPopSpeech( LiveObject *inPlayer ) {
+
+
+
+void sendNearPopSpeech( LiveObject *inPlayer, 
+                        int inNewTarget ) {
     // tell player about it with private speech
-    char *message = autoSprintf( 
-        "PS\n"
-        "%d/0 +TOO FAR FROM EVERYONE+\n#",
-        inPlayer->id );
+
+    ObjectRecord *o = getObject( inNewTarget );
+    
+    char *message;
+    
+
+    if( o->nearPopDistance > 200 ) {
+        message = autoSprintf( 
+            "PS\n"
+            "%d/0 +TOO FAR FROM EVERYONE+\n#",
+            inPlayer->id );
+        }
+    else {
+        // need a group of players very close to perform this action
+        // tell them how many
+
+        int totalCount = 0;
+        
+        for( int j=0; j<players.size(); j++ ) {
+            LiveObject *otherPlayer = players.getElement( j );
+            
+            if( ! otherPlayer->error &&
+                ! otherPlayer->isTutorial &&
+                otherPlayer->curseStatus.curseLevel == 0 ) {
+                
+                totalCount++;
+                }
+            }
+        
+        int requiredCount = ceil( totalCount * o->nearPopFraction );
+        
+        // self counts as one of them
+        requiredCount --;
+        
+        
+        const char *playerWord = "PLAYERS";
+        
+        if( requiredCount == 1 ) {
+            playerWord = "PLAYER";
+            }
+
+        const char *numberWord = numberToWords( requiredCount );
+
+        message = autoSprintf( 
+            "PS\n"
+            "%d/0 +NEED %s OTHER %s NEARBY+\n#",
+            inPlayer->id, numberWord, playerWord );
+        
+        }
     
     sendMessageToPlayer( 
         inPlayer, 
@@ -17928,6 +18072,98 @@ void removeOwnership( int inX, int inY ) {
 
 
 
+
+void startAHAPGrant( int inX, int inY, LiveObject *inPlayer ) {
+    int rocketEnabled =
+        SettingsManager::getIntSetting( "rocketEnabled", 0 );
+
+    if( ! rocketEnabled ) {
+        AppLog::errorF( "Player %d rode rocket at %d,%d but rocketEnabled not "
+                        "set in settings", inPlayer->id, inX, inY );    
+        return;
+        }
+
+
+    useContentSettings();
+        
+    int rocketObjectID =
+        SettingsManager::getIntSetting( "rocketObject", -1 );
+
+    double rocketAnimationTime =
+        SettingsManager::getDoubleSetting( "rocketLaunchLength", 1 );
+
+    useMainSettings();
+
+    if( rocketObjectID == -1 ) {
+        AppLog::errorF( "Player %d rode rocket at %d,%d but no rocketObject "
+                        "set in conentSettings", inPlayer->id, inX, inY );    
+        return;
+        }
+
+    inPlayer->rodeRocket = true;
+    
+    inPlayer->dying = true;
+    inPlayer->dyingETA = Time::getCurrentTime() + rocketAnimationTime;
+    
+    char *message = autoSprintf( "RR\n%d %d#", inPlayer->id, rocketObjectID );
+    
+    int messageLen = strlen( message );
+
+    int numLive = players.size();
+
+    for( int p=0; p<numLive; p++ ) {
+
+        LiveObject *nextPlayer = players.getElement(p);
+        
+        if( nextPlayer->error ) {
+            continue;
+            }
+
+        // add time to their born time, essentially pushing everyone
+        // younger by just enough so that they won't die during the rocket
+        // launch animation
+        nextPlayer->lifeStartTimeSeconds += rocketAnimationTime;
+
+        // push their food decrement time forward too
+        // so they don't starve to death during rocket animation
+        nextPlayer->foodDecrementETASeconds += rocketAnimationTime;
+        
+
+        sendMessageToPlayer( nextPlayer, message, messageLen );
+        }
+    
+    delete [] message;
+
+    // start grant call on ahapGate
+
+    triggerAHAPGrant( inPlayer->email );
+    }
+
+
+
+static GridPos getAveragePopulationPos( 
+    SimpleVector<LiveObject *> *inPopulation ) {
+    
+    GridPos avePopPos = {0,0};
+    
+    int s = inPopulation->size();
+    
+    for( int i=0; i< s; i++ ) {
+        GridPos p = getPlayerPos( inPopulation->getElementDirect( i ) );
+        
+        avePopPos.x += p.x;
+        avePopPos.y += p.y;
+        }
+
+    avePopPos.x /= s;
+    avePopPos.y /= s;
+    
+    return avePopPos;
+    }
+
+
+
+
 int main() {
     useMainSettings();
     
@@ -18224,12 +18460,16 @@ int main() {
     
     initLineageLimit();
     
+    initAHAPGate();
+
     initCurseDB();
     initTrustDB();
 
     initOffspringTracker();
     
     initIPBanList();
+    
+    initPeriodicPlacements();
 
 
     char rebuilding;
@@ -18608,6 +18848,111 @@ int main() {
             
             checkCustomGlobalMessage();
             
+
+            AHAPGrantResult *grantResult = stepAHAPGate();
+            
+            if( grantResult != NULL ) {
+                LiveObject *grantedPlayer = 
+                    getPlayerByEmail( grantResult->email );
+                
+                if( grantedPlayer != NULL && ! grantedPlayer->error ) {
+                    
+                    char *message = autoSprintf( "RA\n%s %s#", 
+                                                 grantResult->steamKey, 
+                                                 grantResult->accountURL );
+    
+                    int messageLen = strlen( message );
+                    
+                    sendMessageToPlayer( grantedPlayer, message, messageLen );
+                
+                    delete [] message;
+                    }
+                
+                delete [] grantResult->email;
+                delete [] grantResult->steamKey;
+                delete [] grantResult->accountURL;
+                
+                delete grantResult;
+                }
+            
+            
+            PeriodicPlacementAction *placement = stepPeriodicPlacements();
+            
+            if( placement != NULL ) {
+
+                SimpleVector <LiveObject*> population;
+
+                for( int i=0; i<players.size(); i++ ) {
+                    LiveObject *o = players.getElement( i );
+        
+                    if( ! o->error &&
+                        ! o->isTutorial &&
+                        o->curseStatus.curseLevel == 0 ) {
+                        
+                        population.push_back( o );
+                        }
+                    }
+                
+                double maxDist = 2 * placement->populationRadius;
+                
+                // remove outliers until we find cluster in radius
+                while( population.size() > 0 && 
+                       maxDist > placement->populationRadius ) {
+                    
+                    GridPos avePos = getAveragePopulationPos( &population );
+
+                    maxDist = 0;
+                    int maxI = -1;
+
+                    for( int i=0; i<population.size(); i++ ) {
+                        LiveObject *o = population.getElementDirect( i );
+                        
+                        GridPos p = getPlayerPos( o );
+                        
+                        double d = distance( p, avePos );
+                        
+                        if( d > maxDist ) {
+                            maxDist = d;
+                            maxI = i;
+                            }
+                        }
+                    
+                    if( maxDist > placement->populationRadius ) {
+                        population.deleteElement( maxI );
+                        }
+                    }
+                
+                
+                if( population.size() > 0 ) {
+                    
+                    GridPos avePos = getAveragePopulationPos( &population );
+                    
+                    int xRad = 
+                        randSource.getRandomBoundedInt( 
+                            -placement->populationRadius,
+                            placement->populationRadius );
+                    int yRad = 
+                        randSource.getRandomBoundedInt( 
+                            -placement->populationRadius,
+                            placement->populationRadius );
+                    
+                    GridPos placePos = { avePos.x + xRad,
+                                         avePos.y + yRad };
+                    
+
+                    setMapObject( placePos.x, placePos.y, 
+                                  placement->objectID );
+                    
+                    if( strcmp( placement->globalMessage, "" ) != 0 ) {
+                        sendGlobalMessage( placement->globalMessage );
+                        }
+                    }
+                
+                delete [] placement->globalMessage;
+                delete placement;
+                }
+            
+
 
             int lowestCravingID = INT_MAX;
             
@@ -21114,6 +21459,16 @@ int main() {
                         sendMessageToPlayer( nextPlayer, 
                                              psMessage, strlen( psMessage ) );
                         delete [] psMessage;
+                        }
+                    }
+                else if( m.type == APVT ) {
+                    int isAHAP = readIntFromFile( "isAHAP.txt", 0 );
+                    
+                    // ignore vote if this is not AHAP server
+                    if( isAHAP && m.voteGithubUsername != NULL ) {
+                        
+                        triggerAHAPVote( nextPlayer->email, 
+                                         m.voteGithubUsername );
                         }
                     }
                 else if( m.type == UNFOL ) {
@@ -23957,9 +24312,10 @@ int main() {
                                     else if( isNearPopBlocked( 
                                             nextPlayer,
                                             r->newTarget ) ) {
-                                        r = NULL;
                                         
-                                        sendNearPopSpeech( nextPlayer );
+                                        sendNearPopSpeech( nextPlayer,
+                                                           r->newTarget );
+                                        r = NULL;
                                         }
                                     }
 
@@ -24109,6 +24465,18 @@ int main() {
                                     else {    
                                         setMapObject( m.x, m.y, r->newTarget );
                                         newGroundObject = r->newTarget;
+                                        
+                                        if( r->newTarget > 0 ) {
+                                            ObjectRecord *newO =
+                                                getObject( r->newTarget );
+                                            
+                                            if( newO != NULL &&
+                                                newO->rideRocket ) {
+                                                
+                                                startAHAPGrant(
+                                                    m.x, m.y, nextPlayer );
+                                                }
+                                            }
                                         }
                                     
                                     if( hungryWorkCost > 0 ) {
@@ -26368,6 +26736,9 @@ int main() {
                 if( m.saidText != NULL ) {
                     delete [] m.saidText;
                     }
+                if( m.voteGithubUsername != NULL ) {
+                    delete [] m.voteGithubUsername;
+                    }
                 if( m.bugText != NULL ) {
                     delete [] m.bugText;
                     }
@@ -26782,8 +27153,9 @@ int main() {
                     // self id is killer
                     killerID = nextPlayer->id;
                     }
-                
-                
+                else if( nextPlayer->rodeRocket ) {
+                    killerID = -999999999;
+                    }
                 
                 char male = ! getFemale( nextPlayer );
                 
@@ -26953,6 +27325,10 @@ int main() {
                     }
                 nextPlayer->email = stringDuplicate( "email_cleared" );
 
+
+                
+                if( ! nextPlayer->rodeRocket ) {
+                    
                 int deathID = getRandomDeathMarker();
                     
                 if( nextPlayer->customGraveID > -1 ) {
@@ -27234,6 +27610,9 @@ int main() {
                         nextPlayer->holdingID = 0;
                         }
                     }
+                
+                    }  // end of block:    if( ! nextPlayer->rodeRocket )
+                
                 }
             else if( ! nextPlayer->error ) {
                 // other update checks for living players

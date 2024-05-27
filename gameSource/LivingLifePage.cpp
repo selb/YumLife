@@ -28,6 +28,10 @@
 #include "settingsToggle.h"
 
 
+#include "rocketAnimation.h"
+
+
+
 #include "../commonSource/fractalNoise.h"
 #include "../commonSource/sayLimit.h"
 
@@ -173,6 +177,10 @@ extern int userTwinCount;
 
 extern char userReconnect;
 
+extern char *ahapAccountURL;
+extern char *ahapSteamKey;
+
+
 static char vogMode = false;
 static char vogModeActuallyOn = false;
 
@@ -186,6 +194,7 @@ doublePair LivingLifePage::hetuwGetVogPos() { return vogPos; }
 int LivingLifePage::hetuwGetYumBonus() { return mYumBonus; }
 
 extern float musicLoudness;
+extern double musicHeadroom;
 
 
 static JenkinsRandomSource randSource( 340403 );
@@ -286,6 +295,105 @@ double pixelCountToDraw = 0;
 
 
 
+
+
+typedef struct RecordedSpeechRecord {
+        char *speakerName;
+        char *speech;
+        double speechTime;
+    } RecordedSpeechRecord;
+
+
+static SimpleVector<RecordedSpeechRecord> recordeSpeechRecords;
+
+
+static void clearRecordedSpeechRecord( RecordedSpeechRecord *inR ) {
+    if( inR->speakerName != NULL ) {
+        delete [] inR->speakerName;
+        inR->speakerName = NULL;
+        }
+    if( inR->speech != NULL ) {
+        delete [] inR->speech;
+        inR->speech = NULL;
+        }
+    }
+    
+        
+
+static void clearRecordedSpeech() {
+    for( int i=0; i<recordeSpeechRecords.size(); i++ ) {
+        RecordedSpeechRecord *r = recordeSpeechRecords.getElement( i );
+        clearRecordedSpeechRecord( r );
+        }
+    recordeSpeechRecords.deleteAll();
+    }
+
+
+
+static void cullRecordedSpeech() {
+    double curTime = game_getCurrentTime();
+    
+    for( int i=0; i<recordeSpeechRecords.size(); i++ ) {
+        RecordedSpeechRecord *r = recordeSpeechRecords.getElement( i );
+        
+        if( r->speechTime < curTime - 30 ) {
+            // more than 30 seconds old
+            clearRecordedSpeechRecord( r );
+            recordeSpeechRecords.deleteElement( i );
+            i--;
+            }
+        }
+    }
+
+
+static void recordSpeech( const char *inSpeakerName, const char *inSpeech ) {
+    cullRecordedSpeech();
+    
+    RecordedSpeechRecord r;
+    r.speakerName = NULL;
+    
+    if( inSpeakerName != NULL ) {
+        r.speakerName = stringDuplicate( inSpeakerName );
+        }
+    r.speech = stringDuplicate( inSpeech );
+    
+    r.speechTime = game_getCurrentTime();
+    
+    recordeSpeechRecords.push_back( r );
+    }
+
+
+
+// returned value destroyed by caller
+static char *getRecordedSpeechLog() {
+    SimpleVector<char> workingLog;
+    
+    cullRecordedSpeech();
+    
+    for( int i=0; i<recordeSpeechRecords.size(); i++ ) {
+        RecordedSpeechRecord *r = recordeSpeechRecords.getElement( i );
+        
+        if( r->speech != NULL ) {
+            
+            const char *name = r->speakerName;
+            
+            if( name == NULL ) {
+                name = "UNKNOWN";
+                }
+            
+            char *line = autoSprintf( "%s:  %s\n\n", name, r->speech );
+            
+            workingLog.appendElementString( line );
+            delete [] line;
+            }
+        }
+    
+    return workingLog.getElementString();
+    }
+
+
+
+
 static SimpleVector<double> fpsHistoryGraph;
 static SimpleVector<TimeMeasureRecord> timeMeasureHistoryGraph;
 static SimpleVector<double> spriteCountHistoryGraph;
@@ -332,6 +440,9 @@ static double culvertFractalAmp = 98;
 
 static int usedToolSlots = 0;
 static int totalToolSlots = 0;
+
+
+static char rocketAnimationStarted = false;
 
 
 typedef struct Homeland {
@@ -661,6 +772,7 @@ static void updatePersonHomeLocation( int inPersonID, int inX, int inY ) {
 
 
 char isAncientHomePosHell = false;
+char isAncientHomePosRocket = false;
 
 static void addAncientHomeLocation( int inX, int inY ) {
     removeHomeLocation( inX, inY );
@@ -1276,7 +1388,7 @@ static double computeCurrentAgeNoOverride( LiveObject *inObj ) {
 
 
 
-static double computeCurrentAge( LiveObject *inObj ) {
+double computeCurrentAge( LiveObject *inObj ) {
     if( inObj->finalAgeSet ) {
         return inObj->age;
         }
@@ -1436,6 +1548,8 @@ typedef enum messageType {
     FLIP,
     CRAVING,
     GHOST,
+    ROCKET_RIDE,
+    ROCKET_ACCOUNT,
     PONG,
     COMPRESSED_MESSAGE,
     UNKNOWN
@@ -1609,6 +1723,12 @@ messageType getMessageType( char *inMessage ) {
         }
     else if( strcmp( copy, "GH" ) == 0 ) {
         returnValue = GHOST;
+        }
+    else if( strcmp( copy, "RR" ) == 0 ) {
+        returnValue = ROCKET_RIDE;
+        }
+    else if( strcmp( copy, "RA" ) == 0 ) {
+        returnValue = ROCKET_ACCOUNT;
         }
     
     delete [] copy;
@@ -3373,6 +3493,8 @@ LivingLifePage::~LivingLifePage() {
             numServerBytesRead, overheadServerBytesRead,
             numServerBytesSent, overheadServerBytesSent );
     
+    clearRecordedSpeech();
+    
     mBadBiomeNames.deallocateStringElements();
 
     mGlobalMessagesToDestroy.deallocateStringElements();
@@ -3602,6 +3724,12 @@ LivingLifePage::~LivingLifePage() {
         delete [] homelands.getElementDirect( i ).familyName;
         }
     homelands.deleteAll();
+
+
+    if( rocketAnimationStarted ) {
+        freeRocketAnimation();
+        rocketAnimationStarted = false;
+        }
     }
 
 
@@ -6145,6 +6273,37 @@ char *getSmallNumberString( int inNumber,
     }
 
 
+doublePair getSpeechOffset( LiveObject *inPlayer ) {
+    doublePair speechPos = {0, 84};
+    
+    LiveObject *o = inPlayer;
+
+    ObjectRecord *displayObj = getObject( o->displayID );
+    
+    
+    double age = computeCurrentAge( o );
+    
+    doublePair headPos = 
+        displayObj->spritePos[ getHeadIndex( displayObj, age ) ];
+    
+    doublePair bodyPos = 
+        displayObj->spritePos[ getBodyIndex( displayObj, age ) ];
+    
+    doublePair frontFootPos = 
+        displayObj->spritePos[ getFrontFootIndex( displayObj, age ) ];
+    
+    headPos = add( headPos, 
+                   getAgeHeadOffset( age, headPos, 
+                                     bodyPos, frontFootPos ) );
+    headPos = add( headPos,
+                   getAgeBodyOffset( age, bodyPos ) );
+    
+    speechPos.y += headPos.y;
+    
+    return speechPos;
+    }
+
+
 
 
 char *getSpokenNumber( unsigned int inNumber, int inSigFigs = 2 ) {
@@ -6420,6 +6579,10 @@ void LivingLifePage::drawHomeSlip( doublePair inSlipPos, int inIndex ) {
             if( isAncientHomePosHell ) {
                 arrowWord = translate( "hell" );
                 }
+            else if( isAncientHomePosRocket ) {
+                arrowWord = translate( "rocket" );
+                }
+
             handwritingFont->drawString( arrowWord, bellPos, alignCenter );
             }
         
@@ -8264,6 +8427,11 @@ void LivingLifePage::draw( doublePair inViewCenter,
             if( drawRec.person ) {
                 LiveObject *o = drawRec.personO;
                 
+                if( o->skipDrawing ) {
+                    continue;
+                    }
+                
+
                 ignoreWatchedObjectDraw( true );
 
 
@@ -8734,32 +8902,7 @@ void LivingLifePage::draw( doublePair inViewCenter,
         
         doublePair pos = speakersPos.getElementDirect( i );
         
-        
-        doublePair speechPos = pos;
-
-        speechPos.y += 84;
-
-        ObjectRecord *displayObj = getObject( o->displayID );
- 
-
-        double age = computeCurrentAge( o );
-        
-        doublePair headPos = 
-            displayObj->spritePos[ getHeadIndex( displayObj, age ) ];
-        
-        doublePair bodyPos = 
-            displayObj->spritePos[ getBodyIndex( displayObj, age ) ];
-
-        doublePair frontFootPos = 
-            displayObj->spritePos[ getFrontFootIndex( displayObj, age ) ];
-        
-        headPos = add( headPos, 
-                       getAgeHeadOffset( age, headPos, 
-                                         bodyPos, frontFootPos ) );
-        headPos = add( headPos,
-                       getAgeBodyOffset( age, bodyPos ) );
-        
-        speechPos.y += headPos.y;
+        doublePair speechPos = add( pos, getSpeechOffset( o ) );
         
         int width = 250;
         int widthLimit = 250;
@@ -9601,6 +9744,13 @@ void LivingLifePage::draw( doublePair inViewCenter,
         // skip gui
         return;
         }    
+
+
+    if( isRocketAnimationRunning() ) {
+        drawRocketAnimation();
+        }
+
+
         
     if( showFPS ) {
             
@@ -14851,6 +15001,108 @@ void LivingLifePage::step() {
                 }
             delete [] lines;
             }
+        else if( type == ROCKET_RIDE ) {
+            int numLines;
+            char **lines = split( message, "\n", &numLines );
+            
+            if( numLines > 0 ) {
+                // skip first
+                delete [] lines[0];
+                }
+            
+            for( int i=1; i<numLines; i++ ) {
+                int p_id, o_id;
+                int numRead = sscanf( lines[i], "%d %d",
+                                      &( p_id ), &( o_id ) );
+
+                if( numRead == 2 ) {
+                    ObjectRecord *rocketO = getObject( o_id );
+                    
+
+                    double lengthInSeconds = 0;
+                    
+                    if( rocketO != NULL &&
+                        rocketO->creationSound.numSubSounds > 0 ) {
+                        
+                        // kick off rocket-riding music
+                        
+                        playSound( rocketO->creationSound.ids[0],
+                                   rocketO->creationSound.volumes[0] *
+                                   musicLoudness * musicHeadroom );
+                        
+                        lengthInSeconds = getSoundLengthInSeconds( 
+                            rocketO->creationSound.ids[0] );
+                        }
+                    
+                    LiveObject *ridingPlayer = getLiveObject( p_id );
+                    
+                    if( ! rocketAnimationStarted &&
+                        lengthInSeconds > 0 && 
+                        rocketO != NULL &&
+                        ridingPlayer != NULL ) {
+
+                        ridingPlayer->skipDrawing = true;
+                        
+                        
+                        // Show Rocket-Riding animation sequence to everyone
+                    
+                        if (!HetuwMod::skipRocketCutscene) {
+                            rocketAnimationStarted = true;
+                            initRocketAnimation( this,
+                                                p_id, rocketO,
+                                                lengthInSeconds );
+                        }
+
+                        delayAgingMusic( lengthInSeconds );
+
+                        if( ahapSteamKey != NULL ) {
+                            delete [] ahapSteamKey;
+                            }
+                        ahapSteamKey = NULL;
+                        
+                        if( ahapAccountURL != NULL ) {
+                            delete [] ahapAccountURL;
+                            }
+                        ahapAccountURL = NULL;
+                        }                    
+                    }
+                delete [] lines[i];
+                }
+            delete [] lines;
+            }
+        else if( type == ROCKET_ACCOUNT ) {
+            int numLines;
+            char **lines = split( message, "\n", &numLines );
+            
+            if( numLines > 0 ) {
+                // skip first
+                delete [] lines[0];
+                }
+            
+            for( int i=1; i<numLines; i++ ) {
+                char steamKey[100];
+                char accountURL[200];
+                
+                int numRead = sscanf( lines[i], "%99s %199s",
+                                      steamKey, accountURL );
+
+                if( numRead == 2 ) {
+                    
+                    if( ahapSteamKey != NULL ) {
+                        delete [] ahapSteamKey;
+                        }
+                    ahapSteamKey = stringDuplicate( steamKey );
+                    
+                    if( ahapAccountURL != NULL ) {
+                        delete [] ahapAccountURL;
+                        }
+                    ahapAccountURL = stringDuplicate( accountURL );
+                    }
+                
+                delete [] lines[i];
+                }
+            delete [] lines;
+            }
         else if( type == SEQUENCE_NUMBER ) {
             // need to respond with LOGIN message
             
@@ -15028,6 +15280,27 @@ void LivingLifePage::step() {
             SettingsManager::setSetting( "loginSuccess", 1 );
 
             delete [] message;
+
+            
+            if( isAHAP ) {
+                // see if we have a vote to submit
+
+                char *voteGithub = 
+                    SettingsManager::getStringSetting( 
+                        "contentLeaderVote", "" );
+                
+
+                if( strcmp( voteGithub, "" ) != 0 ) {
+
+                    char *message = autoSprintf( "APVT 0 0 %s#",
+                                                 voteGithub );
+                    
+                    sendToServerSocket( message );
+                    
+                    delete [] message;
+                    }
+                delete [] voteGithub;
+                }
             return;
             }
         else if( type == REJECTED ) {
@@ -15091,27 +15364,41 @@ void LivingLifePage::step() {
                 if( ourLiveObject != NULL ) {
                     double d = distance( pos, ourLiveObject->currentPos );
                     
-                    if( d > 32 ) {
-                        addAncientHomeLocation( posX, posY );
-                        // YumLife mod
-                        HetuwMod::homePosType hpt = HetuwMod::hpt_bell;
-                        if ( monumentID == HetuwMod::OBJID_EndTower2 ||
-                             monumentID == HetuwMod::OBJID_EndTower3 ||
-                             monumentID == HetuwMod::OBJID_EndTower4 ) {
-                                hpt = HetuwMod::hpt_apoc;
+                    addAncientHomeLocation( posX, posY );
+                    // YumLife mod
+                    HetuwMod::homePosType hpt = HetuwMod::hpt_bell;
+                    if ( monumentID == HetuwMod::OBJID_EndTower2 ||
+                         monumentID == HetuwMod::OBJID_EndTower3 ||
+                         monumentID == HetuwMod::OBJID_EndTower4 ) {
+                            hpt = HetuwMod::hpt_apoc;
+                        }
+                    
+                    isAncientHomePosHell = false;
+                    isAncientHomePosRocket = false;
+                        
+                    ObjectRecord *monObj = getObject( monumentID );
+                    
+                    if( monObj != NULL ) {    
+                        
+                        if( strstr( monObj->description, "+hellArrow" ) ) {
+                            isAncientHomePosHell = true;
                             }
-                        HetuwMod::addHomeLocation( posX, posY, hpt );
-                        isAncientHomePosHell = false;
+                        else if( strstr( monObj->description, 
+                                         "+rocketArrow" ) ) {
+                            isAncientHomePosRocket = true;
+                            }
+                        }
+
+                    if (isAncientHomePosRocket) {
+                        hpt = HetuwMod::hpt_rocket;
+                        }
+                    HetuwMod::addHomeLocation( posX, posY, hpt );
+
+                    if( d > 32 ) {
                         
-                        // play sound in distance
-                        ObjectRecord *monObj = getObject( monumentID );
+                        if( monObj->creationSound.numSubSounds > 0 ) {    
                         
-                        if( monObj != NULL && 
-                            monObj->creationSound.numSubSounds > 0 ) {    
-                            
-                            if( strstr( monObj->description, "+hellArrow" ) ) {
-                                isAncientHomePosHell = true;
-                                }
+                            // play sound in distance
 
                             doublePair realVector = 
                                 getVectorFromCamera( lrint( posX ),
@@ -17242,6 +17529,7 @@ void LivingLifePage::step() {
                 
                 o.isGhost = false;
                 
+                o.skipDrawing = false;
 
                 int forced = 0;
                 int done_moving = 0;
@@ -20537,8 +20825,26 @@ void LivingLifePage::step() {
                                             }
                                         }
                                     }
+                                
+                                if( isRocketAnimationRunning() &&
+                                    existing->currentSpeech != NULL ) {
+                                    // do this down here so that
+                                    // metadata is already processed
+                                    // and stripped off
+                                    addRocketSpeech(
+                                        existing->id,
+                                        existing->currentSpeech );
+                                    }
                                 }
                             
+
+                            if( existing->currentSpeech != NULL ) {
+                                
+                                recordSpeech( existing->name,
+                                              existing->currentSpeech );
+                                }
+                            
+
                             break;
                             }
                         }
@@ -21505,9 +21811,9 @@ void LivingLifePage::step() {
                         // only show starving at 2 food or lower
                         // starving means you can nurse/eat
                         if( ourLiveObject->foodStore + mYumBonus <= 2 ) {
-                             setMusicLoudness( 0 );
-                             mHungerSlipVisible = 2;
-                             mPulseHungerSound = true;
+                            addMusicSuppression( "LivingLifeHunger" );
+                            mHungerSlipVisible = 2;
+                            mPulseHungerSound = true;
                             }
                         }
                     else if( ourLiveObject->foodStore == 
@@ -21531,7 +21837,7 @@ void LivingLifePage::step() {
 
 
                         // quiet music so hunger sound can be heard
-                        setMusicLoudness( 0 );
+                        addMusicSuppression( "LivingLifeHunger" );
                         mHungerSlipVisible = 2;
                     
                         if( ourLiveObject->foodStore > 0 ) {
@@ -21564,7 +21870,7 @@ void LivingLifePage::step() {
                     if( ourLiveObject->foodStore + mYumBonus > 4 ||
                         computeCurrentAge( ourLiveObject ) >= 60 ) {
                         // restore music
-                        setMusicLoudness( musicLoudness );
+                        removeMusicSuppression( "LivingLifeHunger" );
                         
                         mPulseHungerSound = false;
                         }
@@ -21859,6 +22165,16 @@ void LivingLifePage::step() {
             
             setViewCenterPosition( lastScreenViewCenter.x, 
                                    lastScreenViewCenter.y );
+								   
+            getLastMouseScreenPos( &lastScreenMouseX, &lastScreenMouseY );
+            screenToWorld( lastScreenMouseX,
+                            lastScreenMouseY,
+                            &lastMouseX,
+                            &lastMouseY );
+						   
+            // camera moved, simulate a pointer move to the last known position
+            // to check again what the pointer is hitting
+            pointerMove( lastMouseX, lastMouseY );
             
             }
 
@@ -23043,6 +23359,29 @@ void LivingLifePage::step() {
     if( showFPS ) {
         timeMeasures[1] += game_getCurrentTime() - updateStartTime;
         }
+
+    
+    if( rocketAnimationStarted  ) {
+        stepRocketAnimation();
+        if( ! isRocketAnimationRunning() ) {
+            freeRocketAnimation();
+            rocketAnimationStarted = false;
+            
+            if( ahapAccountURL != NULL ) {
+                closeSocket( mServerSocket );
+                mServerSocket = -1;
+                
+                setWaiting( false );
+
+                instantStopMusic();
+                // so sound tails are not still playing when we we get reborn
+                fadeSoundSprites( 0.1 );
+                setSoundLoudness( 0 );
+
+                setSignal( "rodeRocket" );
+                }
+            }
+        }
     
     }
 
@@ -23131,6 +23470,8 @@ void LivingLifePage::makeActive( char inFresh ) {
         return;
         }
 
+    clearRecordedSpeech();
+    
     for( int i=0; i<homelands.size(); i++ ) {
         delete [] homelands.getElementDirect( i ).familyName;
         }
@@ -24377,7 +24718,9 @@ static void freeSavedPath() {
 
 void LivingLifePage::pointerDown( float inX, float inY ) {
 	
-	if (minitech::livingLifePageMouseDown( inX, inY )) return;
+    if (!mForceGroundClick && 
+        !isLastMouseButtonRight() &&
+        minitech::livingLifePageMouseDown( inX, inY )) return;
 	
 	if (!mForceGroundClick && HetuwMod::livingLifePageMouseDown( inX, inY ))
 		return;
@@ -27004,6 +27347,22 @@ void LivingLifePage::keyDown( unsigned char inASCII ) {
                 TextField::unfocusAll();
                 }
             break;
+        }
+
+    if( isCommandKeyDown() ) {
+
+        if( inASCII == 'c' || inASCII == 3 ) {
+            // ctrl-c is ETX on some platforms
+            
+            // copy!
+            if( isClipboardSupported() ) {
+                char *log = getRecordedSpeechLog();
+                
+                setClipboardText( log );
+                
+                delete [] log;
+                }
+            }
         }
     }
 

@@ -8,6 +8,7 @@
 #include "lifeTokens.h"
 #include "fitnessScore.h"
 
+#include "settingsToggle.h"
 
 #include "minorGems/game/Font.h"
 #include "minorGems/game/game.h"
@@ -93,6 +94,8 @@ ExistingAccountPage::ExistingAccountPage()
                            translate( "tutorial" ) ),
           mServicesButton( mainFont, -522, 300, 
                            translate( "services" ) ),
+          mAHAPSettingsButton( mainFont, -522, 0, 
+                               translate( "ahapSettings" ) ),
           mPageActiveStartTime( 0 ),
           mFramesCounted( 0 ),
           mFPSMeasureDone( false ),
@@ -121,6 +124,7 @@ ExistingAccountPage::ExistingAccountPage()
     setButtonStyle( &mViewAccountButton );
     setButtonStyle( &mTutorialButton );
     setButtonStyle( &mServicesButton );
+    setButtonStyle( &mAHAPSettingsButton );
 
     setButtonStyle( &mDisableCustomServerButton );
     
@@ -149,6 +153,7 @@ ExistingAccountPage::ExistingAccountPage()
     addComponent( &mViewAccountButton );
     addComponent( &mTutorialButton );
     addComponent( &mServicesButton );
+    addComponent( &mAHAPSettingsButton );
     
     mLoginButton.addActionListener( this );
     mFriendsButton.addActionListener( this );
@@ -171,6 +176,7 @@ ExistingAccountPage::ExistingAccountPage()
     mViewAccountButton.addActionListener( this );
     mTutorialButton.addActionListener( this );
     mServicesButton.addActionListener( this );
+    mAHAPSettingsButton.addActionListener( this );
     
     mDisableCustomServerButton.addActionListener( this );
 
@@ -229,13 +235,27 @@ void ExistingAccountPage::showDisableCustomServerButton( char inShow ) {
 
 void ExistingAccountPage::makeActive( char inFresh ) {
 
-    
+    mAHAPSettingsButton.setVisible( isAHAP );
 
-    if( SettingsManager::getIntSetting( "tutorialDone", 0 ) ) {
+
+    useContentSettings();
+    
+    int tutorialEnabled = 
+        SettingsManager::getIntSetting( "tutorialEnabled", 0 );
+    
+    useMainSettings();
+    
+    
+    if( tutorialEnabled && 
+        SettingsManager::getIntSetting( "tutorialDone", 0 ) ) {
+        
         mTutorialButton.setVisible( true );
         }
     else {
-        // tutorial forced anyway
+        // tutorial disabled,
+        // or 
+        // tutorial enabled, and they haven't completed it yet, so
+        // tutorial forced anyway (don't need to show button for it)
         mTutorialButton.setVisible( false );
         }
     
@@ -392,6 +412,9 @@ void ExistingAccountPage::actionPerformed( GUIComponent *inTarget ) {
         }
     else if( inTarget == &mServicesButton ) {
         setSignal( "services" );
+        }
+    else if( inTarget == &mAHAPSettingsButton ) {
+        setSignal( "ahapSettings" );
         }
     else if( inTarget == &mClearAccountButton ) {
         SettingsManager::setSetting( "email", "" );

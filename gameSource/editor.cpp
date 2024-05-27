@@ -1,4 +1,4 @@
-int versionNumber = 415;
+int versionNumber = 425;
 
 
 
@@ -1860,5 +1860,12 @@ void addBaseObjectToLiveObjectSet( int ) {
     }
 
 
+// implement a NULL versions of these functions to make soundBank happy
+void addMusicSuppression( const char *inActionName ) {
+    }
 
+void removeMusicSuppression( const char *inActionName ) {
+    }
 
+void delayAgingMusic( double inDelaySeconds ) {
+    }

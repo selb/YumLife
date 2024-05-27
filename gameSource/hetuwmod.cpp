@@ -180,6 +180,7 @@ bool HetuwMod::mapZoomOutKeyDown;
 
 int HetuwMod::playersInRangeNum = 0;
 int HetuwMod::iDrawPlayersInRangePanel;
+static bool playersInRangeIncludesSelf = true;
 std::vector<HetuwMod::FamilyInRange> HetuwMod::familiesInRange;
 
 bool HetuwMod::bDrawDeathMessages;
@@ -290,6 +291,8 @@ std::string HetuwMod::phexIp = defaultPhexIP;
 int HetuwMod::phexPort = 6567;
 bool HetuwMod::debugPhex = false;
 bool HetuwMod::phexStartOffline = false;
+bool HetuwMod::phexSkipTOS = false;
+
 
 enum {
 	PHEX_AUTO_SIDE,
@@ -320,6 +323,8 @@ static size_t autoFemaleNameIndex = 0;
 static const char *defaultFontFilename = "font_32_64_yum.tga";
 std::string HetuwMod::fontFilename = defaultFontFilename;
 
+bool HetuwMod::skipRocketCutscene = false;
+
 HetuwFont *HetuwMod::customFont = NULL;
 
 std::string HetuwMod::helpTextSearch[6];
@@ -340,7 +345,18 @@ static unordered_set<std::string> namesSeen;
 
 static bool pendingDropAcknowledgement;
 
+extern char isAHAP;
+
 void HetuwMod::init() {
+	/* this is from vanilla initFrameDrawer(), which is just too late for us */
+	File isAHAPFile( NULL, "isAHAP.txt" );
+    if( isAHAPFile.exists() ) {
+        int val = isAHAPFile.readFileIntContents( 0 );
+        if( val == 1 ) {
+            isAHAP = true;
+            }
+        }
+
 	blobs::font_32_64_yum.write("graphics/font_32_64_yum.tga");
 
 	mouseRelativeToView = {0, 0};
@@ -745,6 +761,9 @@ bool HetuwMod::strContainsDangerousAnimal(const char* str) {
 }
 
 void HetuwMod::initDangerousAnimals() {
+	// bypass for now
+	if (isAHAP) return;
+
 	if (isDangerousAnimal) delete[] isDangerousAnimal;
 	isDangerousAnimal = new bool[maxObjects];
 
@@ -768,6 +787,12 @@ void HetuwMod::initDangerousAnimals() {
 }
 
 void HetuwMod::initClosedDoorIDs() {
+	// bypass for now
+	if (isAHAP) {
+		closedDoorIDsLength = 0;
+		return;
+	}
+
 	if (closedDoorIDs != NULL) {
 		delete[] closedDoorIDs;
 		closedDoorIDs = NULL;
@@ -876,6 +901,7 @@ void HetuwMod::initSettings() {
 		{"server", 2}
 	};
 	yumConfig::registerMappedSetting("init_show_playersinrange", iDrawPlayersInRangePanel, drawPlayersInRangePanelMap, {postComment: " // no, nearby, or server"});
+	yumConfig::registerSetting("playersinrange_counts_self", playersInRangeIncludesSelf);
 	yumConfig::registerSetting("init_show_deathmessages", bDrawDeathMessages);
 	yumConfig::registerSetting("init_show_homecords", bDrawHomeCords);
 	yumConfig::registerSetting("init_show_hostiletiles", bDrawHostileTiles);
@@ -895,6 +921,7 @@ void HetuwMod::initSettings() {
 	};
 	yumConfig::registerMappedSetting("phex_side", phexSide, phexSideMap, {postComment: " // auto = avoid minitech, left = always left, right = always right"});
 	yumConfig::registerSetting("phex_start_offline", phexStartOffline, {postComment: " // disable auto connect to phex"});
+	yumConfig::registerSetting("phex_skip_tos", phexSkipTOS, {postComment: " // skip auto /tos (terms of service) on connect"});
 	yumConfig::registerSetting("send_keyevents", sendKeyEvents, {savePredicate: []() { return sendKeyEvents; }});
 	yumConfig::registerSetting("drawbiomeinfo", bDrawBiomeInfo, {savePredicate: []() { return bDrawBiomeInfo; }});
 
@@ -922,6 +949,7 @@ void HetuwMod::initSettings() {
 
 	yumConfig::registerSetting("draw_mushroom_effect", bRemapStart, {preComment: "\n"});
 	yumConfig::registerSetting("draw_hunger_warning", bDrawHungerWarning);
+	yumConfig::registerSetting("skip_rocket_cutscene", skipRocketCutscene);
 
 	yumConfig::registerSetting("reduce_delay", delayReduction, {preComment: "\n// Reduce action delay by the given percentage, 0-50.\n// Higher values may cause server disconnects.\n"});
 	yumConfig::registerSetting("zoom_limit", zoomLimit, {preComment: "// Set max zoom out. This one goes to 11.\n"});
@@ -1788,6 +1816,9 @@ void HetuwMod::logHomeLocation(HomePos* hp) {
 			typeName = "phex";
 			if (hp->text.length() > 0) typeName += " "+hp->text;
 			break;
+		case hpt_rocket:
+			typeName = "rocket";
+			break;
 		default:
 			typeName = "unknowntype";
 	}
@@ -2291,7 +2322,7 @@ void HetuwMod::drawHostileTiles() {
 		for (int y = startY; y < endY; y++) {
 			int objId = livingLifePage->hetuwGetObjId( x, y );
 			if (objId >= 0 && objId < maxObjects) {
-				if (isDangerousAnimal[objId]) drawTileRect( x, y );
+				if (isDangerousAnimal != NULL && isDangerousAnimal[objId]) drawTileRect( x, y );
 			}
 		}
 	}
@@ -2511,6 +2542,7 @@ void HetuwMod::createCordsDrawStr() {
 	int babyCount = 0;
 	int expertCount = 0;
 	int phexCount = 0;
+	int rocketCount = 0;
 
 	for (unsigned i=0; i<homePosStack.size(); i++) {
 		double dx = double(homePosStack[i]->x) - ourLiveObject->currentPos.x;
@@ -2610,6 +2642,10 @@ void HetuwMod::createCordsDrawStr() {
 				snprintf( sBufA, sizeof(sBufA), "%s %d %d%s", str.c_str(), homePosStack[i]->x+cordOffset.x, homePosStack[i]->y+cordOffset.y, eta.c_str() );
 				phexCount++;
 				break; }
+			case hpt_rocket:
+				snprintf( sBufA, sizeof(sBufA), "ROCKET %c %d %d%s", (char)(rocketCount+65), homePosStack[i]->x+cordOffset.x, homePosStack[i]->y+cordOffset.y, eta.c_str() );
+				rocketCount++;
+				break;
 		}
 		homePosStack[i]->drawStr = string(sBufA);
 
@@ -2653,6 +2689,8 @@ void HetuwMod::setDrawColorToCoordType(homePosType type) {
 		case hpt_phex:
 			setDrawColor( 0.5, 0.5, 0.5, 1.0 );
 			break;
+		case hpt_rocket:
+			setDrawColor( 1.0, 0.8, 0.2, 1.0 );
 	}
 }
 
@@ -3123,6 +3161,7 @@ void HetuwMod::sendEmote(string emoteName) {
 }
 
 void HetuwMod::sendEmote(int emoteId) {
+	if (emoteId == -1) return;
 	string message = "EMOT 0 0 "+to_string(emoteId)+"#";
 	char* cstr = stringDuplicate(message.c_str());
 	livingLifePage->sendToServerSocket(cstr);
@@ -3364,6 +3403,12 @@ bool HetuwMod::livingLifeKeyDown(unsigned char inASCII) {
 	}
 	if (!commandKey && isCharKey(inASCII, charKey_ShowHomeCords)) {
 		bDrawHomeCords = !bDrawHomeCords;
+		return true;
+	}
+	if (!commandKey && isCharKey(inASCII, charKey_ShowPlayersInRange)) {
+		iDrawPlayersInRangePanel++;
+		iDrawPlayersInRangePanel %= 3;
+		familiesInRange.clear();
 		return true;
 	}
 	if (!commandKey && !shiftKey && isCharKey(inASCII, charKey_CreateHome)) {
@@ -3641,12 +3686,6 @@ bool HetuwMod::livingLifeKeyUp(unsigned char inASCII) {
 			r = true;
 		}
 	}
-	if (!commandKey && isCharKey(inASCII, charKey_ShowPlayersInRange)) {
-		iDrawPlayersInRangePanel++;
-		iDrawPlayersInRangePanel %= 3;
-		familiesInRange.clear();
-		r = true;
-	}
 	if (!commandKey && !shiftKey && isCharKey(inASCII, charKey_ShowGrid)) {
 		if (bHoldDownTo_ShowGrid) {
 			bDrawGrid = false;
@@ -3676,6 +3715,18 @@ bool HetuwMod::livingLifeKeyUp(unsigned char inASCII) {
 	return r;
 }
 
+static const std::map<unsigned char, std::string> keyEmoteMap = {
+	{ MG_KEY_F1, "/HMPH" },
+	{ MG_KEY_F2, "/LOVE" },
+	{ MG_KEY_F3, "/OREALLY" },
+	{ MG_KEY_F4, "/SHOCK" },
+	{ MG_KEY_F5, "/POINT" },
+	{ MG_KEY_F6, "/WAIT" },
+	{ MG_KEY_F7, "/WAVE" },
+	{ MG_KEY_F8, "/HERE" },
+	{ MG_KEY_F9, "/UPYOURS" }
+};
+
 bool HetuwMod::livingLifeSpecialKeyDown(unsigned char inKeyCode) {
 	bool commandKey = isCommandKeyDown();
 	bool shiftKey = isShiftKeyDown();
@@ -3697,58 +3748,10 @@ bool HetuwMod::livingLifeSpecialKeyDown(unsigned char inKeyCode) {
 	}
 
 	if (!commandKey && !shiftKey) {
-		if ( inKeyCode == MG_KEY_F1 ) {
+		auto it = keyEmoteMap.find(inKeyCode);
+		if (it != keyEmoteMap.end()) {
+			sendEmote(it->second);
 			currentEmote = -1;
-			char message[] = "EMOT 0 0 12#"; // HMPH
-	        livingLifePage->sendToServerSocket( message );
-			r = true;
-		}
-		if ( inKeyCode == MG_KEY_F2 ) {
-			currentEmote = -1;
-			char message[] = "EMOT 0 0 13#"; // LOVE
-	        livingLifePage->sendToServerSocket( message );
-			r = true;
-		}
-		if ( inKeyCode == MG_KEY_F3 ) {
-			currentEmote = -1;
-			char message[] = "EMOT 0 0 14#"; // OREALLY
-	        livingLifePage->sendToServerSocket( message );
-			r = true;
-		}
-		if ( inKeyCode == MG_KEY_F4 ) {
-			currentEmote = -1;
-			char message[] = "EMOT 0 0 15#"; // SHOCK
-	        livingLifePage->sendToServerSocket( message );
-			r = true;
-		}
-		if ( inKeyCode == MG_KEY_F5 ) {
-			currentEmote = -1;
-			char message[] = "EMOT 0 0 34#"; // POINT
-	        livingLifePage->sendToServerSocket( message );
-			r = true;
-		}
-		if ( inKeyCode == MG_KEY_F6 ) {
-			currentEmote = -1;
-			char message[] = "EMOT 0 0 35#"; // WAIT
-	        livingLifePage->sendToServerSocket( message );
-			r = true;
-		}
-		if ( inKeyCode == MG_KEY_F7 ) {
-			currentEmote = -1;
-			char message[] = "EMOT 0 0 36#"; // WAVE
-	        livingLifePage->sendToServerSocket( message );
-			r = true;
-		}
-		if ( inKeyCode == MG_KEY_F8 ) {
-			currentEmote = -1;
-			char message[] = "EMOT 0 0 37#"; // HERE
-	        livingLifePage->sendToServerSocket( message );
-			r = true;
-		}
-		if ( inKeyCode == MG_KEY_F9 ) {
-			currentEmote = -1;
-			char message[] = "EMOT 0 0 38#"; // UPYOURS
-	        livingLifePage->sendToServerSocket( message );
 			r = true;
 		}
 	}
@@ -3878,7 +3881,7 @@ bool HetuwMod::tileHasNoDangerousAnimals(int x, int y) {
 		if (objId == 645) return false; // Fed Grizzly Bear
 		if (objId == 4762) return false; // Sleepy Grizzly Bear
 	} else { // moving by walking / not riding
-		if (objId < maxObjects && isDangerousAnimal[objId]) return false;
+		if (objId < maxObjects && isDangerousAnimal != NULL && isDangerousAnimal[objId]) return false;
 	}
 	return true;
 }
@@ -4183,6 +4186,8 @@ bool HetuwMod::compareFamilies(const FamilyInRange &a, const FamilyInRange &b) {
 	if (a.eveID == ourLiveObject->lineageEveID && b.eveID != a.eveID) {
 		// always sort our family first
 		return true;
+	} else if (b.eveID == ourLiveObject->lineageEveID && a.eveID != b.eveID) {
+		return false;
 	} else if (a.count > b.count) {
 		return true;
 	} else if (b.count > a.count) {
@@ -4213,6 +4218,10 @@ void HetuwMod::updatePlayersInRangePanel() {
 			int distY = o->yd - ourLiveObject->yd;
 			if ( distY > hetuwPlayersInRangeDistance || distY < -hetuwPlayersInRangeDistance)
 				continue;
+		}
+
+		if (!playersInRangeIncludesSelf && o == ourLiveObject) {
+			continue;
 		}
 
 		playersInRangeNum++;
@@ -4257,7 +4266,29 @@ void HetuwMod::updatePlayersInRangePanel() {
 		}
 	}
 
+	FamilyInRange soloEveFam;
+	soloEveFam.name = "SOLO EVES";
+	soloEveFam.count = 0;
+	soloEveFam.youngWomenCount = 0;
+	soloEveFam.generation = 1;
+	soloEveFam.eveID = 0;
+	soloEveFam.raceName = "";
+
+	for (ssize_t i = 0; i < (ssize_t)familiesInRange.size(); i++) {
+		FamilyInRange &fam = familiesInRange[i];
+		if (fam.generation == 1 && fam.count == 1 && fam.eveID != ourLiveObject->lineageEveID) {
+			soloEveFam.count += fam.count;
+			soloEveFam.youngWomenCount += fam.youngWomenCount;
+			familiesInRange.erase(familiesInRange.begin() + i);
+			i--;
+		}
+	}
+
 	sort(familiesInRange.begin(), familiesInRange.end(), compareFamilies);
+
+	if (soloEveFam.count != 0) {
+		familiesInRange.push_back(soloEveFam);
+	}
 }
 
 void HetuwMod::onOurDeath() {
@@ -4329,7 +4360,7 @@ void HetuwMod::onPlayerUpdate( LiveObject* inO, const char* line ) {
 			strKillerId += sstr[i]; 
 		}
 		int killerObjId = stoi(strKillerId); // object id - like knife or grizzly bear
-		if (killerObjId >= 0 && killerObjId < maxObjects && isDangerousAnimal[killerObjId]) {
+		if (killerObjId >= 0 && killerObjId < maxObjects && isDangerousAnimal != NULL && isDangerousAnimal[killerObjId]) {
 			deathMsg->deathReason = 1; // animal
 		}
 		ObjectRecord *ko = getObject( killerObjId );

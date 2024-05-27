@@ -135,6 +135,9 @@ git checkout -q AnotherPlanet_v\$lastTaggedDataVersion
 
 cd ../OneLife/server
 
+
+echo "http://onehouronelife.com/ahapGate/server.php" > settings/ahapGateURL.ini
+
 echo "http://onehouronelife.com/ahapTicketServer/server.php" > settings/ticketServerURL.ini
 echo "http://onehouronelife.com/ahapReflector/server.php" > settings/reflectorURL.ini
 
@@ -157,6 +160,7 @@ ln -s ../../$dataName/categories .
 ln -s ../../$dataName/tutorialMaps .
 ln -s ../../$dataName/dataVersionNumber.txt .
 ln -s ../../$dataName/isAHAP.txt .
+ln -s ../../$dataName/contentSettings .
 
 git for-each-ref --sort=-creatordate --format '%(refname:short)' --count=1 refs/tags/OneLife_v* | sed -e 's/OneLife_v//' > serverCodeVersionNumber.txt
 

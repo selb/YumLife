@@ -3,6 +3,209 @@ This file only list changes to game code.  Changes to content can be found here:
 http://onehouronelife.com/updateLog.php
 
 
+
+Version 425   2024-May-10
+
+--PLANET settings page now allows you to specify your PayPal email address,
+  which will be used for delivering your revshare for content you contribute
+  to AHAP.
+
+--ahapTechTreeURL changed to ahap.info    Fixes #1065
+
+--Ctrl-c in-game now copies recent speech log, from past 30 seconds, to system
+  clipboard.  This will help non-English-speaking users who are trying to paste
+  speech into translation services.  Fixes #1029
+
+--Added a lot more logging around required version numbers when PLEASE UPGRADE
+  error pages are shown.
+
+--Fixed so that Object Editor doesn't allow baking of non-90 rotated sprites
+  (which were being rounded, by surprise, to closest 90-degree rotation).
+  It now shows a message explaining why the bake cannot occur.  Fixes #1070
+
+--Slider for simulating uses in Object Editor now works the same way as slider
+  in Scene editor.  Fixes #1073
+
+--Fixed bug that was causing author= line in transition files to get
+  interpreted as comment if transition had no comment, resulting in
+  duplication of author= line when transition was saved again.  Fixes #1071
+
+--When using import_replace folder, if an object ID doesn't exist, the next
+  object ID is used instead of inflating the local object ID space by
+  force-inserting an ID.  Fixes #1072
+
+--Fixed glitch in rolling back object ID and sprite ID when deleting last item
+  in bank (to prevent ID inflation).
+
+
+
+
+
+Server Fixes:
+
+--Fixed typo in protocol.txt for server.  Fixes #1066  Thanks 4ferrocyanide  
+
+--ahapGate now has show_vote_stats call.  Part of #1064
+
+--Life Log stats (public data) now include status=N for normal player or
+  status=D for d-town player.  Fixes #1041
+
+--Fixed major bug when maxFlightDistanced.ini is 0 (current setting), which was
+  preventing planes from landing anywhere but closest landing pad.
+  Part of #1040
+
+--Server now saves known landing positions to landingLocations.txt to re-load
+  after next server startup, so landing pads aren't forgotten across server
+  restarts.  Part of #1040
+
+--Improved messaging to player when building something fails due to nearPop
+  restrictions.  If the required distance is short (less than 200), then we
+  tell them specifically how many people need to be nearby.  This is in
+  preparation for using this feature for rocket pads, which will need to be
+  built in villages with lots of people very close by.
+
+
+
+
+
+Version 423    2024-May-3
+
+--Fixed so that aging-triggered music is delayed while rocket animation is
+  playing (since aging is paused during the animation).
+
+--Fixed so that sound/music demos for sliders on Settings page continue to
+  work when revisiting Settings page after living a life.
+
+--Support for playing Tom's music_99.ogg during YOU WON page.
+
+
+
+Server Fixes:
+
+--Support for periodic placements, to allow AHAP orbital locations to spawn
+  every eleven hours.
+
+--Fixed server crash when connecting to ahapGate fails (like when operating as
+  a local test server).
+
+--Blocked reflector log messages about individual server spreading and
+  stop-spreading, since individual server spreading code no longer used, and
+   that logging was misleading.
+
+
+
+
+Version 419   2024-April-26
+
+--Client displays current leader, and accepts leader vote, as github account
+  name instead of email.
+
+--tutorialEnabled setting now in contentSettings, and obeyed by client too.
+
+--Windows client bundles now include OneLifeServer.
+
+--Windows client bundles now included helper BAT scripts for AHAP Content
+  Leader.
+
+--Fixed frame-rate re-detect butto to actually show quit screen (when relaunch
+  fails) on platforms like Windows that don't support auto-relaunch.
+
+--Whoops, rogue countingOnVsync and targetFrameRate settings files were getting
+  included in windows client builds by accident.  Build scripts now make sure
+  those settings get removed.
+
+--Fixed so that parts of rocket can be drawn behind player during take-off.
+
+
+
+
+Server Fixes:
+
+--ahapGate now receives leader votes, and returns current leader, using
+  leader's Github account name instead of email.  Game server does the same.
+
+
+
+
+Version 418   2024-April-22
+
+--Fixed player swap in rocket animation that was being caused by passing
+  pointer to an item in a mutable vector of players (so that if a player dies
+  or joins and changes the vector, the player being pointed to would change).
+
+--Added support for paste into fields in AHAP Settings (PLANET) screen.
+
+
+
+
+Server Fixes:
+
+--New tutorialEnabled setting for server, so AHAP servers can skip tutorial.
+
+--Added rocketEnable server setting, to ensure that rockets can only take off
+  from bigserver2.
+
+--Fixed updateGate so that error message doesn't divulge content leader email.
+
+--Support for Rode Rocket as cause of death in family tree server.
+
+
+
+
+Version 416   2024-April-21
+
+--Fixed a memory leak in transitionBank.
+
+--Fixed crash if a soundBank sound is not mono and thus fails to load.
+
+--Support for stereo OGG files in soundBank.
+
+--Support for suppressing music when a longer (usually OGG) soundBank sound
+  plays.  Hunger chime music suppression also uses this same new supression
+  system now.
+
+--Added support for LNCH arrow to rocket site.  Fixed so that monument arrows
+  are displayed even if player is too close to the monument to hear the distant
+  sound (before, if they were too close to hear the distant sound, no arrow
+  would be added for them, even if they walked away later).
+
+--Support for showing rocket launch scene to all players, server-wide.
+
+--Support in client for displaying AHAP Grant result to player who rode rocket.
+
+--Support for AHAP settings in client (so that player can specify their github
+  account name and vote for content leader).
+
+--Support in client/server protocol for all these things.
+
+
+
+
+Server Fixes:
+
+--AHAP Steam Build script now includes snapshot of most recent AHAP content
+  data, so that new users on Steam don't face a huge content download as their
+  initial experience.  Note that as AHAP development progresses, binary updates
+  will be infrequent, so the content included with the Steam binary bundle will
+  lag behind over time.  But at least they won't have to download absolutely
+  every bit of content from scratch (there's already about 50MB of it, just in
+  the starter content alone).
+
+--New script for bundling latest AHAP data with most recent base Windows and
+  Linux binary distributions (what people first download to play AHAP
+  off-Steam).
+
+--New ahapGate web service for granting AHAP to people, passing out Steam keys,
+  and tracking content leader votes.
+
+--Support for server triggering rocket ride, and stalling all hunger and aging
+  while players watch the animation server-wide.
+
+--Support for updating AHAP servers too in postPlatformDiffBundle script.
+
+
+
+
 Version 415   2024-March-15
 
 --Moving bulk download portion of a web request into a separate thread for

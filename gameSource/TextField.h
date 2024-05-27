@@ -33,6 +33,8 @@ class TextField : public PageComponent, public ActionListenerList {
         // automatically becomes non-hidden when focused
         void setContentsHidden( char inHidden );
         
+        void setCursorHidden( char inHidden );
+
 
         // copied internally
         void setText( const char *inText );
@@ -169,7 +171,8 @@ class TextField : public PageComponent, public ActionListenerList {
     protected:
         char mActive;
         char mContentsHidden;
-        
+        char mCursorHidden;
+
         SpriteHandle mHiddenSprite;
         
 

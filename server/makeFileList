@@ -67,7 +67,8 @@ specialBiomes.cpp \
 cravings.cpp \
 offspringTracker.cpp \
 ipBanList.cpp \
-
+ahapGate.cpp \
+periodicPlacements.cpp \
 
 
 GAME_GRAPHICS = 
@@ -92,6 +93,7 @@ NEEDED_MINOR_GEMS_OBJECTS = \
  ${NETWORK_FUNCTION_LOCKS_O} \
  ${LOOKUP_THREAD_O} \
  ${WEB_REQUEST_O} \
+ ${WEB_REQUEST_COMPLETION_THREAD_O} \
  ${URL_UTILS_O} \
  ${SETTINGS_MANAGER_O} \
  ${FINISHED_SIGNAL_THREAD_O} \
