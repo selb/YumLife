@@ -1,9 +1,9 @@
-int versionNumber = 425;
+int versionNumber = 427;
 int dataVersionNumber = 0;
 
 int binVersionNumber = versionNumber;
 
-const char *yumSubVersion = ".1";
+const char *yumSubVersion = "";
 
 // Note to modders:
 // Please use this tag to describe your client honestly and uniquely
