@@ -4,111 +4,81 @@ project(YumLife)
 
 set(CMAKE_CXX_STANDARD 14)
 
+set(MINORGEMS_COMMON_SOURCE_FILES
+    minorGems/graphics/openGL/ScreenGL_SDL.cpp
+    minorGems/graphics/openGL/SingleTextureGL.cpp
+    minorGems/util/stringUtils.cpp
+    minorGems/util/StringBufferOutputStream.cpp
+    minorGems/util/ByteBufferInputStream.cpp
+    minorGems/util/TranslationManager.cpp
+    minorGems/network/NetworkFunctionLocks.cpp
+    minorGems/network/LookupThread.cpp
+    minorGems/network/web/WebRequest.cpp
+    minorGems/network/web/WebRequestCompletionThread.cpp
+    minorGems/network/web/URLUtils.cpp
+    minorGems/util/SettingsManager.cpp
+    minorGems/system/FinishedSignalThread.cpp
+    minorGems/system/StopSignalThread.cpp
+    minorGems/crypto/hashes/sha1.cpp
+    minorGems/formats/encodingUtils.cpp
+    minorGems/util/log/Log.cpp
+    minorGems/util/log/AppLog.cpp
+    minorGems/util/log/FileLog.cpp
+    minorGems/util/log/PrintLog.cpp
+    minorGems/util/printUtils.cpp
+    minorGems/game/platforms/SDL/gameSDL.cpp
+    minorGems/game/platforms/openGL/gameGraphicsGL.cpp
+    minorGems/game/platforms/openGL/SpriteGL.cpp
+    minorGems/game/doublePair.cpp
+    minorGems/game/Font.cpp
+    minorGems/game/drawUtils.cpp
+    minorGems/game/platforms/SDL/DemoCodeChecker.cpp
+    minorGems/sound/formats/aiff.cpp
+    minorGems/sound/audioNoClip.cpp
+    minorGems/sound/filters/SoundSamples.cpp
+    minorGems/sound/filters/ReverbSoundFilter.cpp
+    minorGems/sound/filters/coefficientFilters.cpp
+    minorGems/crypto/keyExchange/curve25519.cpp
+    minorGems/crypto/cryptoRandom.cpp
+    minorGems/game/diffBundle/client/diffBundleClient.cpp
+    minorGems/util/StringTree.cpp
+    minorGems/util/crc32.cpp
+)
+
 if (WIN32)
-    set(MINORGEMS_SOURCE_FILES
-        minorGems/graphics/openGL/ScreenGL_SDL.cpp
-        minorGems/graphics/openGL/SingleTextureGL.cpp
+    set(MINORGEMS_PLATFORM_SOURCE_FILES
         minorGems/io/win32/TypeIOWin32.cpp
-        minorGems/util/stringUtils.cpp
-        minorGems/util/StringBufferOutputStream.cpp
-        minorGems/util/ByteBufferInputStream.cpp
         minorGems/io/file/win32/PathWin32.cpp
         minorGems/system/win32/TimeWin32.cpp
         minorGems/system/win32/ThreadWin32.cpp
         minorGems/system/win32/MutexLockWin32.cpp
         minorGems/system/win32/BinarySemaphoreWin32.cpp
-        minorGems/util/TranslationManager.cpp
         minorGems/network/win32/SocketWin32.cpp
         minorGems/network/win32/HostAddressWin32.cpp
         minorGems/network/win32/SocketClientWin32.cpp
         minorGems/network/win32/SocketServerWin32.cpp
-        minorGems/network/NetworkFunctionLocks.cpp
-        minorGems/network/LookupThread.cpp
-        minorGems/network/web/WebRequest.cpp
-        minorGems/network/web/WebRequestCompletionThread.cpp
-        minorGems/network/web/URLUtils.cpp
-        minorGems/util/SettingsManager.cpp
-        minorGems/system/FinishedSignalThread.cpp
-        minorGems/system/StopSignalThread.cpp
-        minorGems/crypto/hashes/sha1.cpp
-        minorGems/formats/encodingUtils.cpp
         minorGems/io/file/win32/DirectoryWin32.cpp
-        minorGems/util/log/Log.cpp
-        minorGems/util/log/AppLog.cpp
-        minorGems/util/log/FileLog.cpp
-        minorGems/util/log/PrintLog.cpp
-        minorGems/util/printUtils.cpp
-        minorGems/game/platforms/SDL/gameSDL.cpp
-        minorGems/game/platforms/openGL/gameGraphicsGL.cpp
-        minorGems/game/platforms/openGL/SpriteGL.cpp
-        minorGems/game/doublePair.cpp
-        minorGems/game/Font.cpp
-        minorGems/game/drawUtils.cpp
-        minorGems/game/platforms/SDL/DemoCodeChecker.cpp
-        minorGems/sound/formats/aiff.cpp
-        minorGems/sound/audioNoClip.cpp
-        minorGems/sound/filters/SoundSamples.cpp
-        minorGems/sound/filters/ReverbSoundFilter.cpp
-        minorGems/sound/filters/coefficientFilters.cpp
-        minorGems/crypto/keyExchange/curve25519.cpp
-        minorGems/crypto/cryptoRandom.cpp
-        minorGems/game/diffBundle/client/diffBundleClient.cpp
-        minorGems/util/StringTree.cpp
-        minorGems/util/crc32.cpp
     )
 else()
-    set(MINORGEMS_SOURCE_FILES
-        minorGems/graphics/openGL/ScreenGL_SDL.cpp
-        minorGems/graphics/openGL/SingleTextureGL.cpp
+    set(MINORGEMS_PLATFORM_SOURCE_FILES
         minorGems/io/linux/TypeIOLinux.cpp
-        minorGems/util/stringUtils.cpp
-        minorGems/util/StringBufferOutputStream.cpp
-        minorGems/util/ByteBufferInputStream.cpp
         minorGems/io/file/linux/PathLinux.cpp
-        minorGems/system/unix/TimeUnix.cpp
         minorGems/system/linux/ThreadLinux.cpp
         minorGems/system/linux/MutexLockLinux.cpp
         minorGems/system/linux/BinarySemaphoreLinux.cpp
-        minorGems/util/TranslationManager.cpp
         minorGems/network/linux/SocketLinux.cpp
         minorGems/network/linux/HostAddressLinux.cpp
         minorGems/network/linux/SocketClientLinux.cpp
         minorGems/network/linux/SocketServerLinux.cpp
-        minorGems/network/NetworkFunctionLocks.cpp
-        minorGems/network/LookupThread.cpp
-        minorGems/network/web/WebRequest.cpp
-        minorGems/network/web/WebRequestCompletionThread.cpp
-        minorGems/network/web/URLUtils.cpp
-        minorGems/util/SettingsManager.cpp
-        minorGems/system/FinishedSignalThread.cpp
-        minorGems/system/StopSignalThread.cpp
-        minorGems/crypto/hashes/sha1.cpp
-        minorGems/formats/encodingUtils.cpp
+        minorGems/system/unix/TimeUnix.cpp
         minorGems/io/file/unix/DirectoryUnix.cpp
-        minorGems/util/log/Log.cpp
-        minorGems/util/log/AppLog.cpp
-        minorGems/util/log/FileLog.cpp
-        minorGems/util/log/PrintLog.cpp
-        minorGems/util/printUtils.cpp
-        minorGems/game/platforms/SDL/gameSDL.cpp
-        minorGems/game/platforms/openGL/gameGraphicsGL.cpp
-        minorGems/game/platforms/openGL/SpriteGL.cpp
-        minorGems/game/doublePair.cpp
-        minorGems/game/Font.cpp
-        minorGems/game/drawUtils.cpp
-        minorGems/game/platforms/SDL/DemoCodeChecker.cpp
-        minorGems/sound/formats/aiff.cpp
-        minorGems/sound/audioNoClip.cpp
-        minorGems/sound/filters/SoundSamples.cpp
-        minorGems/sound/filters/ReverbSoundFilter.cpp
-        minorGems/sound/filters/coefficientFilters.cpp
-        minorGems/crypto/keyExchange/curve25519.cpp
-        minorGems/crypto/cryptoRandom.cpp
-        minorGems/game/diffBundle/client/diffBundleClient.cpp
-        minorGems/util/StringTree.cpp
-        minorGems/util/crc32.cpp
     )
 endif()
+
+set(MINORGEMS_SOURCE_FILES
+    ${MINORGEMS_COMMON_SOURCE_FILES}
+    ${MINORGEMS_PLATFORM_SOURCE_FILES}
+)
 
 set(CLIENT_SOURCE_FILES
     gameSource/minitech.cpp
