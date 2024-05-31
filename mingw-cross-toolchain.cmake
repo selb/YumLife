@@ -1,5 +1,5 @@
 set(CMAKE_SYSTEM_NAME Windows)
-set(CMAKE_SYSTEM_PROCESSOR i686) # or i686 for 32-bit
+set(CMAKE_SYSTEM_PROCESSOR i686)
 
 # specify the cross compiler
 set(CMAKE_C_COMPILER /usr/bin/i686-w64-mingw32-gcc)
