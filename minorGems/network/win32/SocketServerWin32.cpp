@@ -25,7 +25,7 @@
 
 #include "minorGems/network/SocketServer.h"
 
-#include <Winsock.h>
+#include <winsock.h>
 #include <stdio.h>
 
 

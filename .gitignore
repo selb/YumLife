@@ -35,7 +35,10 @@ server/objects
 server/transitions
 
 build/
+crossbuild/
 SDL-1.2.15/
+SDL-devel-1.2.15-mingw32.tar.gz
+._SDL-1.2.15
 
 .vscode/
 *.code-workspace

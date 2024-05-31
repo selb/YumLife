@@ -37,7 +37,7 @@
 #include "minorGems/network/NetworkFunctionLocks.h"
 #include "minorGems/system/MutexLock.h"
 
-#include <Winsock.h>
+#include <winsock.h>
 #include <stdlib.h>
 #include <stdio.h>
 
