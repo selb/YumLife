@@ -113,7 +113,7 @@ make -j8
 ### Both (for release)
 
 The `build-release.sh` script will perform a fresh build of both Windows and Linux executables in `relbuild/`. If you
-symlink your AHAP and/or OHOl directories to `~/ahap` and `~/ohol` respectively, they will be copied there for easy
+symlink your AHAP and/or OHOL directories to `~/ahap` and `~/ohol` respectively, they will be copied there for easy
 verification.
 
 ## Windows
