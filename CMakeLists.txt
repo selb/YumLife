@@ -175,7 +175,7 @@ if(WIN32)
         message(FATAL_ERROR "SDL directory not found: ${SDL_DIR}")
     endif()
 
-    add_executable(YumLife_windows ${CLIENT_SOURCE_FILES} ${MINORGEMS_SOURCE_FILES})
+    add_executable(YumLife_windows ${CLIENT_SOURCE_FILES} ${MINORGEMS_SOURCE_FILES} icon.rc)
     target_compile_options(YumLife_windows PRIVATE ${CLIENT_COMPILE_OPTIONS})
     target_link_libraries(YumLife_windows opengl32 glu32 mingw32 SDLmain SDL wsock32 winmm)
     target_link_options(YumLife_windows PRIVATE -mwindows -static-libstdc++ -static-libgcc)
