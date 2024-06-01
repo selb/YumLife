@@ -61,7 +61,21 @@ Compiling on Linux is recommended for release builds, but a native build on Wind
 
 ## Linux
 
-### For Linux
+### Debian/Ubuntu Dependencies
+
+For a Linux build only:
+
+```
+sudo apt install g++ make cmake libsdl1.2-dev libglu-dev libgl-dev
+```
+
+For a Windows cross build:
+
+```
+sudo apt install g++-mingw-w64-i686-win32
+```
+
+### Building for Linux
 
 Make and switch to a build directory:
 
@@ -78,7 +92,7 @@ cmake .. && make -j8
 
 The configuration step may fail due to missing libraries; install these from your distro's package manager and repeat until it succeeds.
 
-### For Windows (cross-compiling)
+### Building for Windows (cross-compiling)
 
 Download and extract [SDL 1.2.15](https://www.libsdl.org/release/SDL-devel-1.2.15-mingw32.tar.gz), placing the `SDL-1.2.15` directory in the root of the repo:
 
