@@ -96,6 +96,12 @@ cmake -DCMAKE_TOOLCHAIN_FILE=../mingw-cross-toolchain.cmake ..
 make -j8
 ```
 
+### Both (for release)
+
+The `build-release.sh` script will perform a fresh build of both Windows and Linux executables in `relbuild/`. If you
+symlink your AHAP and/or OHOl directories to `~/ahap` and `~/ohol` respectively, they will be copied there for easy
+verification.
+
 ## Windows
 
 Download and extract [SDL 1.2.15](https://www.libsdl.org/release/SDL-devel-1.2.15-mingw32.tar.gz), placing the `SDL-1.2.15` directory in the root of the repo.

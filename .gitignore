@@ -36,6 +36,7 @@ server/transitions
 
 build/
 crossbuild/
+relbuild/
 SDL-1.2.15/
 SDL-devel-1.2.15-mingw32.tar.gz
 ._SDL-1.2.15
