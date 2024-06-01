@@ -57,6 +57,45 @@ Open a bug report using the Issues tab above.
 
 # Compiling
 
+Compiling on Linux is recommended for release builds, but a native build on Windows is possible for development use.
+
+## Linux
+
+### For Linux
+
+Make and switch to a build directory:
+
+```
+mkdir build
+cd build
+```
+
+Configure and build:
+
+```
+cmake .. && make -j8
+```
+
+The configuration step may fail due to missing libraries; install these from your distro's package manager and repeat until it succeeds.
+
+### For Windows (cross-compiling)
+
+Download and extract [SDL 1.2.15](https://www.libsdl.org/release/SDL-devel-1.2.15-mingw32.tar.gz), placing the `SDL-1.2.15` directory in the root of the repo:
+
+```
+curl -O https://www.libsdl.org/release/SDL-devel-1.2.15-mingw32.tar.gz
+tar zxvf SDL-devel-1.2.15-mingw32.tar.gz
+```
+
+Then build with the included `mingw-cross-toolchain.cmake`, customizing it if necessary if you're on a non-Debian/Ubuntu distro:
+
+```
+mkdir crossbuild
+cd crossbuild
+cmake -DCMAKE_TOOLCHAIN_FILE=../mingw-cross-toolchain.cmake ..
+make -j8
+```
+
 ## Windows
 
 Download and extract [SDL 1.2.15](https://www.libsdl.org/release/SDL-devel-1.2.15-mingw32.tar.gz), placing the `SDL-1.2.15` directory in the root of the repo.
@@ -88,43 +127,14 @@ $ cd /c/Users/yourname/wherever/you/cloned/this/repo
 $ mkdir build
 $ cd build
 $ cmake ..
-$ cmake --build .
+$ cmake --build . -j
 ```
 
 YumLife_windows.exe will be in that `build/` directory.
 
-## Linux
-
-### For Linux
-
-```
-mkdir build
-cd build
-```
-
-Repeat until you have all the correct development libraries installed:
-
-```
-cmake .. && make -j8
-```
-
-### For Windows (cross-compiling)
-
-Download and extract [SDL 1.2.15](https://www.libsdl.org/release/SDL-devel-1.2.15-mingw32.tar.gz), placing the `SDL-1.2.15` directory in the root of the repo:
-
-```
-curl -O https://www.libsdl.org/release/SDL-devel-1.2.15-mingw32.tar.gz
-tar zxvf SDL-devel-1.2.15-mingw32.tar.gz
-```
-
-Then build with the included `mingw-cross-toolchain.cmake`, customizing it if necessary if you're on a non-Debian/Ubuntu distro:
-
-```
-mkdir crossbuild
-cd crossbuild
-cmake -DCMAKE_TOOLCHAIN_FILE=../mingw-cross-toolchain.cmake ..
-make -j8
-```
+You will need to copy the libwinpthread-1.dll from MSYS (typically at `C:\msys64\mingw32\bin\libwinpthread-1.dll`) to
+your OHOL directory to be able to use a .exe built in this way. Because of this additional dependency introduced by
+MSYS, distributing this .exe is not recommended.
 
 # Merging upstream changes
 
