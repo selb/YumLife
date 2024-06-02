@@ -4350,7 +4350,7 @@ void HetuwMod::onPlayerUpdate( LiveObject* inO, const char* line ) {
 	string strLine(line);
 	string reasonKilled = "reason_killed_"; // reason_killed_
 	size_t reasonKilledIndex = strLine.find(reasonKilled);
-	char description[128] = "";
+	char description[256] = "";
 	if (reasonKilledIndex != string::npos) {
 		deathMsg->deathReason = 2; // killer
 		string sstr = strLine.substr(reasonKilledIndex + reasonKilled.length());
@@ -4903,7 +4903,7 @@ void HetuwMod::setHelpColorSpecial() {
 
 void HetuwMod::drawHelp() {
 	float guiScale = (guiScaleRaw+0.1) * zoomScale;
-	char str[128];
+	char str[256] = "";
 	setDrawColor( 0, 0, 0, 0.8 );
 	drawRect( lastScreenViewCenter, viewWidth/2, viewHeight/2 );
 

@@ -1111,7 +1111,7 @@ inline uint64_t File::readFileUInt64Contents( uint64_t inDefaultValue ) {
     uint64_t val;
     
     #ifdef WIN32
-    int numRead = sscanf( cont, "%I64u", &val );
+    int numRead = sscanf( cont, "%llu", &val );
     #else
     int numRead = sscanf( cont, "%" SCNu64, &val );
     #endif
@@ -1187,7 +1187,7 @@ inline char File::writeToFile( int inInt ) {
 
 inline char File::writeToFile( uint64_t inInt ) {
     #ifdef WIN32
-    char *stringVal = autoSprintf( "%I64u", inInt );
+    char *stringVal = autoSprintf( "%llu", inInt );
     #else
     char *stringVal = autoSprintf( "%" PRIu64, inInt );
     #endif

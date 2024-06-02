@@ -1480,23 +1480,6 @@ static bool isAllDigits( std::string &str ) {
     return std::all_of(str.begin(), str.end(), ::isdigit);
     }
 
-// Checks for a potential container change caused by containment transitions
-// We could check all the changed contained objects and all the IN and OUT transitions
-// But it suffices for now to just check for
-// a change in the container and that both containers having the useOnContained tag
-static bool potentialContainerChangebyContTrans( int oldId, int newId ) { 
-    if( oldId == newId ) return false;
-    int maxObjectID = getMaxObjectID();
-    if( oldId <= 0 || newId <= 0 || oldId > maxObjectID || newId > maxObjectID ) return false;
-    ObjectRecord *oldObj = getObject( oldId );
-    ObjectRecord *newObj = getObject( newId );
-    if( oldObj == NULL || newObj == NULL ) return false;
-    if( oldObj->description == NULL || newObj->description == NULL ) return false;
-    if( strstr( oldObj->description, "+useOnContained" ) != NULL &&
-        strstr( newObj->description, "+useOnContained" ) != NULL )
-        return true;
-    return false;
-}
 
 typedef enum messageType {
     SHUTDOWN,
