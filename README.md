@@ -152,6 +152,8 @@ $ cmake --build . -j
 
 YumLife_windows.exe will be in that `build/` directory.
 
+### Caveats
+
 You will need to copy the libwinpthread-1.dll from MSYS (typically at `C:\msys64\mingw32\bin\libwinpthread-1.dll`) to
 your OHOL directory to be able to use a .exe built in this way. Because of this additional dependency introduced by
 MSYS, distributing this .exe is not recommended.
