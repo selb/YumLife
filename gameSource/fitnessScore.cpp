@@ -829,3 +829,6 @@ char isFitnessScoreReady() {
     }
 
 
+const char * getLeaderboardName() {
+    return leaderboardName;
+}

@@ -22,6 +22,7 @@
 #include "hetuwFont.h"
 #include "yumBlob.h"
 #include "yumConfig.h"
+#include "fitnessScore.h"
 
 using namespace std;
 
@@ -1459,6 +1460,13 @@ void HetuwMod::gameStep() {
 
 	stepHttpRequests();
 	Phex::onGameStep();
+
+	static std::string leaderboardLogged;
+	const char *leaderboardName = getLeaderboardName();
+	if (leaderboardName != NULL && leaderboardLogged != leaderboardName) {
+		writeLineToLogs("leaderboard_name", leaderboardName);
+		leaderboardLogged = leaderboardName;
+	}
 }
 
 void HetuwMod::livingLifeStep() {

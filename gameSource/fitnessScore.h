@@ -13,6 +13,8 @@ void triggerFitnessScoreDetailsUpdate();
 
 // false if either have been triggered and result not ready yet
 char isFitnessScoreReady();
+// NULL if not ready
+const char * getLeaderboardName();
 
 
 // These draw nothing if latest data (after last trigger) not ready yet
