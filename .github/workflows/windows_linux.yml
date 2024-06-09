@@ -17,7 +17,7 @@ jobs:
       - name: packages
         run: |
           sudo apt-get update
-          sudo apt-get install libsdl1.2-dev libglu1-mesa-dev libgl1-mesa-dev mingw-w64
+          sudo apt-get install g++ make cmake libsdl1.2-dev libglu-dev libgl-dev g++-mingw-w64-i686-win32
       - name: SDL
         run: |
           curl -O https://www.libsdl.org/release/SDL-devel-1.2.15-mingw32.tar.gz
