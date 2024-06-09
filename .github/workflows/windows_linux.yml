@@ -14,6 +14,10 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v2
+      - name: packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install mingw-w64
       - name: scripts
         run: |
           ls
