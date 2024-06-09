@@ -13,6 +13,7 @@ jobs:
       fail-fast: true
     runs-on: ${{ matrix.os }}
     steps:
+      - uses: actions/checkout@v2
       - name: scripts
         run: |
           ls
