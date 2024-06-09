@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.13)
 
 project(YumLife)
 
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 14)
 
 set(MINORGEMS_COMMON_SOURCE_FILES
     minorGems/graphics/openGL/ScreenGL_SDL.cpp
@@ -50,6 +50,8 @@ if (WIN32)
         minorGems/io/win32/TypeIOWin32.cpp
         minorGems/io/file/win32/PathWin32.cpp
         minorGems/system/win32/TimeWin32.cpp
+        minorGems/system/win32/ThreadWin32.cpp
+        minorGems/system/win32/MutexLockWin32.cpp
         minorGems/system/win32/BinarySemaphoreWin32.cpp
         minorGems/network/win32/SocketWin32.cpp
         minorGems/network/win32/HostAddressWin32.cpp
@@ -61,6 +63,8 @@ else()
     set(MINORGEMS_PLATFORM_SOURCE_FILES
         minorGems/io/linux/TypeIOLinux.cpp
         minorGems/io/file/linux/PathLinux.cpp
+        minorGems/system/linux/ThreadLinux.cpp
+        minorGems/system/linux/MutexLockLinux.cpp
         minorGems/system/linux/BinarySemaphoreLinux.cpp
         minorGems/network/linux/SocketLinux.cpp
         minorGems/network/linux/HostAddressLinux.cpp
