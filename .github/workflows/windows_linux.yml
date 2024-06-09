@@ -18,9 +18,12 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install libsdl1.2-dev libglu1-mesa-dev libgl1-mesa-dev mingw-w64
+      - name: SDL
+        run: |
+          curl -O https://www.libsdl.org/release/SDL-devel-1.2.15-mingw32.tar.gz
+          tar zxvf SDL-devel-1.2.15-mingw32.tar.gz
       - name: scripts
         run: |
-          ls
           ./build-release.sh
       - name: create release
         id: create_release
