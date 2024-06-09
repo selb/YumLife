@@ -17,7 +17,7 @@ jobs:
       - name: packages
         run: |
           sudo apt-get update
-          sudo apt-get install mingw-w64
+          sudo apt-get install libsdl1.2-dev libglu1-mesa-dev libgl1-mesa-dev mingw-w64
       - name: scripts
         run: |
           ls
