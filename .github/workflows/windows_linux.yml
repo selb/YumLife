@@ -15,6 +15,7 @@ jobs:
     steps:
       - name: scripts
         run: |
+          ls
           ./build-release.sh
       - name: create release
         id: create_release
