@@ -1,0 +1,47 @@
+on: 
+  workflow_dispatch:
+    inputs:
+      release_name:
+        description: Release Name
+        required: true
+        type: string
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+      fail-fast: true
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: scripts
+        run: |
+          ./build-release.sh
+      - name: create release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ inputs.release_name }}
+          release_name: ${{ inputs.release_name }}
+          body: |
+            How to install: https://github.com/selb/YumLife/#installing-and-updating
+            Having issues? https://github.com/selb/YumLife/#troubleshooting
+      - name: upload linux #LINUX
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps 
+          asset_path: ./relbuild/YumLife_linux
+          asset_name: YumLife_linux
+          asset_content_type: application/zip
+      - name: upload windows #WINDOWS
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps 
+          asset_path: ./relbuild/YumLife_windows.exe
+          asset_name: YumLife_windows.exe
+          asset_content_type: application/zip
