@@ -1,8 +1,8 @@
 # What's this?
 
-YumLife is a fork of [hetuw](https://github.com/hetuw/OneLife). The goals of
-this mod are to stay up to date with the latest changes to the vanilla OHOL
-client, fix bugs, and occasionally add useful features.
+YumLife is a mod for OHOL and AHAP based on [hetuw](https://github.com/hetuw/OneLife).
+The goals of this mod are to stay up to date with the latest changes to the vanilla
+OHOL and AHAP client, fix bugs, and occasionally add useful features.
 
 # Installing (and updating)
 
@@ -11,21 +11,21 @@ client, fix bugs, and occasionally add useful features.
 1. Make sure the game is fully updated in Steam.
 2. Run the game from Steam once to ensure the Steam login details are properly set up.
 3. Download the latest version of the mod from [the Releases page](https://github.com/selb/YumLife/releases). For Windows, this is YumLife_windows.exe.
-4. Install the mod into the OHOL installation folder (Steam users: right click game > Manage > Browse local files)
-5. Run the mod from the OHOL installation folder.
+4. Install the mod into the OHOL/AHAP installation folder (Steam users: right click game > Manage > Browse local files)
+5. Run the mod from the OHOL/AHAP installation folder.
 
 ## Direct download users:
 
 1. Make sure you have the latest version of the game. The URL to re-download is: `http://onehouronelife.com/ticketServer/server.php?action=show_downloads&ticket_id=YOURKEYHERE`
 2. Run the vanilla `OneLife.exe` once to download any necessary updates.
 3. Download the latest version of the mod from [the Releases page](https://github.com/selb/YumLife/releases). For Windows, this is YumLife_windows.exe.
-4. Install the mod into the OHOL installation folder (same folder as the vanilla `OneLife.exe`).
-5. Run the mod from the OHOL installation folder.
+4. Install the mod into the OHOL/AHAP installation folder (same folder as the vanilla `OneLife.exe`).
+5. Run the mod from the OHOL/AHAP installation folder.
 
 # Usage
 
 Press `H` in-game to see everything the mod can do. A `yumlife.cfg` file is
-generated in the OHOL install folder and can be tweaked to your liking.
+generated in the OHOL/AHAP install folder and can be tweaked to your liking.
 
 # Troubleshooting
 
@@ -39,7 +39,7 @@ vanilla client once to fetch updates. You can download from: `http://onehouronel
 
 ## Clear cache files
 
-Search the OHOL installation folder (Steam users: right click game > Manage >
+Search the OHOL/AHAP installation folder (Steam users: right click game > Manage >
 Browse local files) for any `.fcz` files and delete all of them. They will be
 regenerated automatically the next time you launch the game.
 
