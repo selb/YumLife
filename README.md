@@ -16,8 +16,8 @@ OHOL and AHAP client, fix bugs, and occasionally add useful features.
 
 ## Direct download users:
 
-1. Make sure you have the latest version of the game. The URL to re-download is: `http://onehouronelife.com/ticketServer/server.php?action=show_downloads&ticket_id=YOURKEYHERE`
-2. Run the vanilla `OneLife.exe` once to download any necessary updates.
+1. Run the vanilla `OneLife.exe` to download any necessary updates.
+2. Confirm that `OneLife.exe` is fully updated by logging in to the tutorial.
 3. Download the latest version of the mod from [the Releases page](https://github.com/selb/YumLife/releases). For Windows, this is YumLife_windows.exe.
 4. Install the mod into the OHOL/AHAP installation folder (same folder as the vanilla `OneLife.exe`).
 5. Run the mod from the OHOL/AHAP installation folder.
