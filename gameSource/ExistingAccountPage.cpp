@@ -23,6 +23,8 @@
 
 #include "minorGems/util/random/JenkinsRandomSource.h"
 
+#include <string>
+
 static JenkinsRandomSource randSource;
 
 
@@ -79,6 +81,7 @@ ExistingAccountPage::ExistingAccountPage()
           mGenesButton( mainFont, 550, 0, translate( "genesButton" ) ),
           mFamilyTreesButton( mainFont, 320, -160, translate( "familyTrees" ) ),
           mTechTreeButton( mainFont, 550, -160, translate( "techTree" ) ),
+          mOholCurseButton( mainFont, 400, -240, "MY OHOLCURSE" ),
           mClearAccountButton( mainFont, 400, -280, 
                                translate( "clearAccount" ) ),
           mCancelButton( mainFont, -400, -280, 
@@ -112,6 +115,7 @@ ExistingAccountPage::ExistingAccountPage()
     setButtonStyle( &mGenesButton );
     setButtonStyle( &mFamilyTreesButton );
     setButtonStyle( &mTechTreeButton );
+    setButtonStyle( &mOholCurseButton );
     setButtonStyle( &mClearAccountButton );
     setButtonStyle( &mCancelButton );
     setButtonStyle( &mSettingsButton );
@@ -137,6 +141,7 @@ ExistingAccountPage::ExistingAccountPage()
     addComponent( &mGenesButton );
     addComponent( &mFamilyTreesButton );
     addComponent( &mTechTreeButton );
+    addComponent( &mOholCurseButton );
     addComponent( &mClearAccountButton );
     addComponent( &mCancelButton );
     addComponent( &mSettingsButton );
@@ -160,6 +165,7 @@ ExistingAccountPage::ExistingAccountPage()
     mGenesButton.addActionListener( this );
     mFamilyTreesButton.addActionListener( this );
     mTechTreeButton.addActionListener( this );
+    mOholCurseButton.addActionListener( this );
     mClearAccountButton.addActionListener( this );
     
     mCancelButton.addActionListener( this );
@@ -193,6 +199,7 @@ ExistingAccountPage::ExistingAccountPage()
     mGenesButton.setMouseOverTip( translate( "genesTip" ) );
     mFamilyTreesButton.setMouseOverTip( translate( "familyTreesTip" ) );
     mTechTreeButton.setMouseOverTip( translate( "techTreeTip" ) );
+    
     
 
     int reviewPosted = SettingsManager::getIntSetting( "reviewPosted", 0 );
@@ -271,7 +278,7 @@ void ExistingAccountPage::makeActive( char inFresh ) {
     mLoginButton.setVisible( false );
     mFriendsButton.setVisible( false );
     mGenesButton.setVisible( false );
-    
+    mOholCurseButton.setVisible( false );    
     
     int skipFPSMeasure = SettingsManager::getIntSetting( "skipFPSMeasure", 0 );
     
@@ -330,7 +337,6 @@ void ExistingAccountPage::makeActive( char inFresh ) {
     
     delete [] emailText;
     delete [] keyText;
-
     
     mPasteButton.setVisible( false );
     mPasteEmailButton.setVisible( false );
@@ -497,6 +503,15 @@ void ExistingAccountPage::actionPerformed( GUIComponent *inTarget ) {
             }
         delete [] url;
         }
+    else if( inTarget == &mOholCurseButton ) {     
+        const char *url = "https://beta.oholcurse.com/redirect/profile";
+        const char *leaderboardName = getLeaderboardName();
+
+        char *fullURL = autoSprintf( "%s/%s",
+                                        url, leaderboardName);
+        launchURL( fullURL );
+        delete [] fullURL;
+    }
     else if( inTarget == &mViewAccountButton ) {
         if( mHideAccount ) {
             mViewAccountButton.setLabelText( translate( "hide" ) );
@@ -812,6 +827,11 @@ void ExistingAccountPage::draw( doublePair inViewCenter,
         if( isFitnessScoreReady() ) {
             mGenesButton.setVisible( true );
             }
+
+        const char *leaderboardName = getLeaderboardName();
+        if (leaderboardName != NULL) {
+                mOholCurseButton.setVisible( true );
+        }
 
         // YumLife: show window title with version info
         pos = mServicesButton.getPosition();
