@@ -507,14 +507,12 @@ void ExistingAccountPage::actionPerformed( GUIComponent *inTarget ) {
         const char *url = "https://oholcurse.com/redirect/profile";
 
         const char *leaderboardName = getLeaderboardName();
-        unsigned char *leaderboardNameUnsigned = (unsigned char *)leaderboardName;
-        char *encodedLeaderboardName = hexEncode(leaderboardNameUnsigned, strlen((const char*)leaderboardNameUnsigned));
+        char *encodedLeaderboardName = hexEncode((unsigned char *)leaderboardName, strlen(leaderboardName));
 
         char *fullURL = autoSprintf( "%s/%s",
                                         url, encodedLeaderboardName);
                                     
         launchURL( fullURL );
-        delete [] leaderboardName;
         delete [] encodedLeaderboardName;
         delete [] fullURL;
     }
