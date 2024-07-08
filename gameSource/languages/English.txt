@@ -48,6 +48,7 @@ loginButton "LOGIN"
 friendsButton "FRIENDS"
 familyTrees "FAMILY TREES"
 techTree "TECH"
+oholCurseButton "OHOLCURSE"
 genesButton "GENES"
 geneticHistoryButton "GENETIC HISTORY"
 
