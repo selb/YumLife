@@ -340,6 +340,8 @@ void Phex::initServerCommands() {
 	serverCommands["HASH_SERVER_LIFE"].minWords = 4;
 	serverCommands["GET_ALL_PLAYERS"].func = serverCmdGET_ALL_PLAYERS;
 	serverCommands["GET_ALL_PLAYERS"].minWords = 1;
+	serverCommands["JASON_AUTH"].func = serverCmdJASON_AUTH;
+	serverCommands["JASON_AUTH"].minWords = 2;
 }
 
 void Phex::serverCmdVERSION(std::vector<std::string> input) {
@@ -521,6 +523,22 @@ void Phex::serverCmdGET_ALL_PLAYERS(std::vector<std::string> input) {
 	}
 	//printf("Phex %s\n", str.c_str());
 	tcp.send(str);
+}
+
+void Phex::serverCmdJASON_AUTH(std::vector<std::string> input) {
+	std::string const &challenge = input[1];
+	char *pureKey = getPureAccountKey();
+	char *keyHash = hmac_sha1(pureKey, challenge.c_str());
+
+	// TODO: require phex_send_email config to be on if it's not an
+	// @steamgames.com placeholder
+
+	std::stringstream ss;
+	ss << "JASON_AUTH " << userEmail << " " << keyHash;
+	tcp.send(ss.str());
+
+	delete [] pureKey;
+	delete [] keyHash;
 }
 
 void Phex::initChatCommands() {

@@ -331,6 +331,7 @@ public:
 	static void serverCmdSEND_POSITION(std::vector<std::string> input);
 	static void serverCmdHASH_SERVER_LIFE(std::vector<std::string> input);
 	static void serverCmdGET_ALL_PLAYERS(std::vector<std::string> input);
+	static void serverCmdJASON_AUTH(std::vector<std::string> input);
 
 	static void chatCmdHELP(std::vector<std::string> input);
 	static void chatCmdNAME(std::vector<std::string> input);
