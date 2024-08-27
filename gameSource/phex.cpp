@@ -527,17 +527,25 @@ void Phex::serverCmdGET_ALL_PLAYERS(std::vector<std::string> input) {
 
 void Phex::serverCmdJASON_AUTH(std::vector<std::string> input) {
 	std::string const &challenge = input[1];
+
+	// Require the challenge to start with "phex:" to prevent a trivial
+	// credential forwarding attack. This would still allow a Phex server to
+	// forward credentials to other Phex servers, but that's more of a feature
+	// than a bug since Phex proxies have been desired in the past.
+	if (challenge.find("phex:") != 0) {
+		printf("Phex JASON_AUTH challenge does not start with 'phex:'\n");
+		return;
+	}
+
+	// If the authentication email isn't a bogus Steam one, require the user to
+	// opt in to sending this personal detail to the Phex server.
+	if (!HetuwMod::phexSendEmail && strstr(userEmail, "@steamgames.com") == NULL) {
+		addCmdMessageToChatWindow("This Phex server requires your email for account verification. To opt in, enable phex_send_email in yumlife.cfg and restart the game.", CMD_MSG_ERROR);
+		return;
+	}
+
 	char *pureKey = getPureAccountKey();
 	char *keyHash = hmac_sha1(pureKey, challenge.c_str());
-
-	// TODO: require phex_send_email config to be on if it's not an
-	// @steamgames.com placeholder
-
-	// TODO: require a phex: prefix to be present on the challenge to prevent
-	// a trivial credential forwarding attack. :damnitjason: This would still
-	// allow a Phex server to forward credentials to other Phex servers, but
-	// that's more of a feature than a bug since Phex proxies have been
-	// desired in the past.
 
 	std::stringstream ss;
 	ss << "JASON_AUTH " << userEmail << " " << keyHash;
