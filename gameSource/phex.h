@@ -208,6 +208,7 @@ public:
 		void (*func)(std::vector<std::string>);
 		int minWords = 1;
 		std::string helpStr = "";
+		bool allowOffline = false;
 	};
 
 	struct User {

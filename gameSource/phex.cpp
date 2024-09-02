@@ -535,7 +535,8 @@ void Phex::serverCmdJASON_AUTH(std::vector<std::string> input) {
 	// forward credentials to other Phex servers, but that's more of a feature
 	// than a bug since Phex proxies have been desired in the past.
 	if (challenge.find("phex:") != 0) {
-		printf("Phex JASON_AUTH challenge does not start with 'phex:'\n");
+		addCmdMessageToChatWindow("The Phex server sent an invalid JASON_AUTH challenge. Disconnecting.", CMD_MSG_ERROR);
+		tcp.disconnect();
 		return;
 	}
 
@@ -547,6 +548,7 @@ void Phex::serverCmdJASON_AUTH(std::vector<std::string> input) {
 		} else if (!HetuwMod::phexSendEmail) {
 			addCmdMessageToChatWindow("This Phex server requires your email address for account verification.", CMD_MSG_ERROR);
 			addCmdMessageToChatWindow("To opt in, say: .OPTIN", CMD_MSG_ERROR);
+			tcp.disconnect();
 			return;
 		}
 	}
@@ -566,21 +568,29 @@ void Phex::initChatCommands() {
 	chatCommands["HELP"].func = chatCmdHELP;
 	chatCommands["HELP"].minWords = 1;
 	chatCommands["HELP"].helpStr = "Lists all commands";
+	chatCommands["HELP"].allowOffline = true;
+
 	chatCommands["NAME"].func = chatCmdNAME;
 	chatCommands["NAME"].minWords = 2;
 	chatCommands["NAME"].helpStr = "You can change your name by typing:\n"+strCmdChar+"name [newName]";
+
 	chatCommands["LIST"].func = chatCmdLIST;
 	chatCommands["LIST"].minWords = 1;
 	chatCommands["LIST"].helpStr = "Lists all online players";
+
 	chatCommands["BLOCK"].func = chatCmdBLOCK;
 	chatCommands["BLOCK"].minWords = 2;
 	chatCommands["BLOCK"].helpStr = "Block a user's messages (until exit)";
+
 	chatCommands["LIFE"].func = chatCmdLIFE;
 	chatCommands["LIFE"].minWords = 1;
 	chatCommands["LIFE"].helpStr = "Sends your real life ID to server";
+
 	chatCommands["OPTIN"].func = chatCmdOPTIN;
 	chatCommands["OPTIN"].minWords = 1;
 	chatCommands["OPTIN"].helpStr = "Opt in to sending your email to the Phex server";
+	chatCommands["OPTIN"].allowOffline = true;
+
 	chatCommands["TEST"].func = chatCmdTEST;
 	chatCommands["TEST"].minWords = 1;
 	chatCommands["TEST"].helpStr = "For testing - dont use";
@@ -1030,6 +1040,10 @@ void Phex::handleChatCommand(std::string input) {
 		addCmdMessageToChatWindow("command needs atleast "+to_string(chatCommands[command].minWords-1)+" arguments", CMD_MSG_ERROR);
 		return;
 	}
+	if (tcp.status != TCPConnection::ONLINE && !chatCommands[command].allowOffline) {
+		addCmdMessageToChatWindow("You are not connected to the Phex server.", CMD_MSG_ERROR);
+		return;
+	}
 	chatCommands[command].func(splittedMsg);
 }
 
@@ -1053,7 +1067,7 @@ void Phex::sendInputStr() {
 
 bool Phex::addToInputStr(unsigned char c) {
 	if (c == 13) { // enter
-		if (tcp.status != TCPConnection::ONLINE) return true;
+		if (tcp.status != TCPConnection::ONLINE && inputText.str[0] != chatCmdChar) return true;
 		sendInputStr();
 		inputText.str = "";
 		mainChatWindow.scrollToBottom();
