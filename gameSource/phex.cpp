@@ -578,9 +578,10 @@ void Phex::initChatCommands() {
 	chatCommands["LIFE"].func = chatCmdLIFE;
 	chatCommands["LIFE"].minWords = 1;
 	chatCommands["LIFE"].helpStr = "Sends your real life ID to server";
-	chatCommands["LIFE"].minWords = 1;
-	chatCommands["OPTIN"].helpStr = "Opt in to sending your email to the Phex server";
 	chatCommands["OPTIN"].func = chatCmdOPTIN;
+	chatCommands["OPTIN"].minWords = 1;
+	chatCommands["OPTIN"].helpStr = "Opt in to sending your email to the Phex server";
+	chatCommands["TEST"].func = chatCmdTEST;
 	chatCommands["TEST"].minWords = 1;
 	chatCommands["TEST"].helpStr = "For testing - dont use";
 }
