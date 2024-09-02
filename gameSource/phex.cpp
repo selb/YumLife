@@ -111,6 +111,8 @@ extern doublePair lastScreenViewCenter;
 extern char *userEmail;
 extern int versionNumber;
 
+static bool temporaryJasonAuthOptIn = false;
+
 void Phex::init() {
 	if (!HetuwMod::phexIsEnabled) return;
 
@@ -340,6 +342,8 @@ void Phex::initServerCommands() {
 	serverCommands["HASH_SERVER_LIFE"].minWords = 4;
 	serverCommands["GET_ALL_PLAYERS"].func = serverCmdGET_ALL_PLAYERS;
 	serverCommands["GET_ALL_PLAYERS"].minWords = 1;
+	serverCommands["JASON_AUTH"].func = serverCmdJASON_AUTH;
+	serverCommands["JASON_AUTH"].minWords = 2;
 }
 
 void Phex::serverCmdVERSION(std::vector<std::string> input) {
@@ -523,22 +527,70 @@ void Phex::serverCmdGET_ALL_PLAYERS(std::vector<std::string> input) {
 	tcp.send(str);
 }
 
+void Phex::serverCmdJASON_AUTH(std::vector<std::string> input) {
+	std::string const &challenge = input[1];
+
+	// Require the challenge to start with "phex:" to prevent a trivial
+	// credential forwarding attack. This would still allow a Phex server to
+	// forward credentials to other Phex servers, but that's more of a feature
+	// than a bug since Phex proxies have been desired in the past.
+	if (challenge.find("phex:") != 0) {
+		addCmdMessageToChatWindow("The Phex server sent an invalid JASON_AUTH challenge. Disconnecting.", CMD_MSG_ERROR);
+		tcp.disconnect();
+		return;
+	}
+
+	// If the authentication email isn't a bogus Steam one, require the user to
+	// opt in to sending this personal detail to the Phex server.
+	if (strstr(userEmail, "@steamgames.com") == NULL) {
+		if (temporaryJasonAuthOptIn) {
+			addCmdMessageToChatWindow("To permanently opt in to sending your email to the Phex server, set phex_send_email in " hetuwSettingsFileName ".", CMD_MSG_ERROR);
+		} else if (!HetuwMod::phexSendEmail) {
+			addCmdMessageToChatWindow("This Phex server requires your email address for account verification.", CMD_MSG_ERROR);
+			addCmdMessageToChatWindow("To opt in, say: .OPTIN", CMD_MSG_ERROR);
+			tcp.disconnect();
+			return;
+		}
+	}
+
+	char *pureKey = getPureAccountKey();
+	char *keyHash = hmac_sha1(pureKey, challenge.c_str());
+
+	std::stringstream ss;
+	ss << "JASON_AUTH " << userEmail << " " << keyHash;
+	tcp.send(ss.str());
+
+	delete [] pureKey;
+	delete [] keyHash;
+}
+
 void Phex::initChatCommands() {
 	chatCommands["HELP"].func = chatCmdHELP;
 	chatCommands["HELP"].minWords = 1;
 	chatCommands["HELP"].helpStr = "Lists all commands";
+	chatCommands["HELP"].allowOffline = true;
+
 	chatCommands["NAME"].func = chatCmdNAME;
 	chatCommands["NAME"].minWords = 2;
 	chatCommands["NAME"].helpStr = "You can change your name by typing:\n"+strCmdChar+"name [newName]";
+
 	chatCommands["LIST"].func = chatCmdLIST;
 	chatCommands["LIST"].minWords = 1;
 	chatCommands["LIST"].helpStr = "Lists all online players";
+
 	chatCommands["BLOCK"].func = chatCmdBLOCK;
 	chatCommands["BLOCK"].minWords = 2;
 	chatCommands["BLOCK"].helpStr = "Block a user's messages (until exit)";
+
 	chatCommands["LIFE"].func = chatCmdLIFE;
 	chatCommands["LIFE"].minWords = 1;
 	chatCommands["LIFE"].helpStr = "Sends your real life ID to server";
+
+	chatCommands["OPTIN"].func = chatCmdOPTIN;
+	chatCommands["OPTIN"].minWords = 1;
+	chatCommands["OPTIN"].helpStr = "Opt in to sending your email to the Phex server";
+	chatCommands["OPTIN"].allowOffline = true;
+
 	chatCommands["TEST"].func = chatCmdTEST;
 	chatCommands["TEST"].minWords = 1;
 	chatCommands["TEST"].helpStr = "For testing - dont use";
@@ -626,6 +678,19 @@ void Phex::chatCmdLIFE(std::vector<std::string> input) {
 	if (bSendFakeLife) {
 		sendServerLife(HetuwMod::ourLiveObject->id);
 	}
+}
+
+void Phex::chatCmdOPTIN(std::vector<std::string> input) {
+	if (HetuwMod::phexSendEmail || temporaryJasonAuthOptIn) {
+		addCmdMessageToChatWindow("You have already opted in to sending your email to the Phex server.");
+		return;
+	}
+
+	temporaryJasonAuthOptIn = true;
+	tcp.reconnect();
+
+	addCmdMessageToChatWindow("Opted in. Set phex_send_email in " hetuwSettingsFileName " to opt in permanently.");
+	addCmdMessageToChatWindow("Reconnecting...");
 }
 
 void Phex::chatCmdTEST(std::vector<std::string> input) {
@@ -975,6 +1040,10 @@ void Phex::handleChatCommand(std::string input) {
 		addCmdMessageToChatWindow("command needs atleast "+to_string(chatCommands[command].minWords-1)+" arguments", CMD_MSG_ERROR);
 		return;
 	}
+	if (tcp.status != TCPConnection::ONLINE && !chatCommands[command].allowOffline) {
+		addCmdMessageToChatWindow("You are not connected to the Phex server.", CMD_MSG_ERROR);
+		return;
+	}
 	chatCommands[command].func(splittedMsg);
 }
 
@@ -998,7 +1067,7 @@ void Phex::sendInputStr() {
 
 bool Phex::addToInputStr(unsigned char c) {
 	if (c == 13) { // enter
-		if (tcp.status != TCPConnection::ONLINE) return true;
+		if (tcp.status != TCPConnection::ONLINE && inputText.str[0] != chatCmdChar) return true;
 		sendInputStr();
 		inputText.str = "";
 		mainChatWindow.scrollToBottom();

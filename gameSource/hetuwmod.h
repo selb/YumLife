@@ -324,6 +324,7 @@ public:
 	static bool debugPhex;
 	static bool phexStartOffline;
 	static bool phexSkipTOS;
+	static bool phexSendEmail;
 
 	static std::string fontFilename;
 	static bool skipRocketCutscene;
