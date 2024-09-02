@@ -111,6 +111,8 @@ extern doublePair lastScreenViewCenter;
 extern char *userEmail;
 extern int versionNumber;
 
+static bool temporaryJasonAuthOptIn = false;
+
 void Phex::init() {
 	if (!HetuwMod::phexIsEnabled) return;
 
@@ -539,9 +541,14 @@ void Phex::serverCmdJASON_AUTH(std::vector<std::string> input) {
 
 	// If the authentication email isn't a bogus Steam one, require the user to
 	// opt in to sending this personal detail to the Phex server.
-	if (!HetuwMod::phexSendEmail && strstr(userEmail, "@steamgames.com") == NULL) {
-		addCmdMessageToChatWindow("This Phex server requires your email for account verification. To opt in, enable phex_send_email in yumlife.cfg and restart the game.", CMD_MSG_ERROR);
-		return;
+	if (strstr(userEmail, "@steamgames.com") == NULL) {
+		if (temporaryJasonAuthOptIn) {
+			addCmdMessageToChatWindow("To permanently opt in to sending your email to the Phex server, set phex_send_email in yumlife.cfg.", CMD_MSG_ERROR);
+		} else if (!HetuwMod::phexSendEmail) {
+			addCmdMessageToChatWindow("This Phex server requires your email address for account verification.", CMD_MSG_ERROR);
+			addCmdMessageToChatWindow("To opt in, say: .OPTIN", CMD_MSG_ERROR);
+			return;
+		}
 	}
 
 	char *pureKey = getPureAccountKey();
@@ -571,7 +578,9 @@ void Phex::initChatCommands() {
 	chatCommands["LIFE"].func = chatCmdLIFE;
 	chatCommands["LIFE"].minWords = 1;
 	chatCommands["LIFE"].helpStr = "Sends your real life ID to server";
-	chatCommands["TEST"].func = chatCmdTEST;
+	chatCommands["LIFE"].minWords = 1;
+	chatCommands["OPTIN"].helpStr = "Opt in to sending your email to the Phex server";
+	chatCommands["OPTIN"].func = chatCmdOPTIN;
 	chatCommands["TEST"].minWords = 1;
 	chatCommands["TEST"].helpStr = "For testing - dont use";
 }
@@ -658,6 +667,19 @@ void Phex::chatCmdLIFE(std::vector<std::string> input) {
 	if (bSendFakeLife) {
 		sendServerLife(HetuwMod::ourLiveObject->id);
 	}
+}
+
+void Phex::chatCmdOPTIN(std::vector<std::string> input) {
+	if (HetuwMod::phexSendEmail || temporaryJasonAuthOptIn) {
+		addCmdMessageToChatWindow("You have already opted in to sending your email to the Phex server.");
+		return;
+	}
+
+	temporaryJasonAuthOptIn = true;
+	tcp.reconnect();
+
+	addCmdMessageToChatWindow("Opted in. Set phex_send_email in yumlife.cfg to opt in permanently.");
+	addCmdMessageToChatWindow("Reconnecting...");
 }
 
 void Phex::chatCmdTEST(std::vector<std::string> input) {
