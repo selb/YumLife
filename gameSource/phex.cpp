@@ -530,11 +530,11 @@ void Phex::serverCmdGET_ALL_PLAYERS(std::vector<std::string> input) {
 void Phex::serverCmdJASON_AUTH(std::vector<std::string> input) {
 	std::string const &challenge = input[1];
 
-	// Require the challenge to start with "phex:" to prevent a trivial
+	// Require the challenge to start with "phex_" to prevent a trivial
 	// credential forwarding attack. This would still allow a Phex server to
 	// forward credentials to other Phex servers, but that's more of a feature
 	// than a bug since Phex proxies have been desired in the past.
-	if (challenge.find("phex:") != 0) {
+	if (challenge.find("phex_") != 0) {
 		addCmdMessageToChatWindow("The Phex server sent an invalid JASON_AUTH challenge. Disconnecting.", CMD_MSG_ERROR);
 		tcp.disconnect();
 		return;
