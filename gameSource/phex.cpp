@@ -1244,11 +1244,15 @@ void Phex::onReceivedMessage(std::string msg) {
 	if (serverCommands.find(command) == serverCommands.end()) {
 		printf("Phex Error: unknown command '%s'\n", command.c_str());
 		printf("Phex Error: message: '%s'\n", msg.c_str());
+		tcp.send(std::string("IDK ") + command);
 		return;
 	}
 	if (serverCommands[command].minWords > (int)splittedMsg.size()) {
 		printf("Phex Error: server message to short, expected atleast %d words, but got %d\n", serverCommands[command].minWords, (int)splittedMsg.size());
 		printf("Phex Error: message: '%s'\n", msg.c_str());
+		std::stringstream ss;
+		ss << "IDK " << command << " " << (splittedMsg.size() - 1);
+		tcp.send(ss.str());
 		return;
 	}
 	serverCommands[command].func(splittedMsg);
