@@ -344,6 +344,8 @@ void Phex::initServerCommands() {
 	serverCommands["GET_ALL_PLAYERS"].minWords = 1;
 	serverCommands["JASON_AUTH"].func = serverCmdJASON_AUTH;
 	serverCommands["JASON_AUTH"].minWords = 2;
+	serverCommands["IDK"].func = serverCmdIDK;
+	serverCommands["IDK"].minWords = 1;
 }
 
 void Phex::serverCmdVERSION(std::vector<std::string> input) {
@@ -562,6 +564,10 @@ void Phex::serverCmdJASON_AUTH(std::vector<std::string> input) {
 
 	delete [] pureKey;
 	delete [] keyHash;
+}
+
+void Phex::serverCmdIDK(std::vector<std::string> input) {
+	printf("Phex IDK: %s\n", joinStr(input).c_str());
 }
 
 void Phex::initChatCommands() {
