@@ -78,42 +78,42 @@ int HetuwMod::magnetMoveDir = -1;
 int HetuwMod::magnetWrongMoveDir = -1;
 int HetuwMod::magnetMoveCount = 0;
 
-unsigned char HetuwMod::charKey_Up;
-unsigned char HetuwMod::charKey_Down;
-unsigned char HetuwMod::charKey_Left;
-unsigned char HetuwMod::charKey_Right;
-unsigned char HetuwMod::charKey_TileStandingOn;
+unsigned char HetuwMod::charKey_Up = 'w';
+unsigned char HetuwMod::charKey_Down = 's';
+unsigned char HetuwMod::charKey_Left = 'a';
+unsigned char HetuwMod::charKey_Right = 'd';
+unsigned char HetuwMod::charKey_TileStandingOn = ' ';
 
-unsigned char HetuwMod::charKey_Backpack;
-unsigned char HetuwMod::charKey_TakeOffBackpack;
-unsigned char HetuwMod::charKey_Pocket;
-unsigned char HetuwMod::charKey_Eat;
-unsigned char HetuwMod::charKey_Baby;
-unsigned char HetuwMod::charKey_ShowHelp;
-unsigned char HetuwMod::charKey_ShowNames;
-unsigned char HetuwMod::charKey_ShowCords;
-unsigned char HetuwMod::charKey_ShowPlayersInRange;
-unsigned char HetuwMod::charKey_ShowDeathMessages;
-unsigned char HetuwMod::charKey_ShowHomeCords;
-unsigned char HetuwMod::charKey_ShowHostileTiles;
-unsigned char HetuwMod::charKey_xRay;
-unsigned char HetuwMod::charKey_Search;
-unsigned char HetuwMod::charKey_TeachLanguage;
-unsigned char HetuwMod::charKey_FindYum;
-unsigned char HetuwMod::charKey_HidePlayers;
-unsigned char HetuwMod::charKey_ShowGrid;
-unsigned char HetuwMod::charKey_MakePhoto;
-unsigned char HetuwMod::charKey_Phex;
+unsigned char HetuwMod::charKey_Backpack = 'q';
+unsigned char HetuwMod::charKey_TakeOffBackpack = 'b';
+unsigned char HetuwMod::charKey_Pocket = 't';
+unsigned char HetuwMod::charKey_Eat = 'e';
+unsigned char HetuwMod::charKey_Baby = 'c';
+unsigned char HetuwMod::charKey_ShowHelp = 'h';
+unsigned char HetuwMod::charKey_ShowNames = 'n';
+unsigned char HetuwMod::charKey_ShowCords = 'z';
+unsigned char HetuwMod::charKey_ShowPlayersInRange = 'p';
+unsigned char HetuwMod::charKey_ShowDeathMessages = 254;
+unsigned char HetuwMod::charKey_ShowHomeCords = 'g';
+unsigned char HetuwMod::charKey_ShowHostileTiles = 'u';
+unsigned char HetuwMod::charKey_xRay = 'x';
+unsigned char HetuwMod::charKey_Search = 'j';
+unsigned char HetuwMod::charKey_TeachLanguage = 'l';
+unsigned char HetuwMod::charKey_FindYum = 'y';
+unsigned char HetuwMod::charKey_HidePlayers = 254;
+unsigned char HetuwMod::charKey_ShowGrid = 'k';
+unsigned char HetuwMod::charKey_MakePhoto = 254;
+unsigned char HetuwMod::charKey_Phex = '#';
 
-unsigned char HetuwMod::charKey_CreateHome;
-unsigned char HetuwMod::charKey_FixCamera;
+unsigned char HetuwMod::charKey_CreateHome = 'r';
+unsigned char HetuwMod::charKey_FixCamera = 'f';
 
-unsigned char HetuwMod::charKey_ShowMap;
-unsigned char HetuwMod::charKey_MapZoomIn;
-unsigned char HetuwMod::charKey_MapZoomOut;
+unsigned char HetuwMod::charKey_ShowMap = 'm';
+unsigned char HetuwMod::charKey_MapZoomIn = 'u';
+unsigned char HetuwMod::charKey_MapZoomOut = 'o';
 
-unsigned char HetuwMod::charKey_ConfirmExit;
-unsigned char HetuwMod::charKey_Minitech;
+unsigned char HetuwMod::charKey_ConfirmExit = '%';
+unsigned char HetuwMod::charKey_Minitech = 'v';
 
 bool HetuwMod::upKeyDown;
 bool HetuwMod::downKeyDown;
@@ -379,44 +379,6 @@ void HetuwMod::init() {
 	bDrawHomeCords = false;
 	iDrawNames = 1;
 	bDrawCords = true;
-
-	charKey_Up = 'w';
-	charKey_Down = 's';
-	charKey_Left = 'a';
-	charKey_Right = 'd';
-	charKey_TileStandingOn = ' ';
-
-	charKey_Backpack = 'q';
-	charKey_TakeOffBackpack = 'b';
-	charKey_Pocket = 't';
-	charKey_Eat = 'e';
-	charKey_Baby = 'c';
-	charKey_ShowHelp = 'h';
-	charKey_ShowNames = 'n';
-	charKey_ShowCords = 'z';
-	charKey_ShowPlayersInRange = 'p';
-	charKey_ShowDeathMessages = 254;
-	charKey_ShowHomeCords = 'g';
-	charKey_ShowHostileTiles = 'u';
-
-	charKey_xRay = 'x';
-	charKey_Search = 'j';
-	charKey_TeachLanguage = 'l';
-	charKey_FindYum = 'y';
-	charKey_HidePlayers = 254;
-	charKey_ShowGrid = 'k';
-	charKey_MakePhoto = 254;
-
-	charKey_Minitech = 'v';
-
-	charKey_ShowMap = 'm';
-	charKey_MapZoomIn = 'u';
-	charKey_MapZoomOut = 'o';
-
-	charKey_CreateHome = 'r';
-	charKey_FixCamera = 'f';
-
-	charKey_ConfirmExit = '%';
 
 	debugRecPos = { 0.0, 0.0 };
 	debugRecPos2 = { 0.0, 0.0 };
