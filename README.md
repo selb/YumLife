@@ -16,11 +16,9 @@ OHOL and AHAP client, fix bugs, and occasionally add useful features.
 
 ## Direct download users:
 
-1. Run the vanilla `OneLife.exe` to download any necessary updates.
-2. Confirm that `OneLife.exe` is fully updated by logging in to the tutorial.
-3. Download the latest version of the mod from [the Releases page](https://github.com/selb/YumLife/releases). For Windows, this is YumLife_windows.exe.
-4. Install the mod into the OHOL/AHAP installation folder (same folder as the vanilla `OneLife.exe`).
-5. Run the mod from the OHOL/AHAP installation folder.
+1. Download the latest version of the mod from [the Releases page](https://github.com/selb/YumLife/releases). For Windows, this is YumLife_windows.exe.
+2. Install the mod into the OHOL/AHAP installation folder (same folder as the vanilla `OneLife.exe`).
+3. Run the mod from the OHOL/AHAP installation folder.
 
 # Usage
 
@@ -34,8 +32,9 @@ generated in the OHOL/AHAP install folder and can be tweaked to your liking.
 If using Steam, launch Steam and make sure there isn't a pending update on the
 base game.
 
-If not using Steam, make sure to download the latest package and then run the
-vanilla client once to fetch updates. You can download from: `http://onehouronelife.com/ticketServer/server.php?action=show_downloads&ticket_id=YOURKEYHERE`
+Non-Steam installs will generally update themselves properly, but older installs
+may have subtly corrupt data files due to the way YumLife/hetuw updating used to
+work. See Reinstall below.
 
 ## Clear cache files
 
@@ -45,11 +44,13 @@ regenerated automatically the next time you launch the game.
 
 ## Reinstall
 
-The usual hacks used to keep outdated hetuw (and other mods) running can
-interfere with updates and leave your game directory in a state that isn't
-readily salvageable. Uninstalling, reinstalling, and then following the
+Especially with non-Steam installs, there are a variety of issues past and present
+that can subtly corrupt data files and leave your game directory in a state that isn't
+salvageable. Uninstalling, reinstalling, and then following the
 "Installation" section again carefully is the closest thing available to a 100%
 certain fix.
+
+The non-Steam version can be re-downloaded from: `http://onehouronelife.com/ticketServer/server.php?action=show_downloads&ticket_id=YOURKEYHERE`
 
 ## Still not working?
 
