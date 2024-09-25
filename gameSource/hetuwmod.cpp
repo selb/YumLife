@@ -4226,6 +4226,7 @@ void HetuwMod::updatePlayersInRangePanel() {
 				fam.raceName = getRaceName(obj);
 				fam.count++;
 				if (youngWoman) fam.youngWomenCount++;
+				if (o->curseLevel > 0) fam.cursedCount++;
 				found = true;
 				break;
 			}
@@ -4242,6 +4243,7 @@ void HetuwMod::updatePlayersInRangePanel() {
 			}
 			fam.count = 1;
 			fam.youngWomenCount = (youngWoman ? 1 : 0);
+			fam.cursedCount = (o->curseLevel > 0 ? 1 : 0);
 			fam.generation = o->lineage.size()+1;
 			fam.eveID = o->lineageEveID;
 			fam.raceName = getRaceName(obj);
@@ -4253,15 +4255,56 @@ void HetuwMod::updatePlayersInRangePanel() {
 	soloEveFam.name = "SOLO EVES";
 	soloEveFam.count = 0;
 	soloEveFam.youngWomenCount = 0;
+	soloEveFam.cursedCount = 0;
 	soloEveFam.generation = 1;
 	soloEveFam.eveID = 0;
 	soloEveFam.raceName = "";
 
+	FamilyInRange donkeyFam;
+	donkeyFam.name = "DONKEY TOWN";
+	donkeyFam.count = 0;
+	donkeyFam.youngWomenCount = 0;
+	donkeyFam.cursedCount = 0;
+	donkeyFam.generation = 0;
+	donkeyFam.eveID = 0;
+	donkeyFam.raceName = "";
+
 	for (ssize_t i = 0; i < (ssize_t)familiesInRange.size(); i++) {
 		FamilyInRange &fam = familiesInRange[i];
-		if (fam.generation == 1 && fam.count == 1 && fam.eveID != ourLiveObject->lineageEveID) {
+
+		if (fam.eveID == ourLiveObject->lineageEveID) {
+			// Never consolidate the player's own family.
+			continue;
+		}
+
+		bool erase = true;
+
+		if (fam.generation == 1 && fam.count == 1) {
 			soloEveFam.count += fam.count;
 			soloEveFam.youngWomenCount += fam.youngWomenCount;
+			soloEveFam.cursedCount += fam.cursedCount;
+		} else if (fam.cursedCount == fam.count) {
+			// A family where everyone is cursed is assumed to be a DT family:
+			// the server broadcasts CU messages about everyone in DT regardless
+			// of individual curse status.
+			//
+			// This isn't perfect: a pair of individually cursed players could
+			// be Eve and Eve's daughter in the main area, for instance, but
+			// that would only affect the unfortunate player who cursed both
+			// of them and only as long as they had no further uncursed kids.
+			donkeyFam.count += fam.count;
+			donkeyFam.youngWomenCount += fam.youngWomenCount;
+			donkeyFam.cursedCount += fam.cursedCount;
+			if (fam.generation > donkeyFam.generation) {
+				donkeyFam.generation = fam.generation;
+				donkeyFam.eveID = fam.eveID;
+				donkeyFam.raceName = fam.raceName;
+			}
+		} else {
+			erase = false;
+		}
+
+		if (erase) {
 			familiesInRange.erase(familiesInRange.begin() + i);
 			i--;
 		}
@@ -4271,6 +4314,10 @@ void HetuwMod::updatePlayersInRangePanel() {
 
 	if (soloEveFam.count != 0) {
 		familiesInRange.push_back(soloEveFam);
+	}
+
+	if (donkeyFam.count != 0) {
+		familiesInRange.push_back(donkeyFam);
 	}
 }
 

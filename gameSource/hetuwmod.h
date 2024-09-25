@@ -70,6 +70,7 @@ class HetuwMod
 		string name = "";
 		int count = 0;
 		int youngWomenCount = 0;
+		int cursedCount = 0;
 		string raceName = "UNKNOWN";
 		int generation = 0;
 		int eveID = 0;
