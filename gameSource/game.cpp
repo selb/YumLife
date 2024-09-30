@@ -2233,7 +2233,7 @@ void drawFrame( char inUpdate ) {
                     // updates don't get skipped when the user installs a new
                     // client version without having run the old version first.
                     int versionNumber = ::versionNumber;
-                    if (yumExpectedDataVersionNumber > dataVersionNumber) {
+                    if (!isAHAP && yumExpectedDataVersionNumber > dataVersionNumber) {
                         printf("YumLife: Detected old data files! Pretending to be version %d\n", dataVersionNumber);
                         versionNumber = dataVersionNumber;
                     }
