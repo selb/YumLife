@@ -4223,10 +4223,7 @@ void HetuwMod::updatePlayersInRangePanel() {
 		for (size_t j = 0; j < familiesInRange.size(); j++) {
 			FamilyInRange &fam = familiesInRange[j];
 			if (o->lineageEveID == fam.eveID) {
-				// TODO: it's not as simple as one last name per fam. most frequently seen?
-				if (!lastName.empty()) {
-					fam.name = lastName;
-				}
+				fam.addLastName(lastName);
 				fam.generation = max(fam.generation, o->lineage.size() + 1);
 				fam.raceName = getRaceName(obj);
 				fam.count++;
@@ -4239,13 +4236,9 @@ void HetuwMod::updatePlayersInRangePanel() {
 
 		if (!found) {
 			FamilyInRange fam;
-			if (!lastName.empty()) {
-				fam.name = lastName;
-			} else if (o->lineageEveID == ourLiveObject->lineageEveID) {
-				fam.name = "OUR FAMILY";
-			} else {
-				fam.name = "UNNAMED";
-			}
+			fam.addLastName(lastName);
+			// fam.name is intentionally blank until we give it one later based
+			// on the most common last name in the family
 			fam.count = 1;
 			fam.youngWomenCount = (youngWoman ? 1 : 0);
 			fam.cursedCount = (o->curseLevel > 0 ? 1 : 0);
@@ -4253,6 +4246,30 @@ void HetuwMod::updatePlayersInRangePanel() {
 			fam.eveID = o->lineageEveID;
 			fam.raceName = getRaceName(obj);
 			familiesInRange.push_back(fam);
+		}
+	}
+
+	// name each family based on the most common last name
+	for (size_t i = 0; i < familiesInRange.size(); i++) {
+		FamilyInRange &fam = familiesInRange[i];
+
+		int maxCount = 0;
+		std::string maxName = "";
+		for (auto &pair : fam.lastNameCounts) {
+			if (pair.second > maxCount) {
+				maxCount = pair.second;
+				maxName = pair.first;
+			}
+		}
+
+		if (maxName == "") {
+			if (fam.eveID == ourLiveObject->lineageEveID) {
+				fam.name = "OUR FAMILY";
+			} else {
+				fam.name = "UNNAMED";
+			}
+		} else {
+			fam.name = maxName;
 		}
 	}
 

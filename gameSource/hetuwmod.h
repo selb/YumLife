@@ -15,6 +15,7 @@
 #include <vector>
 #include <string>
 #include <fstream>
+#include <unordered_map>
 
 #include "LivingLifePage.h"
 #include "hetuwFont.h"
@@ -74,6 +75,15 @@ class HetuwMod
 		string raceName = "UNKNOWN";
 		int generation = 0;
 		int eveID = 0;
+
+		std::unordered_map<std::string, int> lastNameCounts;
+		void addLastName(const std::string &lastName) {
+			if (lastNameCounts.find(lastName) == lastNameCounts.end()) {
+				lastNameCounts[lastName] = 1;
+			} else {
+				lastNameCounts[lastName]++;
+			}
+		}
 	};
 
 	struct HttpRequest {
