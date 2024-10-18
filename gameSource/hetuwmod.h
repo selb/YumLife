@@ -72,7 +72,7 @@ class HetuwMod
 		int count = 0;
 		int youngWomenCount = 0;
 		int cursedCount = 0;
-		string raceName = "UNKNOWN";
+		char race = 0;
 		int generation = 0;
 		int eveID = 0;
 
@@ -626,8 +626,6 @@ public:
 	static bool weAreWearingABackpack();
 	static bool weAreWearingPantsWithPocket();
 	static bool weAreWearingShirtWithPocket();
-	static void getSkinColor(float *rgba, ObjectRecord *obj);
-	static std::string getRaceName(ObjectRecord *obj);
 
 	static void onNotLiving();
 	static void onDropSent();

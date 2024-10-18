@@ -4103,31 +4103,68 @@ bool HetuwMod::weAreWearingShirtWithPocket() {
 	return isWearingShirtWithPocket(ourLiveObject);
 }
 
-void HetuwMod::getSkinColor(float *rgba, ObjectRecord *obj) {
-	if (!obj) return;
+// Convert server race ID back to the race letter for easier reference to
+// raceSpecialBiomes.ini, the editor, and the life logs.
+static char getRaceLetter(ObjectRecord *obj) {
+	/* a person object should always have a race, but just in case... */
+	if (obj->race == 0) return 0;
+
+	return obj->race - 1 + 'A';
+}
+
+struct raceInfo { char race; const char *name; float rgb[3]; };
+
+static raceInfo oholRaces[] = {
+	{ 'A', "DESERT", { 0.8f, 0.8f, 0.0f } },
+	{ 'C', "JUNGLE", { 0.0f, 0.8f, 0.0f } },
+	{ 'D', "LANGUAGE", { 0.0f, 0.4f, 0.8f } },
+	{ 'F', "ARCTIC", { 0.8f, 0.8f, 0.8f } }
+};
+
+static void getRaceColor(char raceLetter, float rgba[4]) {
+	// alpha is included here for compatibility with existing color functions
 	rgba[3] = 1.0f;
-	for (int i=0; i < obj->numSprites; i++) {
-		if (obj->sprites[i] == spriteBodyWhiteID) {
-			rgba[0] = obj->spriteColor[i].r;
-			rgba[1] = obj->spriteColor[i].g;
-			rgba[2] = obj->spriteColor[i].b;
+
+	for (size_t i = 0; i < sizeof(oholRaces) / sizeof(oholRaces[0]); i++) {
+		const raceInfo &ri = oholRaces[i];
+
+		if (ri.race == raceLetter) {
+			rgba[0] = ri.rgb[0];
+			rgba[1] = ri.rgb[1];
+			rgba[2] = ri.rgb[2];
 			return;
 		}
 	}
-	for (int i=0; i<3; i++) rgba[i] = 1.0f;
+
+	// default to red for unknown
+	rgba[0] = 0.8f;
+	rgba[1] = 0.0f;
+	rgba[2] = 0.0f;
 }
 
-std::string HetuwMod::getRaceName(ObjectRecord *obj) {
+static void setRaceColor(char raceLetter, float alpha) {
 	float rgba[4];
-	getSkinColor(rgba, obj);
-	//printf("hetuw skinColor %f %f %f", rgba[0], rgba[1], rgba[2]);
-	//printf(" %s\n", Phex::colorsToHex(rgba, 3).c_str());
-	std::string hexColor = Phex::colorsToHex(rgba, 3);
-	if (Phex::strEquals(hexColor, hexRaceColor_brown)) return "BROWN";
-	if (Phex::strEquals(hexColor, hexRaceColor_ginger)) return "GINGER";
-	if (Phex::strEquals(hexColor, hexRaceColor_white)) return "WHITE";
-	if (Phex::strEquals(hexColor, hexRaceColor_black)) return "BLACK";
-	return "UNKOWN";
+	getRaceColor(raceLetter, rgba);
+	setDrawColor(rgba[0], rgba[1], rgba[2], alpha);
+}
+
+static const char * getRaceName(char raceLetter) {
+	// We could almost look up names in raceSpecialBiomes... but that only gives
+	// the names of the biomes, not the names of the races. Those are hard-coded
+	// into the names of the relevant way stones, and it's not worth digging
+	// that hard and making even weirder assumptions.
+
+	// No isAHAP yet: AHAP sprites still use the OHOL race letters, though
+	// raceSpecialBiomes is empty.
+
+	for (size_t i = 0; i < sizeof(oholRaces) / sizeof(oholRaces[0]); i++) {
+		const raceInfo &ri = oholRaces[i];
+		if (ri.race == raceLetter) {
+			return ri.name;
+		}
+	}
+
+	return "UNKNOWN";
 }
 
 void HetuwMod::updatePlayerToMap(LiveObject *o, bool deathMsg) {
@@ -4225,7 +4262,6 @@ void HetuwMod::updatePlayersInRangePanel() {
 			if (o->lineageEveID == fam.eveID) {
 				fam.addLastName(lastName);
 				fam.generation = max(fam.generation, o->lineage.size() + 1);
-				fam.raceName = getRaceName(obj);
 				fam.count++;
 				if (youngWoman) fam.youngWomenCount++;
 				if (o->curseLevel > 0) fam.cursedCount++;
@@ -4244,7 +4280,7 @@ void HetuwMod::updatePlayersInRangePanel() {
 			fam.cursedCount = (o->curseLevel > 0 ? 1 : 0);
 			fam.generation = o->lineage.size()+1;
 			fam.eveID = o->lineageEveID;
-			fam.raceName = getRaceName(obj);
+			fam.race = getRaceLetter(obj);
 			familiesInRange.push_back(fam);
 		}
 	}
@@ -4280,7 +4316,7 @@ void HetuwMod::updatePlayersInRangePanel() {
 	soloEveFam.cursedCount = 0;
 	soloEveFam.generation = 1;
 	soloEveFam.eveID = 0;
-	soloEveFam.raceName = "";
+	soloEveFam.race = 0;
 
 	FamilyInRange donkeyFam;
 	donkeyFam.name = "DONKEY TOWN";
@@ -4289,7 +4325,7 @@ void HetuwMod::updatePlayersInRangePanel() {
 	donkeyFam.cursedCount = 0;
 	donkeyFam.generation = 0;
 	donkeyFam.eveID = 0;
-	donkeyFam.raceName = "";
+	donkeyFam.race = 0;
 
 	for (ssize_t i = 0; i < (ssize_t)familiesInRange.size(); i++) {
 		FamilyInRange &fam = familiesInRange[i];
@@ -4320,7 +4356,7 @@ void HetuwMod::updatePlayersInRangePanel() {
 			if (fam.generation > donkeyFam.generation) {
 				donkeyFam.generation = fam.generation;
 				donkeyFam.eveID = fam.eveID;
-				donkeyFam.raceName = fam.raceName;
+				donkeyFam.race = fam.race;
 			}
 		} else {
 			erase = false;
@@ -4748,7 +4784,7 @@ void HetuwMod::drawPlayersInRangePanel() {
 		const FamilyInRange &fam = familiesInRange[k];
 		if (k != 0 && fam.count <= 0) continue;
 		textPos.y -= lineHeight;
-		setLastNameColor(fam.name.c_str(), 1.0f);
+		setRaceColor(fam.race, 1.0f);
 		snprintf( text, sizeof(text), "%s  F:%i  %i", fam.name.c_str(), fam.youngWomenCount, fam.count);
 		livingLifePage->hetuwDrawScaledHandwritingFont( text, textPos, guiScale, alignRight );
 	}
@@ -4762,9 +4798,9 @@ void HetuwMod::drawPlayersInRangePanel() {
 		if (mouseX >= recStartX && mouseX <= recEndX) {
 			if (mouseY >= recStartY && mouseY <= recEndY) {
 				doublePair descDrawPos = { (double)mouseX, (double)mouseY };
-				snprintf( text, sizeof(text), "%s GEN:%i", fam.raceName.c_str(), fam.generation);
+				snprintf( text, sizeof(text), "%s GEN:%i", getRaceName(fam.race), fam.generation);
 				float rgba[4];
-				getLastNameColor(fam.name.c_str(), rgba);
+				getRaceColor(fam.race, rgba);
 				drawTextWithBckgr(descDrawPos, text, rgba);
 			}
 		}

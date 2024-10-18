@@ -512,10 +512,7 @@ void Phex::serverCmdGET_ALL_PLAYERS(std::vector<std::string> input) {
 		str += " "+inRange;
 		string alive = o->finalAgeSet ? "D" : "A";
 		str += " "+alive;
-		// a85e3d brown, f2cac1 ginger, ddaf93 white, 3f2a2a black
-		float skinColor[4];
-		HetuwMod::getSkinColor(skinColor, obj);
-		str += " "+colorsToHex(skinColor, 3);
+		str += " "+to_string(obj->race - 1 + 'A');
 		string gender = obj->male ? "M" : "F";
 		str += " "+gender;
 		str += " "+to_string((int)HetuwMod::livingLifePage->hetuwGetAge(o));
