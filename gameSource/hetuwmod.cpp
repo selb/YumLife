@@ -4036,8 +4036,13 @@ string HetuwMod::getLastName(const char* name) {
 
 	stringstream ss(name);
 	string lastName;
+	int nameCount = 0;
 	while (ss >> lastName) {
-		/* nothing to do, just keeping the last one */
+		nameCount++;
+	}
+
+	if (nameCount < 2) {
+		return "";
 	}
 
 	return lastName;
