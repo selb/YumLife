@@ -15814,6 +15814,8 @@ void LivingLifePage::step() {
                                   &playerID, &posX, &posY );
             if( numRead == 3 ) {
                 applyReceiveOffset( &posX, &posY );
+
+                HetuwMod::addHomeLocation(posX, posY, HetuwMod::hpt_plane);
                 
                 LiveObject *flyingPerson = getLiveObject( playerID );
                 

@@ -1802,6 +1802,9 @@ void HetuwMod::logHomeLocation(HomePos* hp) {
 		case hpt_rocket:
 			typeName = "rocket";
 			break;
+		case hpt_plane:
+			typeName = "plane";
+			break;
 		default:
 			typeName = "unknowntype";
 	}
@@ -2526,6 +2529,9 @@ void HetuwMod::createCordsDrawStr() {
 	int expertCount = 0;
 	int phexCount = 0;
 	int rocketCount = 0;
+	int flightCount = 0;
+
+	// TODO: Factor out all the generic coord types
 
 	for (unsigned i=0; i<homePosStack.size(); i++) {
 		double dx = double(homePosStack[i]->x) - ourLiveObject->currentPos.x;
@@ -2629,6 +2635,10 @@ void HetuwMod::createCordsDrawStr() {
 				snprintf( sBufA, sizeof(sBufA), "ROCKET %c %d %d%s", (char)(rocketCount+65), homePosStack[i]->x+cordOffset.x, homePosStack[i]->y+cordOffset.y, eta.c_str() );
 				rocketCount++;
 				break;
+			case hpt_plane:
+				snprintf( sBufA, sizeof(sBufA), "PLANE %c %d %d%s", (char)(flightCount+65), homePosStack[i]->x+cordOffset.x, homePosStack[i]->y+cordOffset.y, eta.c_str() );
+				flightCount++;
+				break;
 		}
 		homePosStack[i]->drawStr = string(sBufA);
 
@@ -2673,6 +2683,7 @@ void HetuwMod::setDrawColorToCoordType(homePosType type) {
 			setDrawColor( 0.5, 0.5, 0.5, 1.0 );
 			break;
 		case hpt_rocket:
+		case hpt_plane:
 			setDrawColor( 1.0, 0.8, 0.2, 1.0 );
 	}
 }
