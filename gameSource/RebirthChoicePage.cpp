@@ -39,6 +39,7 @@ RebirthChoicePage::RebirthChoicePage()
                          translate( "reborn" ) ),
           mGenesButton( mainFont, -300, 64, 
                         translate( "geneticHistoryButton" ) ),
+          mYumRebirth( mainFont, 150, -200),
           mTutorialButton( mainFont, tutorialButtonPos.x, tutorialButtonPos.y, 
                            translate( "tutorial" ) ),
           mMenuButton( mainFont, -tutorialButtonPos.x, tutorialButtonPos.y, 
@@ -52,6 +53,7 @@ RebirthChoicePage::RebirthChoicePage()
         addComponent( &mMenuButton );
 	addComponent( &mTutorialButton );
 	addComponent( &mGenesButton );
+    addComponent( &mYumRebirth );
         }
     else {
         mRebornButton.setPosition( 0, -200 );
