@@ -25,6 +25,8 @@
 
 #include "minorGems/formats/encodingUtils.h"
 
+#include "yumRebirthComponent.h"
+
 static JenkinsRandomSource randSource;
 
 
@@ -251,6 +253,8 @@ void ExistingAccountPage::makeActive( char inFresh ) {
         SettingsManager::getIntSetting( "tutorialEnabled", 0 );
     
     useMainSettings();
+
+    yumRebirthComponent::clearSelectedOptions();
     
     
     if( tutorialEnabled && 

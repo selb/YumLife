@@ -34,6 +34,7 @@ class yumRebirthComponent : public PageComponent, public ActionListener {
         virtual void actionPerformed(GUIComponent *inTarget);
 
         static Options getSelectedOptions(void) { return currentOptions; }
+        static void clearSelectedOptions(void) { currentOptions = 0; }
 
         static bool evaluateLife(char race, bool isFemale, bool isDonkeyTown);
     
