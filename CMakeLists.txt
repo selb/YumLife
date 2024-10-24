@@ -88,6 +88,7 @@ set(CLIENT_SOURCE_FILES
     gameSource/phex.cpp
     gameSource/yumBlob.cpp
     gameSource/yumConfig.cpp
+    gameSource/yumRebirthComponent.cpp
     gameSource/game.cpp
     gameSource/spriteBank.cpp
     gameSource/objectBank.cpp

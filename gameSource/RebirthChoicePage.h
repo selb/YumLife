@@ -7,6 +7,7 @@
 
 #include "TextButton.h"
 
+#include "yumRebirthComponent.h"
 
 class RebirthChoicePage : public GamePage, public ActionListener {
         
@@ -30,9 +31,10 @@ class RebirthChoicePage : public GamePage, public ActionListener {
         TextButton mReviewButton;
         TextButton mRebornButton;
         TextButton mGenesButton;
+
+        yumRebirthComponent mYumRebirth;
         
         TextButton mTutorialButton;
         TextButton mMenuButton;
         TextButton mFriendsButton;
-
     };
