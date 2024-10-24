@@ -53,6 +53,7 @@ void yumRebirthComponent::draw() {
         optbox.checkbox->setToggled(on);
     }
 
+    setDrawColor(1, 1, 1, 1.0);
     for (auto optbox : mOptionCheckboxes) {
         doublePair pos = optbox.checkbox->getCenter();
         pos.x += 24;
