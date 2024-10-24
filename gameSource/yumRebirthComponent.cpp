@@ -85,3 +85,30 @@ void yumRebirthComponent::actionPerformed(GUIComponent *inTarget) {
         }
     }
 }
+
+bool yumRebirthComponent::evaluateLife(char race, bool isFemale, bool isDonkeyTown) {
+    Options biome;
+    switch (race) {
+        case 'A': biome = BIOME_DESERT; break;
+        case 'C': biome = BIOME_JUNGLE; break;
+        case 'D': biome = BIOME_LANGUAGE; break;
+        case 'F': biome = BIOME_ARCTIC; break;
+        default:  biome = BIOME_ALL; break;
+    }
+
+    if ((currentOptions & BIOME_ALL) != 0 && (biome & currentOptions) == 0) {
+        return false;
+    }
+
+    Options gender = isFemale ? GENDER_FEMALE : GENDER_MALE;
+    if ((currentOptions & GENDER_ALL) != 0 && (gender & currentOptions) == 0) {
+        return false;
+    }
+
+    Options region = isDonkeyTown ? REGION_DONKEYTOWN : REGION_MAIN;
+    if ((currentOptions & REGION_ALL) != 0 && (region & currentOptions) == 0) {
+        return false;
+    }
+
+    return true;
+}

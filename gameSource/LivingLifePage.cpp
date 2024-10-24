@@ -66,6 +66,7 @@
 #include "phex.h"
 #include <string>
 #include "minitech.h"
+#include "yumRebirthComponent.h"
 
 static ObjectPickable objectPickable;
 
@@ -294,7 +295,9 @@ double uniqueSpriteCountToDraw = 0;
 double pixelCountToDraw = 0;
 
 
-
+static bool yumGotDonkeyTownMessage = false;
+static bool yumEvaluatedRebirth = false;
+static bool yumDidAutoSIDS = false;
 
 
 typedef struct RecordedSpeechRecord {
@@ -2266,6 +2269,9 @@ static char isAutoClick = false;
 
 bool LivingLifePage::hetuwIsAutoClick() { return isAutoClick; }
 
+bool LivingLifePage::yumSkipDeathMessage() {
+    return yumDidAutoSIDS;
+}
 
 static void findClosestPathSpot( LiveObject *inObject ) {
     
@@ -14664,6 +14670,21 @@ void LivingLifePage::step() {
 	minitech::livingLifeStep();
 	HetuwMod::livingLifeStep();
 
+    if (ourObject != NULL && !yumEvaluatedRebirth) {
+        ObjectRecord *o = getObject(ourObject->displayID, true);
+        if (o != NULL) {
+            char race = o->race - 1 + 'A';
+            if (!yumRebirthComponent::evaluateLife(race, !o->male, yumGotDonkeyTownMessage)) {
+                // TODO: do a /REBORN equivalent for DT eve
+                char *message = autoSprintf("DIE 0 0#");
+                sendToServerSocket(message);
+                delete [] message;
+                yumDidAutoSIDS = true;
+            }
+            yumEvaluatedRebirth = true;
+        }
+    }
+
     if( showFPS ) {
         timeMeasures[1] += game_getCurrentTime() - updateStartTime;
         }
@@ -14719,6 +14740,9 @@ void LivingLifePage::step() {
                 char **lines = split( message, "\n", &numLines );
                 
                 if( numLines > 1 ) {
+                    if (NULL != strstr(lines[1], "WELCOME_TO_DONKEYTOWN")) {
+                        yumGotDonkeyTownMessage = true;
+                    }
                     displayGlobalMessage( lines[1] );
                     HetuwMod::writeLineToLogs("globalMessage", string(lines[1]));
                     }
@@ -23740,6 +23764,9 @@ void LivingLifePage::makeActive( char inFresh ) {
     lastPingSent = 0;
     lastPongReceived = 0;
     
+    yumGotDonkeyTownMessage = false;
+    yumEvaluatedRebirth = false;
+    yumDidAutoSIDS = false;
 
     serverSocketBuffer.deleteAll();
 

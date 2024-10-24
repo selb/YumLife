@@ -2520,7 +2520,13 @@ void drawFrame( char inUpdate ) {
                 }
             else if( livingLifePage->checkSignal( "died" ) ) {
                 existingAccountPage->setStatus( NULL, false );
-                showDiedPage();
+                if (livingLifePage->yumSkipDeathMessage()) {
+                    currentGamePage = rebirthChoicePage;
+                    currentGamePage->base_makeActive( true );
+                    }
+                else {
+                    showDiedPage();
+                    }
                 }
             else if( livingLifePage->checkSignal( "disconnect" ) ) {
                 showReconnectPage();
