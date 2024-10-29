@@ -2737,6 +2737,8 @@ bool HetuwMod::isRelated( LiveObject* player ) {
 void HetuwMod::getRelationNameColor( const char* name, float* color ) {
 	if ( !name ) {
 		color[0] = 1.0f; color[1] = 1.0f; color[2] = 1.0f; 
+	} else if (strstr(name, "IDENTICAL TWIN")) {
+		color[0] = 1.0f; color[1] = 0.0f; color[2] = 0.0f;
 	} else if ( strstr( name, "MOTHER" )) {
 		if ( strstr( name, "GRANDMOTHER" )) {
 			color[0] = 0.0f; color[1] = 0.7f; color[2] = 0.0f; 
