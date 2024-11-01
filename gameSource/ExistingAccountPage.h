@@ -4,6 +4,7 @@
 #include "TextButton.h"
 #include "KeyEquivalentTextButton.h"
 
+#include "yumRebirthComponent.h"
 
 #include "minorGems/ui/event/ActionListener.h"
 
@@ -81,6 +82,8 @@ class ExistingAccountPage : public GamePage, public ActionListener {
         TextButton mServicesButton;
         
         TextButton mAHAPSettingsButton;
+
+        yumRebirthComponent mYumRebirth;
         
 
         double mPageActiveStartTime;

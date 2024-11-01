@@ -10,11 +10,15 @@
 
 yumRebirthComponent::Options yumRebirthComponent::currentOptions = 0;
 
-yumRebirthComponent::yumRebirthComponent(Font *font, double x, double y)
-    : PageComponent(x, y), mFont(font) {
+yumRebirthComponent::yumRebirthComponent(Font *font, double x, double y, double offX, double offY)
+    : PageComponent(x, y), mFont(font), mOffX(offX), mOffY(offY), mEnabledCheckbox(0, 0, 4.0) {
+
+    addComponent(&mEnabledCheckbox);
+    mEnabledCheckbox.addActionListener(this);
+    mEnabledCheckbox.setToggled(currentOptions != 0);
 
     // now talking in relative coordinates for future rendering
-    x = -200; y = 0;
+    x = mOffX; y = mOffY;
     auto addOption = [&](Options option, const char *label) {
         CheckboxButton *checkbox = new CheckboxButton(x, y, 4.0);
         addComponent(checkbox);
@@ -28,7 +32,7 @@ yumRebirthComponent::yumRebirthComponent(Font *font, double x, double y)
     addOption(BIOME_JUNGLE,   "JUNGLE");
     addOption(BIOME_DESERT,   "DESERT");
     
-    x = 160; y = 0;
+    x = mOffX + 240; y = mOffY;
     addOption(GENDER_FEMALE, "FEMALE");
     addOption(GENDER_MALE,   "MALE");
 
@@ -43,25 +47,57 @@ yumRebirthComponent::~yumRebirthComponent() {
     }
 }
 
-void yumRebirthComponent::draw() {
-    // Synchronize checkbox state just before drawing for consistency. There
-    // could be multiple instances of this component, but also this allows us
-    // to be lazy about updating the checkboxes when updating currentOptions
-    // in general.
-    for (auto optbox : mOptionCheckboxes) {
-        bool on = currentOptions & optbox.option;
-        optbox.checkbox->setToggled(on);
+bool yumRebirthComponent::isEnabled() {
+    // turn on if another yumRebirthComponent on another page was used
+    if (currentOptions != 0) {
+        mEnabledCheckbox.setToggled(true);
     }
 
-    setDrawColor(1, 1, 1, 1.0);
-    for (auto optbox : mOptionCheckboxes) {
-        doublePair pos = optbox.checkbox->getCenter();
-        pos.x += 24;
-        mFont->drawString(optbox.label, pos, alignLeft);
+    return mEnabledCheckbox.getToggled();
+}
+
+void yumRebirthComponent::onMakeActive() {
+    if (currentOptions == 0) {
+        mEnabledCheckbox.setToggled(false);
     }
 }
 
+void yumRebirthComponent::draw() {
+    bool featureEnabled = isEnabled();
+
+    // Synchronize checkbox state just before drawing for consistency. There
+    // are multiple instances of this component, but also this allows us to be
+    // lazy about updating the checkboxes when updating currentOptions.
+    for (auto optbox : mOptionCheckboxes) {
+        bool on = currentOptions & optbox.option;
+        optbox.checkbox->setToggled(on);
+        optbox.checkbox->setVisible(featureEnabled);
+    }
+
+    setDrawColor(1, 1, 1, 1.0);
+
+    if (featureEnabled) {
+        for (auto optbox : mOptionCheckboxes) {
+            doublePair pos = optbox.checkbox->getCenter();
+            pos.x += 24;
+            mFont->drawString(optbox.label, pos, alignLeft);
+        }
+    }
+
+    doublePair pos = mEnabledCheckbox.getCenter();
+    pos.x += 24;
+    mFont->drawString(featureEnabled ? "AUTO /DIE UNLESS:" : "AUTO /DIE", pos, alignLeft);
+}
+
 void yumRebirthComponent::actionPerformed(GUIComponent *inTarget) {
+    if (inTarget == &mEnabledCheckbox) {
+        // clear all options if the user disables the feature
+        if (!mEnabledCheckbox.getToggled()) {
+            currentOptions = 0;
+        }
+        return;
+    }
+
     for (auto optbox : mOptionCheckboxes) {
         if (inTarget == optbox.checkbox) {
             bool on = optbox.checkbox->getToggled();

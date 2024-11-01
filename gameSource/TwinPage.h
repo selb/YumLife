@@ -4,6 +4,7 @@
 #include "TextButton.h"
 #include "RadioButtonSet.h"
 
+#include "yumRebirthComponent.h"
 
 #include "minorGems/ui/event/ActionListener.h"
 #include "minorGems/util/SimpleVector.h"
@@ -37,6 +38,8 @@ class TwinPage : public GamePage, public ActionListener {
         TextButton mPasteButton;
         
         TextButton mLoginButton;
+
+        yumRebirthComponent mYumRebirth;
         
         TextButton mCancelButton;
         

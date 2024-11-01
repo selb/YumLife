@@ -14674,7 +14674,11 @@ void LivingLifePage::step() {
         ObjectRecord *o = getObject(ourObject->displayID, true);
         if (o != NULL) {
             char race = o->race - 1 + 'A';
-            if (!yumRebirthComponent::evaluateLife(race, !o->male, yumGotDonkeyTownMessage)) {
+            if (computeCurrentAge(ourObject) > 2.0) {
+                // we probably got born as eve. don't actually evaluate or send
+                // a DIE message, mainly so we don't end up skipping the
+                // death message screen for an eve that stays alive.
+            } else if (!yumRebirthComponent::evaluateLife(race, !o->male, yumGotDonkeyTownMessage)) {
                 // TODO: do a /REBORN equivalent for DT eve
                 char *message = autoSprintf("DIE 0 0#");
                 sendToServerSocket(message);

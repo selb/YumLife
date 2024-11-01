@@ -39,7 +39,7 @@ RebirthChoicePage::RebirthChoicePage()
                          translate( "reborn" ) ),
           mGenesButton( mainFont, -300, 64, 
                         translate( "geneticHistoryButton" ) ),
-          mYumRebirth( mainFont, 150, -200),
+          mYumRebirth( mainFont, 50, -180),
           mTutorialButton( mainFont, tutorialButtonPos.x, tutorialButtonPos.y, 
                            translate( "tutorial" ) ),
           mMenuButton( mainFont, -tutorialButtonPos.x, tutorialButtonPos.y, 
@@ -155,6 +155,8 @@ void RebirthChoicePage::draw( doublePair inViewCenter,
 void RebirthChoicePage::makeActive( char inFresh ) {
     triggerLifeTokenUpdate();
     triggerFitnessScoreUpdate();
+
+    mYumRebirth.onMakeActive();
     
     int reviewPosted = SettingsManager::getIntSetting( "reviewPosted", 0 );
     

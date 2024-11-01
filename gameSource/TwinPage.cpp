@@ -34,6 +34,7 @@ TwinPage::TwinPage()
     mCopyButton( mainFont, 400, 170, translate( "copy" ) ),
     mPasteButton( mainFont, 400, 86, translate( "paste" ) ),
     mLoginButton( mainFont, 400, -280, translate( "loginButton" ) ),
+    mYumRebirth( mainFont, 110, -40 ),
     mCancelButton( mainFont, -400, -280, 
                    translate( "cancel" ) ) {
     
@@ -49,6 +50,8 @@ TwinPage::TwinPage()
     addComponent( &mPasteButton );
     addComponent( &mLoginButton );
     addComponent( &mCancelButton );
+
+    addComponent( &mYumRebirth );
 
     addComponent( &mCodeField );
     
@@ -219,6 +222,7 @@ void TwinPage::actionPerformed( GUIComponent *inTarget ) {
 
 
 void TwinPage::makeActive( char inFresh ) {
+    mYumRebirth.onMakeActive();
     }
 
         

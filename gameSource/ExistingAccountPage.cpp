@@ -83,7 +83,7 @@ ExistingAccountPage::ExistingAccountPage()
           mGenesButton( mainFont, 550, 0, translate( "genesButton" ) ),
           mFamilyTreesButton( mainFont, 320, -160, translate( "familyTrees" ) ),
           mTechTreeButton( mainFont, 550, -160, translate( "techTree" ) ),
-          mOholCurseButton( mainFont, 400, -240, "MY OHOLCURSE" ),
+          mOholCurseButton( mainFont, 450, -240, "OHOLCURSE" ),
           mClearAccountButton( mainFont, 400, -280, 
                                translate( "clearAccount" ) ),
           mCancelButton( mainFont, -400, -280, 
@@ -101,6 +101,7 @@ ExistingAccountPage::ExistingAccountPage()
                            translate( "services" ) ),
           mAHAPSettingsButton( mainFont, -522, 0, 
                                translate( "ahapSettings" ) ),
+          mYumRebirth( mainFont, -200, -100, -10.0, -50.0 ),
           mPageActiveStartTime( 0 ),
           mFramesCounted( 0 ),
           mFPSMeasureDone( false ),
@@ -161,6 +162,8 @@ ExistingAccountPage::ExistingAccountPage()
     addComponent( &mTutorialButton );
     addComponent( &mServicesButton );
     addComponent( &mAHAPSettingsButton );
+
+    addComponent( &mYumRebirth );
     
     mLoginButton.addActionListener( this );
     mFriendsButton.addActionListener( this );
@@ -246,6 +249,8 @@ void ExistingAccountPage::makeActive( char inFresh ) {
 
     mAHAPSettingsButton.setVisible( isAHAP );
 
+    mYumRebirth.onMakeActive();
+
 
     useContentSettings();
     
@@ -253,8 +258,6 @@ void ExistingAccountPage::makeActive( char inFresh ) {
         SettingsManager::getIntSetting( "tutorialEnabled", 0 );
     
     useMainSettings();
-
-    yumRebirthComponent::clearSelectedOptions();
     
     
     if( tutorialEnabled && 
@@ -743,7 +746,9 @@ void ExistingAccountPage::draw( doublePair inViewCenter,
 
     doublePair pos = { -9, -225 };
     
-    drawSprite( instructionsSprite, pos );
+    if (!mYumRebirth.isEnabled()) {
+        drawSprite( instructionsSprite, pos );
+    }
 
 
     if( ! mEmailField.isVisible() ) {

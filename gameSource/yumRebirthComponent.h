@@ -2,6 +2,7 @@
 #define YUMREBIRTH_H
 
 #include "PageComponent.h"
+#include "CheckboxButton.h"
 
 #include "minorGems/ui/event/ActionListener.h"
 
@@ -26,15 +27,24 @@ class yumRebirthComponent : public PageComponent, public ActionListener {
         static constexpr Options REGION_DONKEYTOWN = 1 << 7;
         static constexpr Options REGION_ALL = REGION_MAIN | REGION_DONKEYTOWN;
 
-        yumRebirthComponent(class Font *font, double x, double y);
+        // x, y: center of the enable checkbox
+        // offX, offY: relative coords of the full selection UI when enabled
+        yumRebirthComponent(class Font *font, double x, double y, double offX = 10.0, double offY = -40.0);
         virtual ~yumRebirthComponent();
     
         virtual void draw();
 
         virtual void actionPerformed(GUIComponent *inTarget);
 
+        // true if the user has checked the "AUTO /DIE" checkbox and the full
+        // UI is showing; useful for hiding other UI elements in the way
+        bool isEnabled();
+
+        // call when the page is made active to update the UI based on changes
+        // from other pages that have the same component
+        void onMakeActive();
+
         static Options getSelectedOptions(void) { return currentOptions; }
-        static void clearSelectedOptions(void) { currentOptions = 0; }
 
         static bool evaluateLife(char race, bool isFemale, bool isDonkeyTown);
     
@@ -42,6 +52,10 @@ class yumRebirthComponent : public PageComponent, public ActionListener {
         static Options currentOptions;
 
         class Font *mFont;
+
+        double mOffX, mOffY;
+
+        CheckboxButton mEnabledCheckbox;
 
         struct OptionCheckbox {
             Options option;
