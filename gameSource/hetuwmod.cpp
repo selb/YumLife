@@ -963,7 +963,7 @@ void HetuwMod::initSettings() {
 	};
 	yumConfig::registerMappedSetting("auto_name_mode", autoNameMode, autoNameModeMap, {postComment: " // sequential, shuffle, or off"});
 
-	yumConfig::registerSetting("default_auto_die", defaultAutoDieOptions, {preComment: "\n// comma-separated auto /DIE options (example: ARCTIC,MALE)\n"});
+	yumConfig::registerSetting("auto_die_unless", defaultAutoDieOptions, {preComment: "\n// comma-separated auto /DIE options to pre-select on startup\n// (example: ARCTIC,JUNGLE,DESERT,MALE)\n"});
 
 	// Compatibility options
 
