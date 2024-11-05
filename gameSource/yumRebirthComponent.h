@@ -52,8 +52,6 @@ class yumRebirthComponent : public PageComponent, public ActionListener {
         static void registerDefaults(std::vector<std::string> &options);
     
     private:
-        static Options currentOptions;
-
         class Font *mFont;
 
         double mOffX, mOffY;

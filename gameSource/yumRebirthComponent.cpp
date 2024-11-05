@@ -13,8 +13,8 @@
 
 using Options = yumRebirthComponent::Options;
 
-Options yumRebirthComponent::currentOptions = 0;
-static Options defaultOptions = 0;
+static Options currentOptions = 0;
+static Options previousOptions = 0;
 
 struct {
     Options option;
@@ -155,9 +155,10 @@ void yumRebirthComponent::setOption(Options option, bool on) {
 void yumRebirthComponent::actionPerformed(GUIComponent *inTarget) {
     if (inTarget == &mEnabledCheckbox) {
         if (!mEnabledCheckbox.getToggled()) {
+            previousOptions = currentOptions;
             currentOptions = 0;
         } else {
-            currentOptions = defaultOptions;
+            currentOptions = previousOptions;
         }
         return;
     }
@@ -207,5 +208,4 @@ void yumRebirthComponent::registerDefaults(std::vector<std::string> &options) {
         }
     }
     options = filteredOptions;
-    defaultOptions = currentOptions;
 }
