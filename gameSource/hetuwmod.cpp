@@ -78,6 +78,8 @@ int HetuwMod::magnetMoveDir = -1;
 int HetuwMod::magnetWrongMoveDir = -1;
 int HetuwMod::magnetMoveCount = 0;
 
+bool HetuwMod::privateModeEnabled = false;
+
 unsigned char HetuwMod::charKey_Up = 'w';
 unsigned char HetuwMod::charKey_Down = 's';
 unsigned char HetuwMod::charKey_Left = 'a';
@@ -803,6 +805,20 @@ void HetuwMod::initSettings() {
 
 	yumConfig::registerSetting("cfg_version", cfgVersionActive, {preComment: "// this file will be created whenever you start the mod\n// if you want to reset this file, just delete it\n\n"});
 	
+	const char *privateModeInstructions =
+		"\n"
+		"// Disable all features that connect to third-party services to prevent\n"
+		"// leakage of any account info or IPs to anyone but Jason's servers or\n"
+		"// any custom server you choose to connect to. This currently includes:\n"
+		"//\n"
+		"//  - The Phex chat system\n"
+		"//  - The OHOLCurse button\n"
+		"//  - The Services button\n"
+		"//\n"
+		"// Any future opt-out networked features in the official selb/YumLife\n"
+		"// distribution will respect this option.\n";
+	yumConfig::registerSetting("private_mode", privateModeEnabled, {preComment: privateModeInstructions});
+
 	yumConfig::registerSetting("key_up", charKey_Up, {preComment: "\n"});
 	yumConfig::registerSetting("key_down", charKey_Down);
 	yumConfig::registerSetting("key_left", charKey_Left);
@@ -870,7 +886,8 @@ void HetuwMod::initSettings() {
 	yumConfig::registerSetting("init_show_homecords", bDrawHomeCords);
 	yumConfig::registerSetting("init_show_hostiletiles", bDrawHostileTiles);
 
-	yumConfig::registerSetting("phex_enabled", phexIsEnabled, {preComment: "\n"});
+	static bool phexIsEnabledAsConfigured = phexIsEnabled;
+	yumConfig::registerSetting("phex_enabled", phexIsEnabledAsConfigured, {preComment: "\n"});
 	yumConfig::registerSetting("phex_ip", phexIp);
 	yumConfig::registerSetting("phex_port", phexPort);
 	yumConfig::registerSetting("phex_coords", Phex::allowServerCoords);
@@ -983,6 +1000,13 @@ void HetuwMod::initSettings() {
 	}
 	validateNames(autoMaleNames);
 	validateNames(autoFemaleNames);
+
+	// private mode overrides
+	if (privateModeEnabled) {
+		phexIsEnabled = false;
+	} else {
+		phexIsEnabled = phexIsEnabledAsConfigured;
+	}
 
 	cfgVersionActive = cfgVersionLatest;
 	yumConfig::saveSettings(hetuwSettingsFileName);

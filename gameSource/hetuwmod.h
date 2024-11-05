@@ -269,6 +269,8 @@ public:
 	static int tutMessageOffsetX;
 	static int tutMessageOffsetX2;
 
+	static bool privateModeEnabled;
+
 	static unsigned char charKey_Up;
 	static unsigned char charKey_Down;
 	static unsigned char charKey_Left;

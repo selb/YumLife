@@ -25,6 +25,7 @@
 
 #include "minorGems/formats/encodingUtils.h"
 
+#include "hetuwmod.h"
 #include "yumRebirthComponent.h"
 
 static JenkinsRandomSource randSource;
@@ -750,6 +751,9 @@ void ExistingAccountPage::draw( doublePair inViewCenter,
         drawSprite( instructionsSprite, pos );
     }
 
+    if (HetuwMod::privateModeEnabled) {
+        mServicesButton.setVisible( false );
+    }
 
     if( ! mEmailField.isVisible() ) {
         char *email = mEmailField.getText();
@@ -842,8 +846,8 @@ void ExistingAccountPage::draw( doublePair inViewCenter,
             }
 
         const char *leaderboardName = getLeaderboardName();
-        if (leaderboardName != NULL) {
-                mOholCurseButton.setVisible( true );
+        if (leaderboardName != NULL && !HetuwMod::privateModeEnabled) {
+            mOholCurseButton.setVisible( true );
         }
 
         // YumLife: show window title with version info
