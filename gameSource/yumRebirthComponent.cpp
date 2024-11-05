@@ -13,8 +13,8 @@
 
 using Options = yumRebirthComponent::Options;
 
+static bool enabled = false;
 static Options currentOptions = 0;
-static Options previousOptions = 0;
 
 static struct {
     Options option;
@@ -91,35 +91,29 @@ yumRebirthComponent::~yumRebirthComponent() {
 }
 
 bool yumRebirthComponent::isEnabled() {
-    // turn on if another yumRebirthComponent on another page was used
-    if (currentOptions != 0) {
-        mEnabledCheckbox.setToggled(true);
-    }
-
-    return mEnabledCheckbox.getToggled();
+    return enabled;
 }
 
 void yumRebirthComponent::onMakeActive() {
-    if (currentOptions == 0) {
+    if (!enabled) {
         mEnabledCheckbox.setToggled(false);
     }
 }
 
 void yumRebirthComponent::draw() {
-    bool featureEnabled = isEnabled();
-
     // Synchronize checkbox state just before drawing for consistency. There
     // are multiple instances of this component, but also this allows us to be
     // lazy about updating the checkboxes when updating currentOptions.
+    mEnabledCheckbox.setToggled(enabled);
     for (auto optbox : mOptionCheckboxes) {
         bool on = currentOptions & optbox.option;
         optbox.checkbox->setToggled(on);
-        optbox.checkbox->setVisible(featureEnabled);
+        optbox.checkbox->setVisible(enabled);
     }
 
     setDrawColor(1, 1, 1, 1.0);
 
-    if (featureEnabled) {
+    if (enabled) {
         for (auto optbox : mOptionCheckboxes) {
             doublePair pos = optbox.checkbox->getCenter();
             pos.x += 24;
@@ -129,7 +123,7 @@ void yumRebirthComponent::draw() {
 
     doublePair pos = mEnabledCheckbox.getCenter();
     pos.x += 24;
-    mFont->drawString(featureEnabled ? "AUTO /DIE UNLESS:" : "AUTO /DIE", pos, alignLeft);
+    mFont->drawString(enabled ? "AUTO /DIE UNLESS:" : "AUTO /DIE", pos, alignLeft);
 }
 
 void yumRebirthComponent::setOption(Options option, bool on) {
@@ -154,12 +148,7 @@ void yumRebirthComponent::setOption(Options option, bool on) {
 
 void yumRebirthComponent::actionPerformed(GUIComponent *inTarget) {
     if (inTarget == &mEnabledCheckbox) {
-        if (!mEnabledCheckbox.getToggled()) {
-            previousOptions = currentOptions;
-            currentOptions = 0;
-        } else {
-            currentOptions = previousOptions;
-        }
+        enabled = mEnabledCheckbox.getToggled();
         return;
     }
 
@@ -172,6 +161,10 @@ void yumRebirthComponent::actionPerformed(GUIComponent *inTarget) {
 }
 
 bool yumRebirthComponent::evaluateLife(char race, bool isFemale, bool isDonkeyTown) {
+    if (!enabled) {
+        return true;
+    }
+
     Options biome;
     switch (race) {
         case 'A': biome = BIOME_DESERT; break;
@@ -208,4 +201,5 @@ void yumRebirthComponent::registerDefaults(std::vector<std::string> &options) {
         }
     }
     options = filteredOptions;
+    enabled = (currentOptions != 0);
 }
