@@ -6,8 +6,9 @@
 
 #include "minorGems/ui/event/ActionListener.h"
 
-#include <vector>
+#include <string>
 #include <unordered_map>
+#include <vector>
 
 class yumRebirthComponent : public PageComponent, public ActionListener {
     public:
@@ -44,9 +45,11 @@ class yumRebirthComponent : public PageComponent, public ActionListener {
         // from other pages that have the same component
         void onMakeActive();
 
-        static Options getSelectedOptions(void) { return currentOptions; }
-
         static bool evaluateLife(char race, bool isFemale, bool isDonkeyTown);
+
+        // applies the configured defaults, removing any entries that aren't
+        // recognized as options
+        static void registerDefaults(std::vector<std::string> &options);
     
     private:
         static Options currentOptions;
@@ -59,11 +62,12 @@ class yumRebirthComponent : public PageComponent, public ActionListener {
 
         struct OptionCheckbox {
             Options option;
-            const char *label;
             class CheckboxButton *checkbox;
         };
 
         std::vector<OptionCheckbox> mOptionCheckboxes;
+
+        static void setOption(Options option, bool on);
 };
 
 #endif // YUMREBIRTH_H

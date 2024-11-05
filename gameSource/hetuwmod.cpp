@@ -23,6 +23,7 @@
 #include "yumBlob.h"
 #include "yumConfig.h"
 #include "fitnessScore.h"
+#include "yumRebirthComponent.h"
 
 using namespace std;
 
@@ -328,6 +329,8 @@ static const char *defaultFontFilename = "font_32_64_yum.tga";
 std::string HetuwMod::fontFilename = defaultFontFilename;
 
 bool HetuwMod::skipRocketCutscene = false;
+
+static vector<string> defaultAutoDieOptions;
 
 HetuwFont *HetuwMod::customFont = NULL;
 
@@ -960,6 +963,8 @@ void HetuwMod::initSettings() {
 	};
 	yumConfig::registerMappedSetting("auto_name_mode", autoNameMode, autoNameModeMap, {postComment: " // sequential, shuffle, or off"});
 
+	yumConfig::registerSetting("default_auto_die", defaultAutoDieOptions, {preComment: "\n// comma-separated auto /DIE options (example: ARCTIC,MALE)\n"});
+
 	// Compatibility options
 
 	// replaced by phex_side
@@ -1000,6 +1005,7 @@ void HetuwMod::initSettings() {
 	}
 	validateNames(autoMaleNames);
 	validateNames(autoFemaleNames);
+	yumRebirthComponent::registerDefaults(defaultAutoDieOptions);
 
 	// private mode overrides
 	if (privateModeEnabled) {
