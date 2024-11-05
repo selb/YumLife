@@ -16,7 +16,7 @@ using Options = yumRebirthComponent::Options;
 static Options currentOptions = 0;
 static Options previousOptions = 0;
 
-struct {
+static struct {
     Options option;
     const char *label;
 } optionInfo[] = {
