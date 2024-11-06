@@ -210,7 +210,7 @@ public:
 	};
 
 	enum homePosType {
-		hpt_custom, hpt_birth, hpt_home, hpt_bell, hpt_apoc, hpt_tarr, hpt_map, hpt_baby, hpt_babyboy, hpt_babygirl, hpt_expert, hpt_phex, hpt_rocket, hpt_plane
+		hpt_custom, hpt_birth, hpt_home, hpt_bell, hpt_apoc, hpt_tarr, hpt_map, hpt_baby, hpt_babyboy, hpt_babygirl, hpt_expert, hpt_rocket, hpt_plane
 	};
 
 	struct HomePos {
@@ -299,7 +299,6 @@ public:
 	static unsigned char charKey_MakePhoto;
 
 	static unsigned char charKey_Minitech;
-	static unsigned char charKey_Phex;
 
 	static unsigned char charKey_ShowMap;
 	static unsigned char charKey_MapZoomIn;
@@ -330,14 +329,6 @@ public:
 	static double ourAge;
 	static double ourLastSpeed; /* last speed when moving, cells/s */
 	static double ourLastDirection; /* in radians */
-	
-	static bool phexIsEnabled;
-	static std::string phexIp;
-	static int phexPort;
-	static bool debugPhex;
-	static bool phexStartOffline;
-	static bool phexSkipTOS;
-	static bool phexSendEmail;
 
 	static std::string fontFilename;
 	static bool skipRocketCutscene;
@@ -460,7 +451,6 @@ public:
 	static void getOurFamilyName();
 	static bool isRelated( LiveObject* player );
 	static void getRelationNameColor( const char* name, float* color );
-	static bool itsTimeToDrawPhexName();
 	static void drawPlayerNames( LiveObject* player );
 	static void drawHighlightedPlayer();
 
@@ -636,8 +626,6 @@ public:
 	static bool minitechEnabled;
 	static bool minitechStayMinimized;
 	static bool minitechTooltipsEnabled;
-
-	static bool phexOnLeft();
 
 private:
 

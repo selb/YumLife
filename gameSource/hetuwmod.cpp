@@ -18,7 +18,6 @@
 #include "minorGems/util/random/JenkinsRandomSource.h"
 #include "groundSprites.h"
 #include "photos.h"
-#include "phex.h"
 #include "hetuwFont.h"
 #include "yumBlob.h"
 #include "yumConfig.h"
@@ -106,7 +105,6 @@ unsigned char HetuwMod::charKey_FindYum = 'y';
 unsigned char HetuwMod::charKey_HidePlayers = 254;
 unsigned char HetuwMod::charKey_ShowGrid = 'k';
 unsigned char HetuwMod::charKey_MakePhoto = 254;
-unsigned char HetuwMod::charKey_Phex = '#';
 
 unsigned char HetuwMod::charKey_CreateHome = 'r';
 unsigned char HetuwMod::charKey_FixCamera = 'f';
@@ -289,23 +287,6 @@ doublePair HetuwMod::mouseRelativeToView = {0, 0};
 bool HetuwMod::isMovingInVog = false;
 HetuwMod::IntervalTimed HetuwMod::intervalVogMove(0.1);
 
-bool HetuwMod::phexIsEnabled = true;
-static const char *defaultPhexIP = "chat.onelifeglobal.chat";
-std::string HetuwMod::phexIp = defaultPhexIP;
-int HetuwMod::phexPort = 6567;
-bool HetuwMod::debugPhex = false;
-bool HetuwMod::phexStartOffline = false;
-bool HetuwMod::phexSkipTOS = false;
-bool HetuwMod::phexSendEmail = false;
-
-
-enum {
-	PHEX_AUTO_SIDE,
-	PHEX_ON_LEFT,
-	PHEX_ON_RIGHT,
-};
-static int phexSide = PHEX_AUTO_SIDE;
-
 bool HetuwMod::sendKeyEvents = false;
 
 bool HetuwMod::bDrawBiomeInfo = false;
@@ -409,8 +390,6 @@ void HetuwMod::init() {
 	initSettings();
 
 	lastLoggedId = getLastIdFromLogs();
-
-	Phex::init();
 
 	initHelpText();
 }
@@ -696,9 +675,6 @@ std::vector<std::string> HetuwMod::splitStrXTimes(const std::string &str, char s
 		if (sub.length() > 0) result.push_back(sub); // sub.length() might be 0 if str contains several splitChars in a row
 		strPos = firstCharPos+1;
 	}
-	//string sub = str.substr(strPos, str.length());
-	//printf("Phex len: %d sub: %s\n", sub.length(), sub.c_str());
-	//if (sub.length() > 0) result.push_back(sub);
 	if (strPos < str.length()) result.push_back(str.substr(strPos, str.length()));
 	return result;
 }
@@ -814,7 +790,6 @@ void HetuwMod::initSettings() {
 		"// leakage of any account info or IPs to anyone but Jason's servers or\n"
 		"// any custom server you choose to connect to. This currently includes:\n"
 		"//\n"
-		"//  - The Phex chat system\n"
 		"//  - The OHOLCurse button\n"
 		"//  - The Services button\n"
 		"//\n"
@@ -853,8 +828,7 @@ void HetuwMod::initSettings() {
 
 	yumConfig::registerSetting("key_confirmexit", charKey_ConfirmExit, {preComment: "\n"});
 
-	yumConfig::registerSetting("key_phex", charKey_Phex, {preComment: "\n"});
-	yumConfig::registerSetting("key_minitech", charKey_Minitech);
+	yumConfig::registerSetting("key_minitech", charKey_Minitech, {preComment: "\n"});
 
 	const char *photoInstructions =
 	    "\n"
@@ -888,35 +862,6 @@ void HetuwMod::initSettings() {
 	yumConfig::registerSetting("init_show_deathmessages", bDrawDeathMessages);
 	yumConfig::registerSetting("init_show_homecords", bDrawHomeCords);
 	yumConfig::registerSetting("init_show_hostiletiles", bDrawHostileTiles);
-
-	static bool phexIsEnabledAsConfigured = phexIsEnabled;
-	yumConfig::registerSetting("phex_enabled", phexIsEnabledAsConfigured, {preComment: "\n"});
-	yumConfig::registerSetting("phex_ip", phexIp);
-	yumConfig::registerSetting("phex_port", phexPort);
-	yumConfig::registerSetting("phex_coords", Phex::allowServerCoords);
-	yumConfig::registerSetting("phex_channel", Phex::forceChannel, {savePredicate: []() { return !Phex::forceChannel.empty(); }});
-	yumConfig::registerSetting("phex_send_fake_life", Phex::bSendFakeLife, {savePredicate: []() { return Phex::bSendFakeLife; }});
-	yumConfig::registerSetting("phex_debug", debugPhex, {savePredicate: []() { return debugPhex; }});
-
-	static std::map<std::string, int> phexSideMap = {
-		{"auto", PHEX_AUTO_SIDE},
-		{"left", PHEX_ON_LEFT},
-		{"right", PHEX_ON_RIGHT}
-	};
-	yumConfig::registerMappedSetting("phex_side", phexSide, phexSideMap, {postComment: " // auto = avoid minitech, left = always left, right = always right"});
-	yumConfig::registerSetting("phex_start_offline", phexStartOffline, {postComment: " // disable auto connect to phex"});
-	yumConfig::registerSetting("phex_skip_tos", phexSkipTOS, {postComment: " // skip auto /tos (terms of service) on connect"});
-	const char *phexSendEmailComment =
-		"\n"
-		"// Permit sending your email address to the Phex server so that it can\n"
-		"// authenticate your account with the OHOL service.\n"
-		"//\n"
-		"// To allow you to protect your anonymity, this is off by default.\n"
-		"// (Fake Steam 12345@steamgames.com addresses are sent regardless.)\n"
-		"//\n"
-		"// [!] WARNING: DO NOT enable this unless you trust the Phex server\n"
-		"//              administrator with your email address!\n";
-	yumConfig::registerSetting("phex_send_email", phexSendEmail, {preComment: phexSendEmailComment});
 
 	yumConfig::registerSetting("send_keyevents", sendKeyEvents, {savePredicate: []() { return sendKeyEvents; }});
 	yumConfig::registerSetting("drawbiomeinfo", bDrawBiomeInfo, {savePredicate: []() { return bDrawBiomeInfo; }});
@@ -967,30 +912,17 @@ void HetuwMod::initSettings() {
 
 	// Compatibility options
 
-	// replaced by phex_side
-	static bool compatPhexForceLeft = false;
-	yumConfig::registerSetting("phex_forceleft", compatPhexForceLeft, {savePredicate: []() { return false; }});
 	// replaced by draw_mushroom_effect
 	yumConfig::registerSetting("remap_start_enabled", bRemapStart, {savePredicate: []() { return false; }});
 
 	yumConfig::loadSettings(hetuwSettingsFileName);
 
 	// version migrations
-	if (cfgVersionActive < 2) {
-		Phex::allowServerCoords = true;
-	}
 	if (cfgVersionActive < 3) {
 		charKey_ShowDeathMessages = 254;
 	}
 	if (cfgVersionActive < 4) {
 		bWriteLogs = true;
-	}
-	if (cfgVersionActive < 5) {
-		// version 5 migrated from phexonelife.duckdns.org
-		phexIp = defaultPhexIP;
-	}
-	if (compatPhexForceLeft) {
-		phexSide = PHEX_ON_LEFT;
 	}
 
 	// value clamping/validation
@@ -1006,13 +938,6 @@ void HetuwMod::initSettings() {
 	validateNames(autoMaleNames);
 	validateNames(autoFemaleNames);
 	yumRebirthComponent::registerDefaults(defaultAutoDieOptions);
-
-	// private mode overrides
-	if (privateModeEnabled) {
-		phexIsEnabled = false;
-	} else {
-		phexIsEnabled = phexIsEnabledAsConfigured;
-	}
 
 	cfgVersionActive = cfgVersionLatest;
 	yumConfig::saveSettings(hetuwSettingsFileName);
@@ -1079,8 +1004,6 @@ void HetuwMod::initOnBirth() { // will be called from LivingLifePage.cpp
 	writeLineToLogs("my_id", to_string(ourLiveObject->id));
 	writeLineToLogs("my_age", to_string((int)livingLifePage->hetuwGetAge(ourLiveObject)));
 
-	Phex::onBirth();
-
 	namesSeen.clear();
 	if (autoNameMode == NAME_MODE_SHUFFLE) {
 		shuffle(autoFemaleNames);
@@ -1129,8 +1052,6 @@ void HetuwMod::initOnServerJoin() { // will be called from LivingLifePage.cpp an
 	}
 
 	isMovingInVog = false;
-
-	Phex::onServerJoin();
 }
 
 void HetuwMod::setLivingLifePage(LivingLifePage *inLivingLifePage, SimpleVector<LiveObject> *inGameObjects,
@@ -1286,15 +1207,6 @@ void HetuwMod::RainbowColor::step() {
 	}
 }
 
-bool HetuwMod::phexOnLeft()
-{
-	switch (phexSide) {
-		case PHEX_ON_LEFT:  return true; break;
-		case PHEX_ON_RIGHT: return false; break;
-		default:            return minitechEnabled; break;
-	}
-}
-
 void HetuwMod::zoomCalc()
 {
     zoomScale = zoomScales[zoomLevel];
@@ -1318,7 +1230,6 @@ void HetuwMod::zoomCalc()
 	tutMessageOffsetX2 = viewHeight * 0.31f;
 	guiScale = guiScaleRaw * zoomScale;
 	hetuwSetViewSize();
-	Phex::onZoom();
 }
 
 void HetuwMod::zoomIncrease() {
@@ -1349,21 +1260,18 @@ void HetuwMod::guiScaleIncrease() {
 	guiScaleRaw *= 0.9f;
 	if (guiScaleRaw < 0.1) guiScaleRaw = 0.1;
 	guiScale = guiScaleRaw * zoomScale;
-	Phex::onGuiScaleChange();
 }
 
 void HetuwMod::guiScaleDecrease() {
 	guiScaleRaw *= 1.1f;
 	if (guiScaleRaw > 1.5) guiScaleRaw = 1.5;
 	guiScale = guiScaleRaw * zoomScale;
-	Phex::onGuiScaleChange();
 }
 
 void HetuwMod::onMouseEvent(float mX, float mY) {
 	doublePair toViewCoords = getFromMapToViewCoordsVec();
 	mouseRelativeToView.x = mX + toViewCoords.x;
 	mouseRelativeToView.y = mY + toViewCoords.y;
-	Phex::onMouseEvent(mX, mY);
 }
 
 void HetuwMod::getMouseXY(int &x, int &y) {
@@ -1431,8 +1339,6 @@ void HetuwMod::stepHttpRequests() {
 }
 
 void HetuwMod::onScroll(int dir) {
-	if (Phex::onScroll(dir)) return;
-
 	if (dir == -1)
 		zoomIncrease();
 	else
@@ -1464,7 +1370,6 @@ void HetuwMod::gameStep() {
 	mouseBuffer->Reset();
 
 	stepHttpRequests();
-	Phex::onGameStep();
 
 	static std::string leaderboardLogged;
 	const char *leaderboardName = getLeaderboardName();
@@ -1825,10 +1730,6 @@ void HetuwMod::logHomeLocation(HomePos* hp) {
 		case hpt_expert:
 			typeName = "expert";
 			break;
-		case hpt_phex:
-			typeName = "phex";
-			if (hp->text.length() > 0) typeName += " "+hp->text;
-			break;
 		case hpt_rocket:
 			typeName = "rocket";
 			break;
@@ -1853,7 +1754,7 @@ void HetuwMod::addHomeLocation(HomePos *p) {
 	if (p->text.length() > 0) {
 		for (unsigned i=0; i<homePosStack.size(); i++) {
 			if (homePosStack[i]->type != p->type) continue;
-			if (!Phex::strEquals(homePosStack[i]->text, p->text)) continue;
+			if (homePosStack[i]->text != p->text) continue;
 			homePosStack[i]->x = p->x;
 			homePosStack[i]->y = p->y;
 			delete p;
@@ -1912,9 +1813,6 @@ void HetuwMod::addHomeLocation( int x, int y, homePosType type, char c, int pers
 	p->personID = personID;
 	homePosStack.push_back(p);
 	logHomeLocation(p);
-
-	if (type == hpt_bell) Phex::onRingBell(x, y);
-	if (type == hpt_apoc) Phex::onRingApoc(x, y);
 }
 
 void HetuwMod::setHomeLocationText(int x, int y, homePosType type, char *text) {
@@ -2110,7 +2008,6 @@ void HetuwMod::livingLifeDraw() {
 	if (bDrawSelectedPlayerInfo && iDrawNames > 0 && !bHidePlayers) drawHighlightedPlayer();
 	if (bDrawPhotoRec) drawPhotoRec(recTakePhoto);
 	if (bDrawMap) drawMap();
-	Phex::draw();
 	if (getCustomCords == 1) drawCoordsHelpA();
 	if (bDrawInputString) {
 		if (getSearchInput > 0) drawSearchHelpText();
@@ -2557,7 +2454,6 @@ void HetuwMod::createCordsDrawStr() {
 	int mapCount = 0;
 	int babyCount = 0;
 	int expertCount = 0;
-	int phexCount = 0;
 	int rocketCount = 0;
 	int flightCount = 0;
 
@@ -2651,16 +2547,6 @@ void HetuwMod::createCordsDrawStr() {
 				snprintf( sBufA, sizeof(sBufA), "EXPERT %c %d %d%s", (char)(expertCount+65), homePosStack[i]->x+cordOffset.x, homePosStack[i]->y+cordOffset.y, eta.c_str() );
 				expertCount++;
 				break;
-			case hpt_phex: {
-				string str = string("PHEX ")+(char)(phexCount+65);
-				if (homePosStack[i]->text.length() > 0) {
-					if (homePosStack[i]->text.length() > 12) {
-						str = homePosStack[i]->text.substr(0, 12);
-					} else str = homePosStack[i]->text;
-				}
-				snprintf( sBufA, sizeof(sBufA), "%s %d %d%s", str.c_str(), homePosStack[i]->x+cordOffset.x, homePosStack[i]->y+cordOffset.y, eta.c_str() );
-				phexCount++;
-				break; }
 			case hpt_rocket:
 				snprintf( sBufA, sizeof(sBufA), "ROCKET %c %d %d%s", (char)(rocketCount+65), homePosStack[i]->x+cordOffset.x, homePosStack[i]->y+cordOffset.y, eta.c_str() );
 				rocketCount++;
@@ -2708,9 +2594,6 @@ void HetuwMod::setDrawColorToCoordType(homePosType type) {
 			break;
 		case hpt_expert:
 			setDrawColor( 0.6, 0.6, 0.7, 1.0 );
-			break;
-		case hpt_phex:
-			setDrawColor( 0.5, 0.5, 0.5, 1.0 );
 			break;
 		case hpt_rocket:
 		case hpt_plane:
@@ -2808,10 +2691,6 @@ void HetuwMod::getRelationNameColor( const char* name, float* color ) {
 	}
 }
 
-bool HetuwMod::itsTimeToDrawPhexName() {
-	return stepCount%200 < 130;
-}
-
 void HetuwMod::drawPlayerNames( LiveObject* player ) {
 	if ( bHidePlayers ) return;
 	if ( !player->name ) return;
@@ -2831,14 +2710,7 @@ void HetuwMod::drawPlayerNames( LiveObject* player ) {
 	getRelationNameColor( player->relationName, playerNameColor );
 
 	setDrawColor( 0.0, 0.0, 0.0, 0.8 );
-	if (itsTimeToDrawPhexName() &&
-		Phex::playerIdToHash.find(player->id) != Phex::playerIdToHash.end()) {
-		std::string* name = Phex::getUserDisplayName(Phex::playerIdToHash[player->id]);
-		float textWidth = customFont->measureString( name->c_str() );
-		drawRect( playerNamePos, textWidth/2 + 6, 16 );
-		setDrawColor( playerNameColor[0], playerNameColor[1], playerNameColor[2], 1 );
-		customFont->drawString( name->c_str(), playerNamePos, alignCenter );
-	} else if ( iDrawNames == 2 ) {
+	if ( iDrawNames == 2 ) {
 		float textWidth = livingLifePage->hetuwMeasureStringHandwritingFont( player->name );
 		drawRect( playerNamePos, textWidth/2 + 6, 16 );
 		setDrawColor( playerNameColor[0], playerNameColor[1], playerNameColor[2], 1 );
@@ -2876,20 +2748,7 @@ void HetuwMod::drawHighlightedPlayer() {
 		livingLifePage->hetuwDrawScaledHandwritingFont( player->curseName, playerNamePos, guiScale, alignCenter );
 		playerNamePos.y -= 32*guiScale;
 	}
-	if (itsTimeToDrawPhexName() &&
-		Phex::playerIdToHash.find(player->id) != Phex::playerIdToHash.end()) {
-
-		double scale = customFont->hetuwGetScaleFactor();
-		customFont->hetuwSetScaleFactor(scale * guiScale);
-		std::string* name = Phex::getUserDisplayName(Phex::playerIdToHash[player->id]);
-		textWidth = customFont->measureString( name->c_str() );
-		setDrawColor( 0.0, 0.0, 0.0, 0.8 );
-		drawRect( playerNamePos, textWidth/2 + 6*guiScale, 16*guiScale );
-		setDrawColor( playerNameColor[0], playerNameColor[1], playerNameColor[2], 1 );
-		customFont->drawString( name->c_str(), playerNamePos, alignCenter );
-		customFont->hetuwSetScaleFactor(scale);
-		playerNamePos.y -= 32*guiScale;
-	} else if (player->name && strlen(player->name) > 1) {
+	if (player->name && strlen(player->name) > 1) {
 		textWidth = livingLifePage->hetuwMeasureScaledHandwritingFont( player->name, guiScale );
 		setDrawColor( 0.0, 0.0, 0.0, 0.8 );
 		drawRect( playerNamePos, textWidth/2 + 6*guiScale, 16*guiScale );
@@ -3230,8 +3089,6 @@ bool HetuwMod::livingLifeKeyDown(unsigned char inASCII) {
 		snprintf(message, sizeof(message), "KEY_EVENT %c#", inASCII);
 		livingLifePage->sendToServerSocket( message );
 	}
-
-	if (Phex::onKeyDown(inASCII)) return true;
 
 	if (livingLifePage->hetuwSayFieldIsFocused()) {
 		return false;
@@ -3651,8 +3508,6 @@ bool HetuwMod::livingLifeKeyDown(unsigned char inASCII) {
 bool HetuwMod::livingLifeKeyUp(unsigned char inASCII) {
 
 	bool r = false;
-
-	if (Phex::onKeyUp(inASCII)) r = true;
 
 	bool commandKey = isCommandKeyDown();
 	bool shiftKey = isShiftKeyDown();

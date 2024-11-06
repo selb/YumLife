@@ -63,7 +63,6 @@
 #include "ObjectPickable.h"
 
 #include "hetuwmod.h"
-#include "phex.h"
 #include <string>
 #include "minitech.h"
 #include "yumRebirthComponent.h"
@@ -22876,7 +22875,7 @@ void LivingLifePage::step() {
                                 // avoid clicks on self and objects
                                 // when walking on road
                                 mForceGroundClick = true;
-                                isAutoClick = true; // YumLife: make this an auto click to stop interfering with Phex while on road
+                                isAutoClick = true; // YumLife: make this an auto click to stop interfering with UI while on road
                                 pointerDown( nextStep.x * CELL_D, 
                                              nextStep.y * CELL_D );
                                 isAutoClick = false;
@@ -24748,7 +24747,6 @@ void LivingLifePage::pointerDown( float inX, float inY ) {
 	if (!mForceGroundClick && HetuwMod::livingLifePageMouseDown( inX, inY ))
 		return;
 
-	if (Phex::onMouseDown(inX, inY)) return;
 	HetuwMod::onMouseEvent(inX, inY);
     lastMouseX = inX;
     lastMouseY = inY;
@@ -26440,7 +26438,6 @@ void LivingLifePage::pointerDrag( float inX, float inY ) {
 
 
 void LivingLifePage::pointerUp( float inX, float inY ) {
-	if (Phex::onMouseUp(inX, inY)) return;
 	HetuwMod::onMouseEvent(inX, inY);
     lastMouseX = inX;
     lastMouseY = inY;
@@ -26727,7 +26724,6 @@ void LivingLifePage::keyDown( unsigned char inASCII ) {
 		}
 	}
 	if (!vogMode) {
-		if (Phex::hasFocus && mSayField.isFocused()) mSayField.unfocusAll();
 		if (HetuwMod::livingLifeKeyDown(inASCII) && inASCII != 'z') return;
 		if (minitech::livingLifeKeyDown(inASCII) && inASCII != 'z') return;
 	}

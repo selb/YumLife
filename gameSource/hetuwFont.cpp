@@ -527,12 +527,9 @@ double HetuwFont::getCharPos( SimpleVector<doublePair> *outPositions,
 
 int HetuwFont::hetuwCheckForColorCode(const char *inString, int i, bool isDrawing) {
 	if (inString[i] != (char)hetuwFontColorCode) return 0;
-	//printf("Phex sizeOf(inString): %ld, i: %d\n", strlen(inString), i);
 	if (strlen(inString) < (unsigned)(i+5)) return 0;
-	//printf("Phex isDrawing: %d\n", (int)isDrawing);
 	if (!isDrawing) return 4;
 	setDrawColor((inString[i+1]-1)/126.0, (inString[i+2]-1)/126.0, (inString[i+3]-1)/126.0, (inString[i+4]-1)/126.0);
-	//printf("Phex text drawColor %f %f %f %f\n", inString[i+1]/127.0, inString[i+2]/127.0, inString[i+3]/127.0, inString[i+4]/127.0);
 	return 4;
 }
 

@@ -92,7 +92,6 @@ std::string TCPConnection::readFromServer() {
 	while (numRead > 0) {
 		char* charBuffer = reinterpret_cast<char*>(buffer);
 		charBuffer[numRead] = 0;
-		//printf("Phex buffer[%d]: %s\n", numRead, charBuffer);
 		result += std::string(charBuffer, numRead);
 		numRead = readFromSocket(socket, buffer, bufferSize);
 	}

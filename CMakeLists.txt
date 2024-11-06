@@ -85,7 +85,6 @@ set(CLIENT_SOURCE_FILES
     gameSource/hetuwmod.cpp
     gameSource/hetuwFont.cpp
     gameSource/hetuwTCPConnection.cpp
-    gameSource/phex.cpp
     gameSource/yumBlob.cpp
     gameSource/yumConfig.cpp
     gameSource/yumRebirthComponent.cpp
