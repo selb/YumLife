@@ -1,4 +1,4 @@
-int versionNumber = 428;
+int versionNumber = 430;
 int dataVersionNumber = 0;
 
 int binVersionNumber = versionNumber;
@@ -807,9 +807,11 @@ void initFrameDrawer( int inWidth, int inHeight, int inTargetFrameRate,
     enableObjectSearch( true );
 
 
-    if( isAHAP ) {
+    if( isAHAP && 
+        ! SettingsManager::getIntSetting( "ahapSkipDataUpdate", 0 ) ) {
+        
         // see if AHAP data update needed before loading
-        currentGamePage = getAHAPVersionPage;
+        currentGamePage = getAHAPVersionPage;    
         }
     else {
         startSpriteLoading();
@@ -1356,7 +1358,9 @@ static void startConnectingNoAHAPCheck() {
 
 
 static void startConnecting() {
-    if( ! isAHAP ) {
+    if( ! isAHAP || 
+        SettingsManager::getIntSetting( "ahapSkipDataUpdate", 0 ) ) {
+        
         startConnectingNoAHAPCheck();
         }
     else {
