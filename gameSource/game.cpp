@@ -461,6 +461,12 @@ void hetuwSetViewSize() {
 	viewWidth = HetuwMod::viewWidth;
 	viewHeight = HetuwMod::viewHeight;
 	visibleViewWidth = viewWidth;
+
+    if( viewHeightFraction < 9.0 / 16.0 ) {
+        // copypasta; search for "weird, wider than 16:9 aspect ratio"
+        viewWidth = viewHeight / viewHeightFraction;
+    }
+
 	setViewSize( viewWidth );
 	setLetterbox( visibleViewWidth, viewHeight );
 	if (livingLifePage != NULL) {
