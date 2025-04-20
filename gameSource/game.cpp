@@ -484,9 +484,6 @@ void initDrawString( int inWidth, int inHeight ) {
     toggleMipMapGeneration( true );
     toggleMipMapMinFilter( true );
     toggleTransparentCropping( true );
-    
-	HetuwMod::init();
-	hetuwSetViewSize();
 
     mainFont = new Font( getFontTGAFileName(), 6, 16, false, 16 );
     mainFont->setMinimumPositionPrecision( 1 );
@@ -504,6 +501,10 @@ void initDrawString( int inWidth, int inHeight ) {
 
     setViewSize( viewWidth );
     setLetterbox( visibleViewWidth, viewHeight );
+    
+    // Note that this will immediately overwrite vanilla's view size
+    // calculations above.
+	HetuwMod::init();
     }
 
 
