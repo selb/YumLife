@@ -874,6 +874,8 @@ static void rgbToHSL( double inR, double inG, double inB,
             h = ( inB - inR ) / d + 2.0; 
         else if( maxC == inB ) 
             h = ( inR - inG ) / d + 4.0;
+		else
+			h = 0; // should never happen, but included to silence clang
         
         h /= 6.0;
 

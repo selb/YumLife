@@ -13,7 +13,11 @@
 
 
 // let SDL override our main function with SDLMain
+#ifdef __mac__
+#include <SDL_main.h>
+#else
 #include <SDL/SDL_main.h>
+#endif
 
 
 // must do this before SDL include to prevent WinMain linker errors on win32
@@ -24,8 +28,11 @@ int main( int inArgCount, char **inArgs ) {
     }
 
 
+#ifdef __mac__
+#include <SDL.h>
+#else
 #include <SDL/SDL.h>
-
+#endif
 
 
 #include "minorGems/graphics/openGL/ScreenGL.h"

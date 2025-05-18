@@ -142,8 +142,11 @@
 
 #include "minorGems/graphics/openGL/glInclude.h"
 
+#ifdef __mac__
+#include <SDL.h>
+#else
 #include <SDL/SDL.h>
-
+#endif
 
 #include <math.h>
 #include <limits.h>

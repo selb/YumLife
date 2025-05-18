@@ -6,6 +6,7 @@
 #include <fstream>
 #include <string>
 #include <unordered_set>
+#include <sstream>
 
 #include "LivingLifePage.h"
 #include "objectBank.h"

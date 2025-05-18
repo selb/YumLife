@@ -1,6 +1,10 @@
 cmake_minimum_required(VERSION 3.13)
 
-project(YumLife)
+if(APPLE)
+    project(YumLife LANGUAGES CXX OBJC)
+else()
+    project(YumLife LANGUAGES CXX)
+endif()
 
 set(CMAKE_CXX_STANDARD 14)
 
@@ -179,6 +183,35 @@ if(WIN32)
     target_compile_options(YumLife_windows PRIVATE ${CLIENT_COMPILE_OPTIONS})
     target_link_libraries(YumLife_windows opengl32 glu32 mingw32 SDLmain SDL wsock32 winmm)
     target_link_options(YumLife_windows PRIVATE -mwindows -static-libstdc++ -static-libgcc)
+elseif(APPLE)
+    add_definitions(-DMACOSX -D__mac__)
+
+    add_executable(YumLife_macos ${CLIENT_SOURCE_FILES} ${MINORGEMS_SOURCE_FILES})
+    target_compile_options(YumLife_macos PRIVATE ${CLIENT_COMPILE_OPTIONS})
+
+    find_library(SDL_LIBRARY NAMES SDL-1.2 SDL12-compat SDL PATHS /opt/homebrew/opt/sdl12-compat/lib PATH_SUFFIXES SDL12-compat)
+    find_path(SDL_INCLUDE_DIR SDL.h PATHS /opt/homebrew/opt/sdl12-compat/include/SDL)
+    if(NOT SDL_LIBRARY OR NOT SDL_INCLUDE_DIR)
+        message(FATAL_ERROR "libsdl12-compat not found. Please install with Homebrew: brew install sdl12-compat")
+    endif()
+    include_directories(${SDL_INCLUDE_DIR})
+    target_link_libraries(YumLife_macos ${SDL_LIBRARY})
+
+    find_package(OpenGL REQUIRED)
+    include_directories(${OPENGL_INCLUDE_DIR})
+    target_link_libraries(YumLife_macos ${OPENGL_LIBRARIES})
+
+    target_link_libraries(YumLife_macos "-framework Cocoa" "-framework IOKit" "-framework CoreVideo" "-framework Carbon")
+
+    # Symlink OpenGL headers into the build directory so we don't have to change
+    # the include paths in the source files
+    execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink /Library/Developer/CommandLineTools/SDKs/MacOSX15.4.sdk/System/Library/Frameworks/OpenGL.framework/Versions/A/Headers ${CMAKE_BINARY_DIR}/GL)
+    include_directories(${CMAKE_BINARY_DIR})
+
+    set(MACOS_EXTRA_SOURCES ${CMAKE_SOURCE_DIR}/minorGems/game/platforms/SDL/mac/SDLMain.m)
+    set_source_files_properties(${MACOS_EXTRA_SOURCES} PROPERTIES LANGUAGE OBJC)
+    target_sources(YumLife_macos PRIVATE ${MACOS_EXTRA_SOURCES})
+    set_property(TARGET YumLife_macos APPEND_STRING PROPERTY LINK_FLAGS " -ObjC")
 else()
     add_definitions(-DLINUX)
 
@@ -191,6 +224,5 @@ else()
 
     find_package(OpenGL REQUIRED)
     include_directories(${OPENGL_INCLUDE_DIR})
-
     target_link_libraries(YumLife_linux ${OPENGL_LIBRARIES})
 endif()
