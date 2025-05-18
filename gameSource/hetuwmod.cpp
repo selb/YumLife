@@ -3397,19 +3397,20 @@ bool HetuwMod::livingLifeKeyDown(unsigned char inASCII) {
 			return true;
 		}
 	} else if (controlKey) {
-		if (inASCII+64 == toupper(charKey_Up)) {
+		char letter = toupper(inASCII | 64);
+		if (letter == toupper(charKey_Up)) {
 			actionBetaRelativeToMe( 0, 1 );
 			return true;
 		}
-		if (inASCII+64 == toupper(charKey_Left)) {
+		if (letter == toupper(charKey_Left)) {
 			actionBetaRelativeToMe( -1, 0 );
 			return true;
 		}
-		if (inASCII+64 == toupper(charKey_Down)) {
+		if (letter == toupper(charKey_Down)) {
 			actionBetaRelativeToMe( 0, -1 );
 			return true;
 		}
-		if (inASCII+64 == toupper(charKey_Right)) {
+		if (letter == toupper(charKey_Right)) {
 			actionBetaRelativeToMe( 1, 0 );
 			return true;
 		}
@@ -3530,19 +3531,20 @@ bool HetuwMod::livingLifeKeyUp(unsigned char inASCII) {
 		r = true;
 	}
 	if (commandKey) {
-		if (inASCII+64 == toupper(charKey_Up)) {
+		char letter = toupper(inASCII | 64);
+		if (letter == toupper(charKey_Up)) {
 			upKeyDown = false;
 			r = true;
 		}
-		if (inASCII+64 == toupper(charKey_Left)) {
+		if (letter == toupper(charKey_Left)) {
 			leftKeyDown = false;
 			r = true;
 		}
-		if (inASCII+64 == toupper(charKey_Down)) {
+		if (letter == toupper(charKey_Down)) {
 			downKeyDown = false;
 			r = true;
 		}
-		if (inASCII+64 == toupper(charKey_Right)) {
+		if (letter == toupper(charKey_Right)) {
 			rightKeyDown = false;
 			r = true;
 		}
