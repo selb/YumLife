@@ -225,6 +225,23 @@ elseif(APPLE)
         COMMAND install_name_tool -id "@executable_path/../Frameworks/${SDL_REALNAME}" "$<TARGET_BUNDLE_DIR:YumLife_macos>/Contents/Frameworks/${SDL_REALNAME}"
     )
 
+    # Find SDL2 dylib and copy it into the app bundle. sdl12-compat needs to be
+    # able to find it at runtime.
+    find_library(SDL2_LIBRARY NAMES SDL2 SDL2-2.0 SDL2-2.0.0 PATHS /opt/homebrew/lib /usr/local/lib /usr/lib)
+    if(NOT SDL2_LIBRARY)
+        message(FATAL_ERROR "libSDL2.dylib not found. Please install SDL2 (brew install sdl2)")
+    endif()
+    get_filename_component(SDL2_REALPATH "${SDL2_LIBRARY}" REALPATH)
+    get_filename_component(SDL2_REALNAME "${SDL2_REALPATH}" NAME)
+
+    add_custom_command(TARGET YumLife_macos POST_BUILD
+        COMMENT "Copying SDL2 dylib into app bundle Frameworks directory and fixing install name"
+        COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_BUNDLE_DIR:YumLife_macos>/Contents/Frameworks"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different "${SDL2_REALPATH}" "$<TARGET_BUNDLE_DIR:YumLife_macos>/Contents/Frameworks/${SDL2_REALNAME}"
+        COMMAND chmod u+w "$<TARGET_BUNDLE_DIR:YumLife_macos>/Contents/Frameworks/${SDL2_REALNAME}"
+        COMMAND install_name_tool -id "@executable_path/../Frameworks/${SDL2_REALNAME}" "$<TARGET_BUNDLE_DIR:YumLife_macos>/Contents/Frameworks/${SDL2_REALNAME}"
+    )
+
     # Generate the icns from mac_icon.png using iconutil
     set(MAC_ICON_PNG "${CMAKE_SOURCE_DIR}/mac_icon.png")
     set(MAC_ICON_ICNS "${CMAKE_BINARY_DIR}/mac_icon.icns")
@@ -273,6 +290,7 @@ elseif(APPLE)
             COMMAND xattr -cr "$<TARGET_BUNDLE_DIR:YumLife_macos>"
             # Actually sign now
             COMMAND codesign --force --sign "$ENV{YUMLIFE_CODESIGN}" --timestamp --options runtime "$<TARGET_BUNDLE_DIR:YumLife_macos>/Contents/Frameworks/${SDL_REALNAME}" VERBATIM
+            COMMAND codesign --force --sign "$ENV{YUMLIFE_CODESIGN}" --timestamp --options runtime "$<TARGET_BUNDLE_DIR:YumLife_macos>/Contents/Frameworks/${SDL2_REALNAME}" VERBATIM
             COMMAND codesign --force --sign "$ENV{YUMLIFE_CODESIGN}" --timestamp --options runtime --preserve-metadata=entitlements,requirements,flags "$<TARGET_BUNDLE_DIR:YumLife_macos>" VERBATIM
             # Verify the signature
             COMMAND codesign --verify --verbose=4 "$<TARGET_BUNDLE_DIR:YumLife_macos>"
