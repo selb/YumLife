@@ -6,7 +6,9 @@ OHOL and AHAP client, fix bugs, and occasionally add useful features.
 
 # Installing (and updating)
 
-## Steam users:
+## Windows or Linux
+
+### Steam users
 
 1. Make sure the game is fully updated in Steam.
 2. Run the game from Steam once to ensure the Steam login details are properly set up.
@@ -14,11 +16,24 @@ OHOL and AHAP client, fix bugs, and occasionally add useful features.
 4. Install the mod into the OHOL/AHAP installation folder (Steam users: right click game > Manage > Browse local files)
 5. Run the mod from the OHOL/AHAP installation folder.
 
-## Direct download users:
+### Direct download users
 
 1. Download the latest version of the mod from [the Releases page](https://github.com/selb/YumLife/releases). For Windows, this is YumLife_windows.exe.
 2. Install the mod into the OHOL/AHAP installation folder (same folder as the vanilla `OneLife.exe`).
 3. Run the mod from the OHOL/AHAP installation folder.
+
+## macOS
+
+### Installing OHOL itself
+
+1. If you bought the game on Steam, use a Windows or Linux version of Steam to run the game once and record your account key from the login screen.
+2. Download and extract the Linux version from: `http://onehouronelife.com/ticketServer/server.php?action=show_downloads&ticket_id=YOURKEYHERE`
+3. When you run YumLife (see below), it will ask you where you installed OHOL. Choose the directory you extracted to.
+
+### Install/updating YumLife
+
+1. Download YumLife_macos.zip from [the Releases page](https://github.com/selb/YumLife/releases).
+2. Extract the YumLife_macos app wherever, preferably to Applications. Overwrite any existing version.
 
 # Usage
 

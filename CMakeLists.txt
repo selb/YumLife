@@ -186,7 +186,7 @@ if(WIN32)
 elseif(APPLE)
     add_definitions(-DMACOSX -D__mac__)
 
-    add_executable(YumLife_macos ${CLIENT_SOURCE_FILES} ${MINORGEMS_SOURCE_FILES})
+    add_executable(YumLife_macos MACOSX_BUNDLE ${CLIENT_SOURCE_FILES} ${MINORGEMS_SOURCE_FILES})
     target_compile_options(YumLife_macos PRIVATE ${CLIENT_COMPILE_OPTIONS})
 
     find_library(SDL_LIBRARY NAMES SDL-1.2 SDL12-compat SDL PATHS /opt/homebrew/opt/sdl12-compat/lib PATH_SUFFIXES SDL12-compat)
@@ -212,6 +212,91 @@ elseif(APPLE)
     set_source_files_properties(${MACOS_EXTRA_SOURCES} PROPERTIES LANGUAGE OBJC)
     target_sources(YumLife_macos PRIVATE ${MACOS_EXTRA_SOURCES})
     set_property(TARGET YumLife_macos APPEND_STRING PROPERTY LINK_FLAGS " -ObjC")
+
+    get_filename_component(SDL_REALPATH "${SDL_LIBRARY}" REALPATH)
+    get_filename_component(SDL_REALNAME "${SDL_REALPATH}" NAME)
+
+    add_custom_command(TARGET YumLife_macos POST_BUILD
+        COMMENT "Copying SDL dylib into app bundle Frameworks directory and fixing install name"
+        COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_BUNDLE_DIR:YumLife_macos>/Contents/Frameworks"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different "${SDL_REALPATH}" "$<TARGET_BUNDLE_DIR:YumLife_macos>/Contents/Frameworks/${SDL_REALNAME}"
+        COMMAND chmod u+w "$<TARGET_BUNDLE_DIR:YumLife_macos>/Contents/Frameworks/${SDL_REALNAME}"
+        COMMAND install_name_tool -change "/opt/homebrew/opt/sdl12-compat/lib/${SDL_REALNAME}" "@executable_path/../Frameworks/${SDL_REALNAME}" "$<TARGET_BUNDLE_DIR:YumLife_macos>/Contents/MacOS/YumLife_macos"
+        COMMAND install_name_tool -id "@executable_path/../Frameworks/${SDL_REALNAME}" "$<TARGET_BUNDLE_DIR:YumLife_macos>/Contents/Frameworks/${SDL_REALNAME}"
+    )
+
+    # Generate the icns from mac_icon.png using iconutil
+    set(MAC_ICON_PNG "${CMAKE_SOURCE_DIR}/mac_icon.png")
+    set(MAC_ICON_ICNS "${CMAKE_BINARY_DIR}/mac_icon.icns")
+    set(MAC_ICONSET_DIR "${CMAKE_BINARY_DIR}/mac_icon.iconset")
+    add_custom_command(OUTPUT ${MAC_ICON_ICNS}
+        # Remove any existing iconset directory
+        COMMAND rm -rf "${MAC_ICONSET_DIR}"
+        # Create iconset directory
+        COMMAND mkdir -p "${MAC_ICONSET_DIR}"
+        # Generate required icon sizes
+        COMMAND sips -z 16 16     "${MAC_ICON_PNG}" --out "${MAC_ICONSET_DIR}/icon_16x16.png"
+        COMMAND sips -z 32 32     "${MAC_ICON_PNG}" --out "${MAC_ICONSET_DIR}/icon_16x16@2x.png"
+        COMMAND sips -z 32 32     "${MAC_ICON_PNG}" --out "${MAC_ICONSET_DIR}/icon_32x32.png"
+        COMMAND sips -z 64 64     "${MAC_ICON_PNG}" --out "${MAC_ICONSET_DIR}/icon_32x32@2x.png"
+        COMMAND sips -z 128 128   "${MAC_ICON_PNG}" --out "${MAC_ICONSET_DIR}/icon_128x128.png"
+        COMMAND sips -z 256 256   "${MAC_ICON_PNG}" --out "${MAC_ICONSET_DIR}/icon_128x128@2x.png"
+        COMMAND sips -z 256 256   "${MAC_ICON_PNG}" --out "${MAC_ICONSET_DIR}/icon_256x256.png"
+        COMMAND sips -z 512 512   "${MAC_ICON_PNG}" --out "${MAC_ICONSET_DIR}/icon_256x256@2x.png"
+        COMMAND sips -z 512 512   "${MAC_ICON_PNG}" --out "${MAC_ICONSET_DIR}/icon_512x512.png"
+        COMMAND sips -z 1024 1024 "${MAC_ICON_PNG}" --out "${MAC_ICONSET_DIR}/icon_512x512@2x.png"
+        # Create icns file
+        COMMAND iconutil -c icns "${MAC_ICONSET_DIR}" -o "${MAC_ICON_ICNS}"
+        # Clean up iconset directory
+        COMMAND rm -rf "${MAC_ICONSET_DIR}"
+        DEPENDS "${MAC_ICON_PNG}"
+    )
+    add_custom_target(mac_icon ALL DEPENDS ${MAC_ICON_ICNS})
+    add_dependencies(YumLife_macos mac_icon)
+
+    # Copy the icns into the app bundle
+    add_custom_command(TARGET YumLife_macos POST_BUILD
+        COMMAND mkdir -p "$<TARGET_BUNDLE_DIR:YumLife_macos>/Contents/Resources"
+        COMMAND cp "${MAC_ICON_ICNS}" "$<TARGET_BUNDLE_DIR:YumLife_macos>/Contents/Resources/"
+        COMMENT "Copying mac_icon.icns into app bundle Resources"
+    )
+
+    if(DEFINED ENV{YUMLIFE_CODESIGN})
+        add_custom_command(TARGET YumLife_macos POST_BUILD
+            COMMENT "Code signing app bundle"
+            # This directory is mandatory for codesign to work properly
+            COMMAND mkdir -p "$<TARGET_BUNDLE_DIR:YumLife_macos>/Contents/Resources"
+            # Clear out any remaining trace of previous signatures
+            COMMAND codesign --remove-signature "$<TARGET_BUNDLE_DIR:YumLife_macos>"
+            COMMAND codesign --remove-signature "$<TARGET_BUNDLE_DIR:YumLife_macos>/Contents/Frameworks/${SDL_REALNAME}"
+            COMMAND rm -rf "$<TARGET_BUNDLE_DIR:YumLife_macos>/Contents/_CodeSignature" "$<TARGET_BUNDLE_DIR:YumLife_macos>/_CodeSignature"
+            COMMAND xattr -cr "$<TARGET_BUNDLE_DIR:YumLife_macos>"
+            # Actually sign now
+            COMMAND codesign --force --sign "$ENV{YUMLIFE_CODESIGN}" --timestamp --options runtime "$<TARGET_BUNDLE_DIR:YumLife_macos>/Contents/Frameworks/${SDL_REALNAME}" VERBATIM
+            COMMAND codesign --force --sign "$ENV{YUMLIFE_CODESIGN}" --timestamp --options runtime --preserve-metadata=entitlements,requirements,flags "$<TARGET_BUNDLE_DIR:YumLife_macos>" VERBATIM
+            # Verify the signature
+            COMMAND codesign --verify --verbose=4 "$<TARGET_BUNDLE_DIR:YumLife_macos>"
+        )
+    else()
+        message(STATUS "YUMLIFE_CODESIGN not set, skipping code signing.")
+    endif()
+
+    # Notarization takes forever, so it's a separate target that has to be run manually.
+    add_custom_target(notarize
+        COMMENT "Notarizing app bundle"
+        DEPENDS YumLife_macos
+        COMMAND ditto -c -k --sequesterRsrc --keepParent "$<TARGET_BUNDLE_DIR:YumLife_macos>" "$<TARGET_BUNDLE_DIR:YumLife_macos>.zip"
+        COMMAND xcrun notarytool submit "$<TARGET_BUNDLE_DIR:YumLife_macos>.zip" --keychain-profile "$ENV{YUMLIFE_NOTARY_PROFILE}" --wait
+        COMMAND xcrun stapler staple "$<TARGET_BUNDLE_DIR:YumLife_macos>"
+        COMMAND xcrun stapler validate "$<TARGET_BUNDLE_DIR:YumLife_macos>"
+        # re-zip the notarized app bundle
+        COMMAND ditto -c -k --sequesterRsrc --keepParent "$<TARGET_BUNDLE_DIR:YumLife_macos>" YumLife_macos.zip
+        USES_TERMINAL
+    )
+
+    set_target_properties(YumLife_macos PROPERTIES
+        MACOSX_BUNDLE_INFO_PLIST "${CMAKE_SOURCE_DIR}/Info.plist.in"
+    )
 else()
     add_definitions(-DLINUX)
 
