@@ -5,7 +5,7 @@
 #define hetuwSettingsFileName "yumlife.cfg"
 #define hetuwLogFileName "yumlog.txt"
 #define hetuwLogSeperator " | " // needs to be 3 char long
-#define hetuwFakeCoord 1977
+#define hetuwFakeCoord 1977 // the fake coordinate value the server sends for out-of-range players
 #define hetuwGetNewestVersionFromGithub "get newest version from github https://github.com/selb/YumLife/releases"
 #define hetuwPhotoSize 400
 
@@ -43,14 +43,16 @@ class HetuwMod
 		string name;
 		string lastName;
 		char gender;
+		char race;
 		time_t lastTime;
 		int age;
-		bool finalAgeSet;
+		bool outOfRange;
 		PlayerInMap() {
 			x = 999999;
 			y = 999999;
 			id = -9999;
-			finalAgeSet = false;
+			race = 0;
+			outOfRange = false;
 		}
 	};
 
@@ -225,6 +227,24 @@ public:
 		int personID = -1;
 		bool hasCustomColor = false; // set it to true if you want rgb to be used
 		float rgba[4];
+	};
+
+	struct ExtraPUData {
+		int facingOverride;
+		int actionAttempt;
+		int actionTargetX;
+		int actionTargetY;
+		int heldOriginValid;
+		int heldOriginX;
+		int heldOriginY;
+		int heldTransitionSourceID;
+		int done_moving;
+		int forced;
+		int justAte;
+		int justAteID;
+		int responsiblePlayerID;
+		int heldYum;
+		int heldLearned;
 	};
 
 	static constexpr int languageArraySize1 = 460;
@@ -493,22 +513,24 @@ public:
 	static void drawTileRect( int x, int y );
 
 	static void onOurDeath();
-	static void onPlayerUpdate( LiveObject* o, const char* line );
+	static void onRawPlayerUpdate( LiveObject* o, const char* line );
+	static void onPlayerUpdate( LiveObject* o, const ExtraPUData& puData );
 	static void onNameUpdate(LiveObject* o);
 	static void onCurseUpdate(LiveObject* o);
 	static void removeLastName(char *newName, const char* name );
 	static string getLastName(const char* name);
-	static void setLastNameColor( const char* lastName, float alpha );
-	static void getLastNameColor(const char* lastName, float rgba[]);
 
 	static int playersInRangeNum;
 
 	static std::vector<HomePos*> homePosStack;
-	static void addHomeLocation(HomePos *p);
 	static void addHomeLocation( int x, int y, homePosType type, char c = 0, int personID = -1 );
 	static void setHomeLocationText(int x, int y, homePosType type, char *text);
 	static void setMapText(char *message, int mapX, int mapY);
 	static void logHomeLocation(HomePos* hp);
+	static void loadHomeLocations();
+	static void storeHomeLocations();
+	static const char *getHomeTypeName(homePosType type);
+	static homePosType getHomeTypeFromName(const char *name);
 	static void addPersonHomeLocation( int x, int y, int personId );
 
 	static GridPos cordOffset;
@@ -549,6 +571,8 @@ public:
 	
 	static bool searchIncludeHashText;
 	static bool *objIsBeingSearched;
+	static void storeSearchList();
+	static void addSearchWord(const char *word);
 	static void setSearchArray();
 
 	static bool cameraIsFixed;
@@ -567,9 +591,12 @@ public:
 	static int becomesFood( int objectID, int depth );
 	static int *becomesFoodID;
 	static SimpleVector<int> yummyFoodChain;
+	static void readFoodChain();
+	static void storeFoodChain();
 	static bool isYummy(int objID);
 	static void foodIsMeh(ObjectRecord *obj);
 	static void onJustAteFood(ObjectRecord *food);
+	static void onCraving(int foodID);
 	static bool bDrawYum;
 	static void setYumObjectsColor();
 	static void resetObjectsColor();
@@ -622,10 +649,17 @@ public:
 	static void onNotLiving();
 	static void onDropSent();
 	static void onHoldingChange(int previous, int current);
+	static void onLowPopChange(bool lowPop);
 
 	static bool minitechEnabled;
 	static bool minitechStayMinimized;
 	static bool minitechTooltipsEnabled;
+
+	static bool autoDieFaster;
+
+	static bool experimentBabyChat;
+	static bool experimentYoinkClothes;
+	static bool experimentForgiveName;
 
 private:
 
@@ -682,7 +716,7 @@ private:
 	static float playerNameColor[3];
 	static doublePair playerNamePos;
 
-	static void updatePlayerToMap(LiveObject *o, bool deathMsg = false);
+	static void updatePlayerToMap(LiveObject *o);
 	static void updateMap();
 
 	static int iDrawPlayersInRangePanel;

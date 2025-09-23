@@ -46,6 +46,8 @@ class yumRebirthComponent : public PageComponent, public ActionListener {
         void onMakeActive();
 
         static bool evaluateLife(char race, bool isFemale, bool isDonkeyTown);
+        static void setDidAutoDie(bool b) { autoDiedLastLife = b; };
+        static bool didAutoDie(void) { return autoDiedLastLife; };
 
         // applies the configured defaults, removing any entries that aren't
         // recognized as options
@@ -66,6 +68,7 @@ class yumRebirthComponent : public PageComponent, public ActionListener {
         std::vector<OptionCheckbox> mOptionCheckboxes;
 
         static void setOption(Options option, bool on);
+        static bool autoDiedLastLife;
 };
 
 #endif // YUMREBIRTH_H

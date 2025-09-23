@@ -296,7 +296,6 @@ double pixelCountToDraw = 0;
 
 static bool yumGotDonkeyTownMessage = false;
 static bool yumEvaluatedRebirth = false;
-static bool yumDidAutoSIDS = false;
 
 
 static SimpleVector<char*> wordBlacklist;
@@ -2433,7 +2432,7 @@ static char isAutoClick = false;
 bool LivingLifePage::hetuwIsAutoClick() { return isAutoClick; }
 
 bool LivingLifePage::yumSkipDeathMessage() {
-    return yumDidAutoSIDS;
+    return yumRebirthComponent::didAutoDie();
 }
 
 static void findClosestPathSpot( LiveObject *inObject ) {
@@ -14903,6 +14902,7 @@ void LivingLifePage::step() {
     if (ourObject != NULL && !yumEvaluatedRebirth) {
         ObjectRecord *o = getObject(ourObject->displayID, true);
         if (o != NULL) {
+            yumRebirthComponent::setDidAutoDie(false);
             char race = o->race - 1 + 'A';
             if (computeCurrentAge(ourObject) > 2.0) {
                 // we probably got born as eve. don't actually evaluate or send
@@ -14913,7 +14913,7 @@ void LivingLifePage::step() {
                 char *message = autoSprintf("DIE 0 0#");
                 sendToServerSocket(message);
                 delete [] message;
-                yumDidAutoSIDS = true;
+                yumRebirthComponent::setDidAutoDie(true);
             }
             yumEvaluatedRebirth = true;
         }
@@ -15210,6 +15210,7 @@ void LivingLifePage::step() {
             
             if( numRead == 2 && foodID != -1 ) {
                 setNewCraving( foodID, bonus );
+                HetuwMod::onCraving( foodID );
                 }
             }
         else if( type == GHOST ) {
@@ -16132,6 +16133,8 @@ void LivingLifePage::step() {
             int numLines;
                 
             char **lines = split( message, "\n", &numLines );
+
+            bool lowPop = true;
             
             for( int i=1; i<numLines; i++ ) {
                 int index = 0;
@@ -16149,8 +16152,10 @@ void LivingLifePage::step() {
                     
                     mBadBiomeIndices.push_back( index );
                     mBadBiomeNames.push_back( stringDuplicate( name ) );
+                    lowPop = false;
                     }
                 }
+                HetuwMod::onLowPopChange(lowPop);
             
             for( int i=0; i<numLines; i++ ) {
                 delete [] lines[i];
@@ -17837,7 +17842,7 @@ void LivingLifePage::step() {
                                       &heldYum,
                                       &heldLearned );
                 
-                HetuwMod::onPlayerUpdate( &o, lines[i] );
+                HetuwMod::onRawPlayerUpdate( &o, lines[i] );
 
                 char *lineCopy = NULL;
                 if( numRead >= 21 ) {
@@ -19845,7 +19850,26 @@ void LivingLifePage::step() {
                         }
                     }
                 
-                
+                // YumLife: collect all PU elements not in o
+                HetuwMod::ExtraPUData puData;
+                puData.facingOverride = facingOverride;
+                puData.actionAttempt = actionAttempt;
+                puData.actionTargetX = actionTargetX;
+                puData.actionTargetY = actionTargetY;
+                puData.heldOriginValid = heldOriginValid;
+                puData.heldOriginX = heldOriginX;
+                puData.heldOriginY = heldOriginY;
+                puData.heldTransitionSourceID = heldTransitionSourceID;
+                puData.done_moving = done_moving;
+                puData.forced = forced;
+                puData.justAte = justAte;
+                puData.justAteID = justAteID;
+                puData.responsiblePlayerID = responsiblePlayerID;
+                puData.heldYum = heldYum;
+                puData.heldLearned = heldLearned;
+
+                HetuwMod::onPlayerUpdate( &o, puData );
+
                 delete [] lines[i];
                 
                 if( lineCopy != NULL ) {
@@ -20684,19 +20708,33 @@ void LivingLifePage::step() {
 
                             if( firstSpace != NULL ) {
                                 
-                                if( existing->currentSpeech != NULL ) {
-                                    delete [] existing->currentSpeech;
-                                    existing->currentSpeech = NULL;
-                                    }
-                                
-                                existing->currentSpeech = 
-                                    stringDuplicate( &( firstSpace[1] ) );
-                                HetuwMod::decodeDigits( existing->currentSpeech );  // YumLife mod
+                                // YumLife: append instead of replacing for bbs.
+                                // This isn't a very clean implementation yet,
+                                // but it's kind of useful if you can stand it.
+                                // TODO: avoid server forced say messages
+                                // TODO: add spaces or something for short
+                                //       pauses?
+                                double fadeMultiplier = 1.0;
+                                if (HetuwMod::experimentBabyChat && existing->age < 3.0) {
+                                    char *old = existing->currentSpeech;
+                                    existing->currentSpeech = autoSprintf( "%s%s", old == NULL ? "" : old, &( firstSpace[1] ) );
+                                    fadeMultiplier = 5.0;
+                                    if (old) delete [] old;
+                                } else {
+                                    if( existing->currentSpeech != NULL ) {
+                                        delete [] existing->currentSpeech;
+                                        existing->currentSpeech = NULL;
+                                        }
+                                    
+                                    existing->currentSpeech = 
+                                        stringDuplicate( &( firstSpace[1] ) );
+                                    HetuwMod::decodeDigits( existing->currentSpeech );  // YumLife mod
+                                }
                                 
 
                                 double curTime = game_getCurrentTime();
                                 
-                                existing->speechFade = 1.0;
+                                existing->speechFade = 1.0*fadeMultiplier;
                                 
                                 existing->speechIsSuccessfulCurse = curseFlag;
 
@@ -21521,7 +21559,8 @@ void LivingLifePage::step() {
                                     delete [] existing->curseName;
                                     existing->curseName = NULL;
                                     }
-                                if( level > 0 ) {
+                                bool ignoreLevel = (HetuwMod::experimentForgiveName && buffer[0] != '\0');
+                                if( level > 0 || ignoreLevel ) {
                                     existing->curseName = 
                                         stringDuplicate( buffer );
                                     char *barPos = strstr( existing->curseName,
@@ -24006,7 +24045,7 @@ void LivingLifePage::makeActive( char inFresh ) {
     
     yumGotDonkeyTownMessage = false;
     yumEvaluatedRebirth = false;
-    yumDidAutoSIDS = false;
+    yumRebirthComponent::setDidAutoDie(false);
 
     serverSocketBuffer.deleteAll();
 
@@ -25763,6 +25802,14 @@ void LivingLifePage::pointerDown( float inX, float inY ) {
         canClickOnOtherForNonKill = true;
         }
     
+    // YumLife: Allow clicking on other people's clothing to trigger a UBABY
+    // message, which lets you take their clothes if they're very young or
+    // very old. This looks intentionally implemented in the server but is not
+    // implemented in the vanilla client.
+    if (HetuwMod::experimentYoinkClothes &&
+        ourLiveObject->holdingID == 0 && p.hitClothingIndex != -1) {
+        canClickOnOtherForNonKill = true;
+        }
 
     
     // true if we're too far away to use on baby BUT we should execute

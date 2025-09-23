@@ -11,6 +11,8 @@
 #include <string>
 #include <unordered_map>
 
+bool yumRebirthComponent::autoDiedLastLife = false;
+
 using Options = yumRebirthComponent::Options;
 
 static bool enabled = false;

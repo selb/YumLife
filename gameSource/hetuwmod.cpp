@@ -6,6 +6,7 @@
 #include <fstream>
 #include <string>
 #include <unordered_set>
+#include <set>
 #include <sstream>
 
 #include "LivingLifePage.h"
@@ -24,6 +25,7 @@
 #include "yumConfig.h"
 #include "fitnessScore.h"
 #include "yumRebirthComponent.h"
+#include "yumStateStore.h"
 
 using namespace std;
 
@@ -70,6 +72,8 @@ HetuwMod::RainbowColor *HetuwMod::colorRainbow;
 
 LivingLifePage *HetuwMod::livingLifePage;
 LiveObject *HetuwMod::ourLiveObject = NULL;
+
+static yumStateStore stateStore("yumstate.dat");
 
 bool HetuwMod::bDrawHelp;
 
@@ -151,7 +155,6 @@ bool HetuwMod::bDrawCords;
 bool HetuwMod::bDrawHostileTiles = true;
 
 bool HetuwMod::bWriteLogs = true;
-int HetuwMod::lastLoggedId = -1;
 
 double HetuwMod::curStepTime;
 time_t HetuwMod::curStepSecondsSince1970;
@@ -296,6 +299,12 @@ bool HetuwMod::minitechEnabled = true;
 bool HetuwMod::minitechStayMinimized = false;
 bool HetuwMod::minitechTooltipsEnabled = true;
 
+bool HetuwMod::autoDieFaster = false;
+
+bool HetuwMod::experimentBabyChat = false;
+bool HetuwMod::experimentYoinkClothes = false;
+bool HetuwMod::experimentForgiveName = false;
+
 enum {
 	NAME_MODE_NONE,
 	NAME_MODE_SHUFFLE,
@@ -335,6 +344,8 @@ static unordered_set<std::string> namesSeen;
 static bool pendingDropAcknowledgement;
 
 extern char isAHAP;
+
+static bool lowPopActive = false;
 
 void HetuwMod::init() {
 	/* this is from vanilla initFrameDrawer(), which is just too late for us */
@@ -390,8 +401,6 @@ void HetuwMod::init() {
 
 	initSettings();
 
-	lastLoggedId = getLastIdFromLogs();
-
 	initHelpText();
 }
 
@@ -433,28 +442,6 @@ void HetuwMod::splitLogLine(string* lineElements, string line) { // lineElements
 		}
 		lineElements[k] += line[i];
 	}
-}
-
-int HetuwMod::getLastIdFromLogs() {
-	if (!bWriteLogs) return -1;
-
-	ifstream ifs( hetuwLogFileName );
-	if (!ifs.good()) return -1; // file does not exist
-
-	string line;
-	while (getline(ifs, line)) {
-		string lineElements[16];
-		splitLogLine(lineElements, line);
-		if (lineElements[1].compare("my_id") == 0) {
-			try {
-				int r = stoi(lineElements[2]);
-				return r;
-			} catch (...) {
-				return -1;
-			}
-		}
-	}
-	return -1;
 }
 
 int HetuwMod::getRecWidth(int rec[]) {
@@ -893,7 +880,7 @@ void HetuwMod::initSettings() {
 	yumConfig::registerSetting("draw_hunger_warning", bDrawHungerWarning);
 	yumConfig::registerSetting("skip_rocket_cutscene", skipRocketCutscene);
 
-	yumConfig::registerSetting("reduce_delay", delayReduction, {preComment: "\n// Reduce action delay by the given percentage, 0-50.\n// Higher values may cause server disconnects.\n"});
+	yumConfig::registerSetting("reduce_delay", delayReduction, {preComment: "\n// Reduce action delay by the given percentage, 0-100.\n// Higher values may cause server disconnects, especially above 50.\n"});
 	yumConfig::registerSetting("zoom_limit", zoomLimit, {preComment: "// Set max zoom out. This one goes to 11.\n"});
 
 	yumConfig::registerSetting("minitech_enabled", minitechEnabled, {preComment: "\n"});
@@ -910,6 +897,15 @@ void HetuwMod::initSettings() {
 	yumConfig::registerMappedSetting("auto_name_mode", autoNameMode, autoNameModeMap, {postComment: " // sequential, shuffle, or off"});
 
 	yumConfig::registerSetting("auto_die_unless", defaultAutoDieOptions, {preComment: "\n// comma-separated auto /DIE options to pre-select on startup\n// (example: ARCTIC,JUNGLE,DESERT,MALE)\n"});
+	yumConfig::registerSetting("auto_die_faster", autoDieFaster, {postComment: " // auto-die repeatedly instead of waiting on the rebirth choice screen"});
+
+	const char *experimentInstructions =
+		"\n"
+		"// These settings enable experimental features that may not fully work. Some rely on\n"
+		"// server bugs that may be fixed at any time.\n";
+	yumConfig::registerSetting("experiment_bb_chat", experimentBabyChat, {preComment: experimentInstructions, postComment: " // unpolished feature: collect short messages from bbs into one long message"});
+	yumConfig::registerSetting("experiment_yoink_clothes", experimentYoinkClothes, {postComment: " // server bug: allow taking clothes from the very young and very old (#1185)"});
+	yumConfig::registerSetting("experiment_forgive_name", experimentForgiveName, {postComment: " // server bug: show curse name after forgiving (#1185)"});
 
 	// Compatibility options
 
@@ -927,7 +923,7 @@ void HetuwMod::initSettings() {
 	}
 
 	// value clamping/validation
-	delayReduction = std::max(0, std::min(50, delayReduction));
+	delayReduction = std::max(0, std::min(100, delayReduction));
 	zoomLimit = std::max(0, std::min(maxZoomLevel, zoomLimit));
 	if (fontFilename != defaultFontFilename) {
 		std::ifstream ifs(std::string("graphics/") + fontFilename);
@@ -968,7 +964,6 @@ static void shuffle(vector<T> &vec) {
 
 void HetuwMod::initOnBirth() { // will be called from LivingLifePage.cpp
 	ourLiveObject = livingLifePage->getOurLiveObject();
-	if (ourLiveObject->id == lastLoggedId) return;
 
 	currentEmote = -1;
 	lastSpecialEmote = 0;
@@ -998,8 +993,6 @@ void HetuwMod::initOnBirth() { // will be called from LivingLifePage.cpp
 	sayBuffer.clear();
 	sayBuffer.shrink_to_fit();
 
-    yummyFoodChain.deleteAll();
-
 	createNewLogFile();
 	writeLineToLogs("my_birth", getTimeStamp());
 	writeLineToLogs("my_id", to_string(ourLiveObject->id));
@@ -1012,6 +1005,36 @@ void HetuwMod::initOnBirth() { // will be called from LivingLifePage.cpp
 	}
 	autoFemaleNameIndex = 0;
 	autoMaleNameIndex = 0;
+
+	yummyFoodChain.deleteAll();
+
+	stateStore.read();
+
+	int stateStoreLifeID = -1;
+	stateStore.get("life_id", stateStoreLifeID);
+	if (stateStoreLifeID != ourLiveObject->id) {
+		stateStore.clearAll();
+		stateStore.push("life_id", ourLiveObject->id);
+	} else {
+		std::string key;
+		while (stateStore.nextField(key)) {
+			if (key == "meh") {
+				int objID;
+				while (stateStore.get(objID)) {
+					if (objID < 0 || objID >= maxObjects) continue;
+					yummyFoodChain.push_back(objID);
+				}
+			} else if (key == "coords") {
+				loadHomeLocations();
+			} else if (key == "search") {
+				std::string word;
+				while (stateStore.get(word)) {
+					addSearchWord(word.c_str());
+				}
+				setSearchArray();
+			}
+		}
+	}
 }
 
 void HetuwMod::initOnServerJoin() { // will be called from LivingLifePage.cpp and hetuwmod.cpp
@@ -1111,6 +1134,21 @@ bool HetuwMod::charArrEqualsCharArr(const char *a, const char *b) {
 		if (toupper(a[i]) != toupper(b[i])) return false;
 	}
 	return false;
+}
+
+void HetuwMod::storeSearchList() {
+	stateStore.clear("search");
+	for (unsigned i=0; i<searchWordList.size(); i++) {
+		stateStore.push("search", searchWordList[i]);
+	}
+}
+
+void HetuwMod::addSearchWord(const char *word) {
+	if (word == NULL) return;
+	searchWordList.push_back(stringDuplicate(word));
+	searchWordStartPos.push_back(new doublePair());
+	searchWordEndPos.push_back(new doublePair());
+	searchWordListDelete.push_back(false);
 }
 
 void HetuwMod::setSearchArray() {
@@ -1468,6 +1506,10 @@ void HetuwMod::livingLifeStep() {
 	}
 
 	autoNameBB();
+
+	if (stateStore.hasChanged()) {
+		stateStore.write();
+	}
 }
 
 void HetuwMod::moveInVogMode() {
@@ -1692,6 +1734,41 @@ void HetuwMod::teachLanguage() {
 	sayBuffer.push_back(stringDuplicate(text));
 }
 
+struct homeTypeName {
+	HetuwMod::homePosType type;
+	const char *name;
+};
+
+homeTypeName homeTypeNames[] = {
+	{ HetuwMod::hpt_custom, "custom" },
+	{ HetuwMod::hpt_birth, "birth" },
+	{ HetuwMod::hpt_home, "homemarker" },
+	{ HetuwMod::hpt_bell, "bell" },
+	{ HetuwMod::hpt_apoc, "apoc" },
+	{ HetuwMod::hpt_tarr, "tarr" },
+	{ HetuwMod::hpt_map, "map" },
+	{ HetuwMod::hpt_baby, "baby" },
+	{ HetuwMod::hpt_babyboy, "babyboy" },
+	{ HetuwMod::hpt_babygirl, "babygirl" },
+	{ HetuwMod::hpt_expert, "expert" },
+	{ HetuwMod::hpt_rocket, "rocket" },
+	{ HetuwMod::hpt_plane, "plane" }
+};
+
+const char *HetuwMod::getHomeTypeName(homePosType type) {
+	for (int i=0; i<sizeof(homeTypeNames)/sizeof(homeTypeName); i++) {
+		if (homeTypeNames[i].type == type) return homeTypeNames[i].name;
+	}
+	return "unknowntype";
+}
+
+HetuwMod::homePosType HetuwMod::getHomeTypeFromName(const char *name) {
+	for (int i=0; i<sizeof(homeTypeNames)/sizeof(homeTypeName); i++) {
+		if (strcmp(homeTypeNames[i].name, name) == 0) return homeTypeNames[i].type;
+	}
+	return hpt_custom;
+}
+
 void HetuwMod::logHomeLocation(HomePos* hp) {
 	if (!bWriteLogs) return;
 
@@ -1751,20 +1828,39 @@ void HetuwMod::logHomeLocation(HomePos* hp) {
 	writeLineToLogs("coord", data);
 }
 
-void HetuwMod::addHomeLocation(HomePos *p) {
-	if (p->text.length() > 0) {
-		for (unsigned i=0; i<homePosStack.size(); i++) {
-			if (homePosStack[i]->type != p->type) continue;
-			if (homePosStack[i]->text != p->text) continue;
-			homePosStack[i]->x = p->x;
-			homePosStack[i]->y = p->y;
-			delete p;
-			return;
-		}
+void HetuwMod::loadHomeLocations() {
+	homePosStack.clear();
+	stateStore.get(cordOffset.x);
+	stateStore.get(cordOffset.y);
+	int x, y, personID;
+	std::string typeName, text, c;
+	while (stateStore.get(x)) {
+		stateStore.get(y);
+		stateStore.get(typeName);
+		stateStore.get(c);
+		if (c.empty()) c = "\0";
+		stateStore.get(personID);
+		if (!stateStore.get(text)) break;
+		int type = getHomeTypeFromName(typeName.c_str());
+		addHomeLocation(x, y, (homePosType)type, c[0], personID);
 	}
+}
 
-	homePosStack.push_back(p);
-	logHomeLocation(p);
+void HetuwMod::storeHomeLocations() {
+	if (stateStore.isReading()) return;
+
+	stateStore.clear("coords");
+	stateStore.push("coords", cordOffset.x);
+	stateStore.push("coords", cordOffset.y);
+	for (unsigned i=0; i<homePosStack.size(); i++) {
+		stateStore.push("coords", homePosStack[i]->x);
+		stateStore.push("coords", homePosStack[i]->y);
+		stateStore.push("coords", getHomeTypeName(homePosStack[i]->type));
+		char c[2] = {homePosStack[i]->c, 0};
+		stateStore.push("coords", c);
+		stateStore.push("coords", homePosStack[i]->personID);
+		stateStore.push("coords", homePosStack[i]->text.c_str());
+	}
 }
 
 void HetuwMod::addHomeLocation( int x, int y, homePosType type, char c, int personID ) {
@@ -1793,6 +1889,7 @@ void HetuwMod::addHomeLocation( int x, int y, homePosType type, char c, int pers
 		if (id >= 0) { // overwrite existing
 			homePosStack[id]->x = x;
 			homePosStack[id]->y = y;
+			storeHomeLocations();
 			logHomeLocation(homePosStack[id]);
 			return;
 		}
@@ -1813,6 +1910,7 @@ void HetuwMod::addHomeLocation( int x, int y, homePosType type, char c, int pers
 	p->c = c;
 	p->personID = personID;
 	homePosStack.push_back(p);
+	storeHomeLocations();
 	logHomeLocation(p);
 }
 
@@ -1962,6 +2060,14 @@ int HetuwMod::becomesFood( int objectID, int depth ) {
     return -1;
 }
 
+void HetuwMod::storeFoodChain() {
+	stateStore.clear("meh");
+	for (int i = 0; i < yummyFoodChain.size(); i++) {
+		int objID = yummyFoodChain.getElementDirect(i);
+		stateStore.push("meh", objID);
+	}
+}
+
 bool HetuwMod::isYummy(int objID) {
 	if( objID < 0 ) return false;
 	int objectID = becomesFoodID[objID];
@@ -1978,15 +2084,40 @@ void HetuwMod::foodIsMeh(ObjectRecord *obj) {
 	int objID = getObjYumID(obj);
 	if (!isYummy(objID)) return;
 	yummyFoodChain.push_back(objID);
+	storeFoodChain();
 }
 
 void HetuwMod::onJustAteFood(ObjectRecord *food) {
 	if (!food) return;
+	int objID;
 	if(food->isUseDummy) {
-		yummyFoodChain.push_back( getObjYumID(getObject(food->useDummyParent)) );
+		objID = getObjYumID(getObject(food->useDummyParent));
 	} else {
-		yummyFoodChain.push_back( HetuwMod::getObjYumID(food) );
+		objID = getObjYumID(food);
 	}
+	if (!isYummy(objID)) return;
+	yummyFoodChain.push_back(objID);
+	storeFoodChain();
+}
+
+void HetuwMod::onCraving(int foodID) {
+	// load the object record
+	ObjectRecord *food = getObject(foodID);
+	if (!food) return;
+	int objID;
+	if (food->isUseDummy) {
+		objID = getObjYumID(getObject(food->useDummyParent));
+	} else {
+		objID = getObjYumID(food);
+	}
+	// remove it from the meh list
+	for (int i = 0; i < yummyFoodChain.size(); i++) {
+		if (yummyFoodChain.getElementDirect(i) == objID) {
+			yummyFoodChain.deleteElement(i);
+			break;
+		}
+	}
+	storeFoodChain();
 }
 
 void HetuwMod::livingLifeDraw() {
@@ -2156,7 +2287,9 @@ void HetuwMod::drawTextWithBckgr( doublePair pos, const char* text, float rgba[]
 	float textWidth = livingLifePage->hetuwMeasureScaledHandwritingFont( text, guiScale );
 	setDrawColor( 0, 0, 0, 0.8 );
 	drawRect( pos, (textWidth/2) + 6*guiScale, 14*guiScale );
-	hSetDrawColor(rgba);
+	if (rgba != NULL) {
+		hSetDrawColor(rgba);
+	}
 	livingLifePage->hetuwDrawScaledHandwritingFont( text, pos, guiScale, alignCenter );
 }
 
@@ -3181,11 +3314,9 @@ bool HetuwMod::livingLifeKeyDown(unsigned char inASCII) {
 			bDrawInputString = false;
 			getSearchInput = 0;
 			if (strSearch.size() < 1) return true;
-			searchWordList.push_back(stringDuplicate(strSearch.c_str()));
-			searchWordStartPos.push_back(new doublePair());
-			searchWordEndPos.push_back(new doublePair());
-			searchWordListDelete.push_back(false);
+			addSearchWord(strSearch.c_str());
 			setSearchArray();
+			storeSearchList();
 			//printf("hetuw strSearch: %s\n", strSearch.c_str());
 		} else { // not enter
 			addToTempInputString( toupper(inASCII), false, 8);
@@ -3279,6 +3410,7 @@ bool HetuwMod::livingLifeKeyDown(unsigned char inASCII) {
 	if (!commandKey && shiftKey && isCharKey(inASCII, charKey_ShowCords)) {
 		cordOffset.x = -ourLiveObject->xd;
 		cordOffset.y = -ourLiveObject->yd;
+		storeHomeLocations();
 		return true;
 	}
 	if (!commandKey && isCharKey(inASCII, charKey_ShowDeathMessages)) {
@@ -3311,6 +3443,7 @@ bool HetuwMod::livingLifeKeyDown(unsigned char inASCII) {
 	}
 	if (!commandKey && shiftKey && isCharKey(inASCII, charKey_Search)) {
 		if (searchWordList.size() > 0) searchWordListDelete[searchWordList.size()-1] = true;
+		storeSearchList();
 		return true;
 	}
 	if (!commandKey && isCharKey(inASCII, charKey_FixCamera)) {
@@ -3655,6 +3788,7 @@ bool HetuwMod::livingLifePageMouseDown( float mX, float mY ) {
 						cordOffset.x = -homePosStack[i]->x;
 						cordOffset.y = -homePosStack[i]->y;
 					}
+					storeHomeLocations();
 					return true;
 				}
 			}
@@ -3949,28 +4083,6 @@ string HetuwMod::getLastName(const char* name) {
 	return lastName;
 }
 
-void HetuwMod::getLastNameColor(const char* lastName, float rgba[]) {
-	if (!lastName) {
-		rgba[0] = 1.0f; rgba[1] = 1.0f;
-		rgba[2] = 1.0f; rgba[3] = 1.0f;
-		return;
-	}
-	int num = 0;
-	for (int i=0; lastName[i] != 0; i++) {
-		num += (int)lastName[i];
-	}
-	rgba[0] = 0.15 + (num%100)/70.0f;
-	rgba[1] = 0.15 + (num%182)/140.0f;
-	rgba[2] = 0.15 + (num%77)/50.0f;
-	rgba[3] = 1.0;
-}
-
-void HetuwMod::setLastNameColor( const char* lastName, float alpha ) {
-	float rgba[4];
-	getLastNameColor(lastName, rgba);
-	setDrawColor(rgba[0], rgba[1], rgba[2], alpha);
-}
-
 bool HetuwMod::isWearingABackpack(LiveObject *obj) {
 	if (!obj) return false;
 	if (obj->clothing.backpack)
@@ -4068,7 +4180,7 @@ static const char * getRaceName(char raceLetter) {
 	return "UNKNOWN";
 }
 
-void HetuwMod::updatePlayerToMap(LiveObject *o, bool deathMsg) {
+void HetuwMod::updatePlayerToMap(LiveObject *o) {
 	if (!o) return;
 	int p = -1;
 	for(unsigned k=0; k<playersInMap.size(); k++) {
@@ -4078,14 +4190,15 @@ void HetuwMod::updatePlayerToMap(LiveObject *o, bool deathMsg) {
 		}
 	}
 	time_t timeNow = time(NULL);
-	if (p < 0 && deathMsg) return;
 	if (p < 0) {
 		p = playersInMap.size();
 		PlayerInMap *pInMap = new PlayerInMap();
 		pInMap->id = o->id;
 		pInMap->lastTime = timeNow;
-		pInMap->gender = getObject(o->displayID)->male ? 'M' : 'F';
-		playersInMap.push_back(pInMap);	
+		ObjectRecord *objRecord = getObject(o->displayID);
+		pInMap->gender = objRecord->male ? 'M' : 'F';
+		pInMap->race = getRaceLetter(objRecord);
+		playersInMap.push_back(pInMap);
 	}
 	if (playersInMap[p]->name.empty() && o->name != NULL) {
 		playersInMap[p]->name = o->name;
@@ -4098,13 +4211,23 @@ void HetuwMod::updatePlayerToMap(LiveObject *o, bool deathMsg) {
 		playersInMap[p]->lastTime = timeNow;
 	}
 	playersInMap[p]->age = (int)livingLifePage->hetuwGetAge(o);
-	playersInMap[p]->finalAgeSet = deathMsg ? true : o->finalAgeSet;
+	playersInMap[p]->outOfRange = o->outOfRange;
 }
 
 void HetuwMod::updateMap() {
+	std::unordered_set<int> extantIDs;
 	for(int i=0; i<gameObjects->size(); i++) {
 		LiveObject *o = gameObjects->getElement( i );
+		if (o->finalAgeSet) continue;
+		extantIDs.insert(o->id);
 		updatePlayerToMap(o);
+	}
+	for (size_t i = 0; i < playersInMap.size(); i++) {
+		if (extantIDs.find(playersInMap[i]->id) == extantIDs.end()) {
+			delete playersInMap[i];
+			playersInMap.erase(playersInMap.begin() + i);
+			i--;
+		}
 	}
 }
 
@@ -4299,7 +4422,6 @@ void HetuwMod::onOurDeath() {
 		data = data + playersInMap[k]->gender + hetuwLogSeperator + age + hetuwLogSeperator;
 		data = data + "X:"+to_string(playersInMap[k]->x) + hetuwLogSeperator + "Y:"+to_string(playersInMap[k]->y) + hetuwLogSeperator;
 		if (p) data = data + (p->finalAgeSet ? "DEAD" : "ALIVE");
-		else data = data + (playersInMap[k]->finalAgeSet ? "DEAD" : "ALIVE");
 		writeLineToLogs("player_map", data);
 	}
 
@@ -4308,7 +4430,7 @@ void HetuwMod::onOurDeath() {
 
 #define hetuwDeathMessageRange 200
 // 1341060 2464 0 0 0 0 798 0 0 0 -1 0.24 0 0 X X 50.67 60.00 2.81 2885;202;0;0;200;198,560,3101 0 0 -1 0 reason_killed_152
-void HetuwMod::onPlayerUpdate( LiveObject* inO, const char* line ) {
+void HetuwMod::onRawPlayerUpdate( LiveObject* inO, const char* line ) {
 	if ( inO == NULL ) return;
 	if ( ourLiveObject == NULL ) return;
 
@@ -4329,8 +4451,6 @@ void HetuwMod::onPlayerUpdate( LiveObject* inO, const char* line ) {
 		}
 	}
 	if ( o == NULL ) return;
-	
-	updatePlayerToMap(o, true);
 
 	if (o == ourLiveObject) onOurDeath();
 
@@ -4402,6 +4522,10 @@ void HetuwMod::onPlayerUpdate( LiveObject* inO, const char* line ) {
 	getRelationNameColor( o->relationName, deathMsg->nameColor );
 
 	deathMessages.push_back(deathMsg);
+}
+
+void HetuwMod::onPlayerUpdate( LiveObject* o, const ExtraPUData& puData ) {
+	/* not yet used */
 }
 
 void HetuwMod::onNameUpdate(LiveObject* o) {
@@ -4524,7 +4648,7 @@ void HetuwMod::drawMap() {
 	drawRect( screenCenter, viewWidth/2, viewHeight/2 );
 	setDrawColor( 1, 1, 1, 1 );
 
-	unordered_set<string> names;
+	set<pair<char, string>> families;
 	double minX = screenCenter.x - viewWidth/2;
 	double minY = screenCenter.y - viewHeight/2;
 	double maxX = screenCenter.x + viewWidth/2;
@@ -4535,7 +4659,8 @@ void HetuwMod::drawMap() {
 	int recHeightHalf = 10*zoomScale;
 	for(unsigned k=0; k<playersInMap.size(); k++) {
 		if (playersInMap[k]->x == 999999) continue;
-		if (playersInMap[k]->name.empty()) continue;
+		std::string name = playersInMap[k]->name;
+		if (name.empty()) name = "UNNAMED";
 		drawPos.x = (playersInMap[k]->x - ourLiveObject->xd) / mapScale;
 		drawPos.y = (playersInMap[k]->y - ourLiveObject->yd) / mapScale;
 		drawPos.x += mapOffsetX;
@@ -4549,24 +4674,26 @@ void HetuwMod::drawMap() {
 		if (drawPos.x > mouseX-recWidthHalf && drawPos.x < mouseX+recWidthHalf &&
 			drawPos.y > mouseY-recHeightHalf && drawPos.y < mouseY+recHeightHalf) {
 			bDrawMouseOver = true;
-			if (!playersInMap[k]->name.empty()) {
-				snprintf(drawMouseOver, sizeof(drawMouseOver), "%s X:%d Y:%d", playersInMap[k]->name.c_str(), playersInMap[k]->x, playersInMap[k]->y);
-			} else {
-				snprintf(drawMouseOver, sizeof(drawMouseOver), "X:%d Y:%d", playersInMap[k]->x, playersInMap[k]->y);
-			}
+			snprintf(drawMouseOver, sizeof(drawMouseOver), "%s X:%d Y:%d %d", name.c_str(), playersInMap[k]->x, playersInMap[k]->y, playersInMap[k]->age);
 		}
 
-		if (!playersInMap[k]->lastName.empty()) {
-			names.insert(playersInMap[k]->lastName);
+		std::string lastName = playersInMap[k]->lastName;
+		if (lastName.empty()) lastName = "UNNAMED";
+		if (playersInMap[k]->race != 0) {
+			families.insert(make_pair(playersInMap[k]->race, lastName));
 		}
-		
-		float alpha = 1.0f;
-		if (playersInMap[k]->finalAgeSet) alpha = 0.4f;
 
-		if (ourLiveObject->id == playersInMap[k]->id) 
+		float alpha = 0.9f;
+		if (playersInMap[k]->outOfRange) {
+			alpha = 0.6f;
+		}
+
+		if (ourLiveObject->id == playersInMap[k]->id) {
 			setDrawColor( colorRainbow->color[0], 1.0f, colorRainbow->color[2], 1 );
-		else setLastNameColor( playersInMap[k]->lastName.c_str(), alpha );
+			drawRect( drawPos, recWidthHalf + 2*zoomScale, recHeightHalf + 2*zoomScale );
+		}
 
+		setRaceColor( playersInMap[k]->race, alpha );
 		drawRect( drawPos, recWidthHalf, recHeightHalf );
 	}
 
@@ -4604,7 +4731,7 @@ void HetuwMod::drawMap() {
 	drawNameRecPos.x = screenCenter.x - viewWidth/2 + 50*guiScale;
 	drawNameRecPos.y = drawKeysRecPos.y + 15*guiScale;
 	float drawNameRecWidth = 100*guiScale;
-	float drawNameRecHeight = names.size()*15*guiScale + 10*guiScale;
+	float drawNameRecHeight = families.size()*15*guiScale + 10*guiScale;
 	drawNameRecPos.y += drawNameRecHeight;
 	drawRect( drawNameRecPos, drawNameRecWidth, drawNameRecHeight );
 
@@ -4612,9 +4739,11 @@ void HetuwMod::drawMap() {
 	drawNamesPos.x = screenCenter.x - viewWidth/2;
 	drawNamesPos.y = drawKeysRecPos.y + 40*guiScale;
 	drawNamesPos.x += 20*guiScale;
-	for (auto it = names.begin(); it != names.end(); it++) {
-		setLastNameColor( (*it).c_str() , 1.0f );
-		livingLifePage->hetuwDrawScaledHandwritingFont( (*it).c_str(), drawNamesPos, guiScale );
+	for (auto it = families.begin(); it != families.end(); it++) {
+		char raceLetter = it->first;
+		const string& lastName = it->second;
+		setRaceColor( raceLetter, 1.0f );
+		livingLifePage->hetuwDrawScaledHandwritingFont( lastName.c_str(), drawNamesPos, guiScale );
 		drawNamesPos.y += 30*guiScale;
 	}
 
@@ -4633,6 +4762,16 @@ void HetuwMod::drawMap() {
 		drawRect( bckgrRecPos, textWidth/2 + 10*guiScale, 15*guiScale );
 		setDrawColor( 1, 1, 1, 1 );
 		livingLifePage->hetuwDrawScaledHandwritingFont( drawMouseOver, drawMouseOverPos, guiScale );
+	}
+}
+
+static void tooltip(double recStartX, double recStartY, double recEndX, double recEndY, const char *text, float *rgba) {
+	int mouseX, mouseY;
+	HetuwMod::livingLifePage->hetuwGetMouseXY( mouseX, mouseY );
+	if (   mouseX >= recStartX && mouseX <= recEndX
+		&& mouseY >= recStartY && mouseY <= recEndY) {
+		doublePair descDrawPos = { (double)mouseX, (double)mouseY };
+		HetuwMod::drawTextWithBckgr( descDrawPos, text, rgba );
 	}
 }
 
@@ -4661,6 +4800,10 @@ void HetuwMod::drawPlayersInRangePanel() {
 	textPos.y -= 20*guiScale;
 	textPos.x -= 20*guiScale;
 	
+	if (lowPopActive) {
+		// orange
+		setDrawColor( 1, 0.5f, 0.0f, 1 );
+	}
 	if (iDrawPlayersInRangePanel == 1) {
 		if (playersInRangeNum < 10) snprintf(text, sizeof(text), "PLAYERS IN RANGE:   %d", playersInRangeNum);
 		else if (playersInRangeNum < 100) snprintf(text, sizeof(text), "PLAYERS IN RANGE:  %d", playersInRangeNum);
@@ -4689,6 +4832,12 @@ void HetuwMod::drawPlayersInRangePanel() {
 		snprintf( text, sizeof(text), "%s  F:%i  %i", fam.name.c_str(), fam.youngWomenCount, fam.count);
 		livingLifePage->hetuwDrawScaledHandwritingFont( text, textPos, guiScale, alignRight );
 	}
+
+	// draw tooltips (low pop and per-fam)
+	recStartY = drawPos.y - lineHeight/2;
+	recEndY = drawPos.y + lineHeight/2;
+	float white[4] = {1, 1, 1, 1};
+	tooltip(recStartX, recStartY, recEndX, recEndY, lowPopActive ? "LOW POP" : "HIGH POP", white);
 	for (size_t k=0; k < familiesInRange.size(); k++) {
 		const FamilyInRange &fam = familiesInRange[k];
 		if (k != 0 && fam.count <= 0) continue;
@@ -4696,15 +4845,10 @@ void HetuwMod::drawPlayersInRangePanel() {
 
 		recStartY = drawPos.y - lineHeight/2;
 		recEndY = drawPos.y + lineHeight/2;
-		if (mouseX >= recStartX && mouseX <= recEndX) {
-			if (mouseY >= recStartY && mouseY <= recEndY) {
-				doublePair descDrawPos = { (double)mouseX, (double)mouseY };
-				snprintf( text, sizeof(text), "%s GEN:%i", getRaceName(fam.race), fam.generation);
-				float rgba[4];
-				getRaceColor(fam.race, rgba);
-				drawTextWithBckgr(descDrawPos, text, rgba);
-			}
-		}
+		float raceColor[4];
+		getRaceColor(fam.race, raceColor);
+		snprintf( text, sizeof(text), "%s GEN:%i", getRaceName(fam.race), fam.generation);
+		tooltip(recStartX, recStartY, recEndX, recEndY, text, raceColor);
 	}
 
 }
@@ -4725,6 +4869,7 @@ void HetuwMod::drawSearchList() {
 			searchWordListDelete.erase(searchWordListDelete.begin()+i);
 			i--;
 			setSearchArray();
+			storeSearchList();
 		}
 	}
 	if (searchWordList.size() == 0) {
@@ -5132,6 +5277,10 @@ void HetuwMod::onHoldingChange(int previous, int current) {
 	 * a past action if there's enough lag; if the server doesn't coalesce
 	 * updates, this could potentially be improved by making this a counter. */
 	pendingDropAcknowledgement = false;
+}
+
+void HetuwMod::onLowPopChange(bool lowPop) {
+	lowPopActive = lowPop;
 }
 
 void HetuwMod::autoNameBB() {

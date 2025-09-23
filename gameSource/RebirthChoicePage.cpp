@@ -14,6 +14,8 @@
 #include "minorGems/util/stringUtils.h"
 #include "minorGems/util/SettingsManager.h"
 
+#include "hetuwmod.h"
+
 
 extern Font *mainFont;
 
@@ -123,6 +125,10 @@ void RebirthChoicePage::draw( doublePair inViewCenter,
                                   double inViewSize ) {
     
     doublePair pos = { 0, 200 };
+
+    if ( yumRebirthComponent::didAutoDie() && HetuwMod::autoDieFaster ) {
+        setSignal( "reborn" );
+        }
     
     // no message for now
     //drawMessage( "", pos );
