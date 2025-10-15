@@ -59,6 +59,7 @@
 #include "arcReport.h"
 #include "curseDB.h"
 #include "trustDB.h"
+#include "curseLog.h"
 #include "specialBiomes.h"
 #include "cravings.h"
 #include "offspringTracker.h"
@@ -243,6 +244,9 @@ static SimpleVector<char*> youForgivingPhrases;
 
 static SimpleVector<char*> trustingPhrases;
 static SimpleVector<char*> youTrustingPhrases;
+
+static SimpleVector<char*> distrustingPhrases;
+static SimpleVector<char*> youDistrustingPhrases;
 
 
 static SimpleVector<char*> youGivingPhrases;
@@ -805,6 +809,11 @@ typedef struct LiveObject {
 
         // time when this player actually died
         double deathTimeSeconds;
+        
+        // only check for ghost chance once
+        // so we don't check for it again during every computeAge call after 
+        // age 60.
+        char alreadyCheckedGhostChance;
         
         char isGhost;
         char ghostDestroyed;
@@ -2701,6 +2710,9 @@ void quitCleanup() {
 
     trustingPhrases.deallocateStringElements();
     youTrustingPhrases.deallocateStringElements();
+
+    distrustingPhrases.deallocateStringElements();
+    youDistrustingPhrases.deallocateStringElements();
     
     youGivingPhrases.deallocateStringElements();
     namedGivingPhrases.deallocateStringElements();
@@ -4070,7 +4082,8 @@ double computeAge( LiveObject *inPlayer ) {
     if( age >= forceDeathAge ) {
         
         
-        if( ! inPlayer->ghostDestroyed && 
+        if( ! inPlayer->alreadyCheckedGhostChance &&
+            ! inPlayer->ghostDestroyed && 
             ! inPlayer->isGhost &&
             SettingsManager::getIntSetting( "allowGhosts", 0 ) &&
             SettingsManager::getDoubleSetting( "ghostChance", 0.0 ) >=
@@ -4079,6 +4092,7 @@ double computeAge( LiveObject *inPlayer ) {
             // player reached old age, and ghosts allowed, keep them around
             // as a surviving ghost for now
 
+            inPlayer->alreadyCheckedGhostChance = true;
             inPlayer->isGhost = true;
             
             newGhostPlayers.push_back( inPlayer->id );
@@ -4093,7 +4107,11 @@ double computeAge( LiveObject *inPlayer ) {
 
             return forceDeathAge;
             }
-
+        
+        // they didn't become a ghost, for whatever reason
+        // don't check if they become a ghost ever again
+        // (in future computeAge calls after age forceDeathAge)
+        inPlayer->alreadyCheckedGhostChance = true;
 
         // else they died of old age, or their surviving ghost was finally
         // destroyed
@@ -6324,6 +6342,49 @@ char findDropSpot( LiveObject *inDroppingPlayer,
             }
         }
 
+
+    if( !found ) {
+        // entire radius-10 area is full of stuff on the ground.
+
+        // keep looking, but just do a randomized zig-zag walk in one
+        // general direction
+        int xDir = 1;
+        int yDir = 1;
+        
+        if( randSource.getRandomBoolean() ) {
+            xDir = -1;
+            }
+        if( randSource.getRandomBoolean() ) {
+            yDir = -1;
+            }
+        
+        // for random walk, move in either x dir or y dir, but not both
+        // if we pick randomly, we get a diagonal-ish zig-zag with variable-
+        // length zigs and zags
+        
+        int numTries = 0;
+        int xD = 0;
+        int yD = 0;
+        
+        while( !found && numTries < 2000 ) {
+            if( isMapSpotEmpty( inSourceX + xD, inSourceY + yD ) ) {
+                found = true;
+                foundX = inSourceX + xD;
+                foundY = inSourceY + yD;
+                }
+
+            if( randSource.getRandomBoolean() ) {
+                xD += xDir;
+                }
+            else {
+                yD += yDir;
+                }
+            
+            numTries++;
+            }
+        }
+
+
     outSpot->x = foundX;
     outSpot->y = foundY;
     return found;
@@ -7426,8 +7487,11 @@ void handleForcedBabyDrop(
     }
 
 
-
-static void handleHoldingChange( LiveObject *inPlayer, int inNewHeldID );
+// inForceTransition means a transition really happened here
+// and we should update the holdingEtaDecay, even if the held object
+// hasn't changed
+static void handleHoldingChange( LiveObject *inPlayer, int inNewHeldID,
+                                 char inForceTransition = false );
 
 
 
@@ -9394,6 +9458,7 @@ int processLoggedInPlayer( int inAllowOrForceReconnect,
     newObject.trueStartTimeSeconds = Time::getCurrentTime();
     newObject.lifeStartTimeSeconds = newObject.trueStartTimeSeconds;
     
+    newObject.alreadyCheckedGhostChance = false;
     newObject.isGhost = false;
     newObject.ghostDestroyed = false;
 
@@ -12477,6 +12542,17 @@ static char addHeldToClothingContainer( LiveObject *inPlayer,
             containSize <= slotSize &&
             permitted ) {
             // room (or will swap, so we can over-pack it)
+
+            
+            // drop on ground transition?  If so, apply here
+            // as object leaves our hands
+            TransRecord *r = getPTrans( inPlayer->holdingID, -1 );
+
+            if( r != NULL && r->newActor == 0 && r->newTarget > 0 ) {
+                inPlayer->holdingID = r->newTarget;
+                setFreshEtaDecayForHeld( inPlayer );
+                }
+
             inPlayer->clothingContained[inC].
                 push_back( 
                     inPlayer->holdingID );
@@ -12701,23 +12777,39 @@ static char removeFromClothingContainerToHold( LiveObject *inPlayer,
         inPlayer->holdingID = 
             inPlayer->clothingContained[inC].
             getElementDirect( slotToRemove );
-        holdingSomethingNew( inPlayer );
 
-        inPlayer->holdingEtaDecay = 
-            inPlayer->
-            clothingContainedEtaDecays[inC].
-            getElementDirect( slotToRemove );
+        // does bare-hand action apply to this newly-held object
+        // one that results in something new in the hand and
+        // nothing on the ground?
+        
+        // if so, it is a pick-up action, and it should apply here
+        
+        TransRecord *pickupTrans = getPTrans( 0, inPlayer->holdingID );
+        
+        if( pickupTrans != NULL && pickupTrans->newActor > 0 &&
+            pickupTrans->newTarget == 0 ) {
+            
+            handleHoldingChange( inPlayer, pickupTrans->newActor );
+            }
+        else {
+            holdingSomethingNew( inPlayer );
+            
+            inPlayer->holdingEtaDecay = 
+                inPlayer->
+                clothingContainedEtaDecays[inC].
+                getElementDirect( slotToRemove );
                                     
-        timeSec_t curTime = Time::timeSec();
+            timeSec_t curTime = Time::timeSec();
 
-        if( inPlayer->holdingEtaDecay != 0 ) {
+            if( inPlayer->holdingEtaDecay != 0 ) {
                                         
-            timeSec_t offset = 
-                inPlayer->holdingEtaDecay
-                - curTime;
-            offset = offset * stretch;
-            inPlayer->holdingEtaDecay =
-                curTime + offset;
+                timeSec_t offset = 
+                    inPlayer->holdingEtaDecay
+                    - curTime;
+                offset = offset * stretch;
+                inPlayer->holdingEtaDecay =
+                    curTime + offset;
+                }
             }
 
         inPlayer->clothingContained[inC].
@@ -12879,7 +12971,8 @@ static TransRecord *getBareHandClothingTrans( LiveObject *nextPlayer,
 
 
 // change held as the result of a transition
-static void handleHoldingChange( LiveObject *inPlayer, int inNewHeldID ) {
+static void handleHoldingChange( LiveObject *inPlayer, int inNewHeldID,
+                                 char inForceTransition ) {
     
     LiveObject *nextPlayer = inPlayer;
 
@@ -13012,7 +13105,16 @@ static void handleHoldingChange( LiveObject *inPlayer, int inNewHeldID ) {
             setFreshEtaDecayForHeld( nextPlayer );
             }
         }
-
+    else if( inForceTransition ) {
+        // our object id didn't change
+        // but there WAS a transition that happened
+        // update our eta decay time
+        // (it might have been a self-to-self decay transition,
+        //  like for a moving object, in which case our eta decay time
+        //  is stale)
+        setFreshEtaDecayForHeld( nextPlayer );
+        }
+     
     }
 
 
@@ -13385,6 +13487,19 @@ char isYouTrustingSay( char *inSaidString ) {
 char *isNamedTrustingSay( char *inSaidString ) {
     return isNamingSay( inSaidString, &trustingPhrases );
     }
+
+
+
+char isYouDistrustingSay( char *inSaidString ) {
+    return isWildcardGivingSay( inSaidString, &youDistrustingPhrases );
+    }
+
+// returns pointer into inSaidString
+char *isNamedDistrustingSay( char *inSaidString ) {
+    return isNamingSay( inSaidString, &distrustingPhrases );
+    }
+
+
 
 
 char isForgiveEveryoneSay( char *inSaidString ) {
@@ -18095,7 +18210,7 @@ static void handleHeldDecay(
         
         int newID = t->newTarget;
         
-        handleHoldingChange( nextPlayer, newID );
+        handleHoldingChange( nextPlayer, newID, true );
         
         if( newID == 0 &&
             nextPlayer->holdingWound &&
@@ -18618,6 +18733,9 @@ int main( int inNumArgs, const char **inArgs ) {
 
     readPhrases( "trustingPhrases", &trustingPhrases );
     readPhrases( "trustYouPhrases", &youTrustingPhrases );
+
+    readPhrases( "distrustingPhrases", &distrustingPhrases );
+    readPhrases( "distrustYouPhrases", &youDistrustingPhrases );
 
     
     readPhrases( "youGivingPhrases", &youGivingPhrases );
@@ -20143,6 +20261,15 @@ int main( int inNumArgs, const char **inArgs ) {
                                 if( nextConnection->twinCount > maxCount ) {
                                     nextConnection->twinCount = maxCount;
                                     }
+                                if( nextConnection->twinCount < 2 ) {
+                                    // don't allow twin counts of 1 or 0
+                                    // count it as if they're not even
+                                    // asking to be twins
+                                    nextConnection->twinCount = 0;
+                                    delete [] nextConnection->twinCode;
+                                    nextConnection->twinCode = NULL;
+                                    }
+                                
                                 }
                             
 
@@ -21034,6 +21161,12 @@ int main( int inNumArgs, const char **inArgs ) {
                         nextPlayer->preVogPos = getPlayerPos( nextPlayer );
                         nextPlayer->preVogBirthPos = nextPlayer->birthPos;
                         nextPlayer->vogJumpIndex = 0;
+
+                        if( nextPlayer->pathToDest != NULL ) {
+                            delete [] nextPlayer->pathToDest;
+                            nextPlayer->pathToDest = NULL;
+                            }
+                        nextPlayer->pathLength = 0;
                         }
                     }
                 else if( m.type == VOGN ) {
@@ -21171,16 +21304,28 @@ int main( int inNumArgs, const char **inArgs ) {
                 else if( m.type == VOGT && m.saidText != NULL ) {
                     if( nextPlayer->vogMode ) {
                         
-                        newLocationSpeech.push_back( 
-                            stringDuplicate( m.saidText ) );
-                        GridPos p = getPlayerPos( nextPlayer );
-                        
-                        ChangePosition cp;
-                        cp.x = p.x;
-                        cp.y = p.y;
-                        cp.global = false;
+                        if( strcmp( m.saidText, "TP" ) == 0 ) {
 
-                        newLocationSpeechPos.push_back( cp );
+                            nextPlayer->preVogPos.x = nextPlayer->xs;
+                            nextPlayer->preVogPos.y = nextPlayer->ys;
+                            
+                            nextPlayer->preVogBirthPos.x = nextPlayer->xs;
+                            nextPlayer->preVogBirthPos.y = nextPlayer->ys;
+                            // hide TP speech, don't show it as location
+                            // speech
+                            }
+                        else {
+                            newLocationSpeech.push_back( 
+                                stringDuplicate( m.saidText ) );
+                            GridPos p = getPlayerPos( nextPlayer );
+                            
+                            ChangePosition cp;
+                            cp.x = p.x;
+                            cp.y = p.y;
+                            cp.global = false;
+                            
+                            newLocationSpeechPos.push_back( cp );
+                            }
                         }
                     }
                 else if( m.type == VOGX ) {
@@ -21197,6 +21342,22 @@ int main( int inNumArgs, const char **inArgs ) {
                         
                         nextPlayer->birthPos = nextPlayer->preVogBirthPos;
 
+                        nextPlayer->heldOriginX = nextPlayer->preVogPos.x;
+                        nextPlayer->heldOriginY = nextPlayer->preVogPos.y;
+
+                        nextPlayer->actionTarget = p;
+                        
+                        
+                        // always assume teleport at end of VOG
+                        // treat it like a flight
+                        FlightDest fd = {
+                            nextPlayer->id,
+                            p };
+
+                        newFlightDest.push_back( fd );
+
+                        nextPlayer->inFlight = true;
+                        
                         // send them one last VU message to move them 
                         // back instantly
                         char *message = autoSprintf( "VU\n%d %d\n#",
@@ -23417,6 +23578,39 @@ int main( int inNumArgs, const char **inArgs ) {
                             setDBTrust( nextPlayer->id,
                                         nextPlayer->email, 
                                         otherToTrust->email );
+                            }
+
+
+                        
+                        LiveObject *otherToDistrust = NULL;
+                        
+                        if( isYouDistrustingSay( m.saidText ) ) {
+                            otherToDistrust = 
+                                getClosestOtherPlayer( nextPlayer );
+                            }
+                        else {
+                            char *distrustName = 
+                                isNamedDistrustingSay( m.saidText );
+                            
+                            if( distrustName != NULL ) {
+                                otherToDistrust =
+                                    getPlayerByName( distrustName, nextPlayer );
+                                
+                                }
+                            }
+                        
+                        if( otherToDistrust != NULL ) {
+                            clearDBTrust( nextPlayer->email, 
+                                          otherToDistrust->email );
+                            // log here....
+                            // setDBTrust abvoe does logging
+                            // but clearDBTrust does not, because we clear
+                            // it on cursing, too.
+                            // We want to log distrust even distinctly from
+                            // cursing.
+                            logDistrust( nextPlayer->id,
+                                         nextPlayer->email, 
+                                         otherToDistrust->email );
                             }
 
                         

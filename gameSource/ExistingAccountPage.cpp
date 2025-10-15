@@ -136,6 +136,13 @@ ExistingAccountPage::ExistingAccountPage()
 
     setButtonStyle( &mDisableCustomServerButton );
     
+    // draw attention to login button
+    mLoginButton.setNoHoverColor( 1, 1, 0, 1 );
+    mLoginButton.setHoverColor( 1, 1, 0, 1 );
+    mLoginButton.setDragOverColor( 1, 1, 0, 1 );
+    mLoginButton.setHoverBorderColor( 1, 1, 0, 1 );
+    
+    
     mFields[0] = &mEmailField;
     mFields[1] = &mKeyField;
 
@@ -206,6 +213,7 @@ ExistingAccountPage::ExistingAccountPage()
     mFamilyTreesButton.setMouseOverTip( translate( "familyTreesTip" ) );
     mTechTreeButton.setMouseOverTip( translate( "techTreeTip" ) );
     
+    mServicesButton.setMouseOverTip( translate( "servicesTip" ) );
     
 
     int reviewPosted = SettingsManager::getIntSetting( "reviewPosted", 0 );

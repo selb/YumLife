@@ -660,6 +660,23 @@ static char hasPrimaryHomeland( int inLineageEveID ) {
 
 
 
+static void eveLogPrintf( const char* inFormatString, ... ) {
+    FILE *logFile = fopen( "evePlacementLog.txt", "a" );
+
+    if( logFile == NULL ) {
+        printf( "Failed to open evePlacementLog.txt for writing\n" );
+        return;
+        }
+
+    va_list argList;
+    va_start( argList, inFormatString );
+
+    vfprintf( logFile, inFormatString, argList );
+    
+    va_end( argList );
+
+    fclose( logFile );
+    }
 
 
 
@@ -1975,6 +1992,8 @@ void clearRecentPlacements();
 
 
 void resetEveLocation() {
+    eveLogPrintf( "\nResetting Eve location\n" );
+    
     eveLocation.x = 0;
     eveLocation.y = 0;
 
@@ -3371,7 +3390,7 @@ char initMap() {
 
         fclose( eveLocFile );
 
-        printf( "Loading lastEveLocation %d,%d\n", 
+        eveLogPrintf( "\nLoading lastEveLocation %d,%d\n", 
                 eveLocation.x, eveLocation.y );
         }
 
@@ -3384,69 +3403,85 @@ char initMap() {
 
         fclose( lineagePosFile );
 
-        printf( "Overriding eveLocation with shutdownLongLineagePos %d,%d\n", 
-                eveLocation.x, eveLocation.y );
+        eveLogPrintf(
+            "\nOverriding eveLocation with shutdownLongLineagePos %d,%d\n", 
+            eveLocation.x, eveLocation.y );
         }
     else {
-        printf( "No shutdownLongLineagePos.txt file exists\n" );
+        eveLogPrintf( "\nNo shutdownLongLineagePos.txt file exists\n" );
         
-        // look for longest monument log file
-        // that has been touched in last 24 hours
-        // (ignore spots that may have been culled)
-        File f( NULL, "monumentLogs" );
-        if( f.exists() && f.isDirectory() ) {
-            int numChildFiles;
-            File **childFiles = f.getChildFiles( &numChildFiles );
-            
-            timeSec_t longTime = 0;
-            int longLen = 0;
-            int longX = 0;
-            int longY = 0;
-            
-            timeSec_t curTime = Time::timeSec();
+        if( haveMonumentsBeenWiped() ) {
+            eveLogPrintf( "\nMonuments have been wiped, "
+                          "so not using them to bootstrap Eve location\n" );
+            }
+        else {
+            eveLogPrintf( "\nMonuments have NOT been wiped, "
+                          "looking at recent ones to "
+                          "bootstrap Eve location\n" );
 
-            int secInDay = 3600 * 24;
+            // look for longest monument log file
+            // that has been touched in last 24 hours
+            // (ignore spots that may have been culled)
+
+            File f( NULL, "monumentLogs" );
+
+            if( f.exists() && f.isDirectory() ) {
+                int numChildFiles;
+                File **childFiles = f.getChildFiles( &numChildFiles );
             
-            for( int i=0; i<numChildFiles; i++ ) {
-                timeSec_t modTime = childFiles[i]->getModificationTime();
+                timeSec_t longTime = 0;
+                int longLen = 0;
+                int longX = 0;
+                int longY = 0;
+            
+                timeSec_t curTime = Time::timeSec();
+
+                int secInDay = 3600 * 24;
+            
+                for( int i=0; i<numChildFiles; i++ ) {
+                    timeSec_t modTime = childFiles[i]->getModificationTime();
                 
-                if( curTime - modTime < secInDay ) {
-                    char *cont = childFiles[i]->readFileContents();
+                    if( curTime - modTime < secInDay ) {
+                        char *cont = childFiles[i]->readFileContents();
                     
-                    int numNewlines = countNewlines( cont );
+                        int numNewlines = countNewlines( cont );
                     
-                    delete [] cont;
+                        delete [] cont;
                     
-                    if( numNewlines > longLen ||
-                        ( numNewlines == longLen && modTime > longTime ) ) {
+                        if( numNewlines > longLen ||
+                            ( numNewlines == longLen && modTime > longTime ) ) {
                         
-                        char *name = childFiles[i]->getFileName();
+                            char *name = childFiles[i]->getFileName();
                         
-                        int x, y;
-                        int numRead = sscanf( name, "%d_%d_",
-                                              &x, &y );
+                            int x, y;
+                            int numRead = sscanf( name, "%d_%d_",
+                                                  &x, &y );
 
-                        delete [] name;
+                            delete [] name;
                         
-                        if( numRead == 2 ) {
-                            longTime = modTime;
-                            longLen = numNewlines;
-                            longX = x;
-                            longY = y;
+                            if( numRead == 2 ) {
+                                longTime = modTime;
+                                longLen = numNewlines;
+                                longX = x;
+                                longY = y;
+                                }
                             }
                         }
+                    delete childFiles[i];
                     }
-                delete childFiles[i];
-                }
-            delete [] childFiles;
+                delete [] childFiles;
 
-            if( longLen > 0 ) {
-                eveLocation.x = longX;
-                eveLocation.y = longY;
+                if( longLen > 0 ) {
+                    eveLocation.x = longX;
+                    eveLocation.y = longY;
                 
-                printf( "Overriding eveLocation with "
-                        "tallest recent monument location %d,%d\n", 
-                        eveLocation.x, eveLocation.y );
+                    eveLogPrintf( "\nOverriding eveLocation with "
+                                  "tallest recent monument location %d,%d\n", 
+                                  eveLocation.x, eveLocation.y );
+                    }
+                else {
+                    eveLogPrintf( "\nNo recent monument location found\n" );
+                    }    
                 }
             }
         }
@@ -4816,6 +4851,10 @@ void wipeMapFiles() {
     deleteFileByName( "recentPlacements.txt" );
     deleteFileByName( "landingLocations.txt" );
     deleteFileByName( "shutdownLongLineagePos.txt" );
+    
+    monumentMapWipe();
+
+    eveLogPrintf( "\nWiping all map files.\n" );
     }
 
 
@@ -6218,9 +6257,13 @@ void checkDecayContained( int inX, int inY, int inSubCont ) {
     
     SimpleVector<int> newContained;
     SimpleVector<timeSec_t> newDecayEta;
+
+    // enough room in these for numContained, even though our count
+    // might shrink due to this decay
+    int *newSubContCount = new int[numContained];
+    int **newSubCont = new int*[numContained];
+    timeSec_t **newSubContDecay = new timeSec_t*[numContained];
     
-    SimpleVector< SimpleVector<int> > newSubCont;
-    SimpleVector< SimpleVector<timeSec_t> > newSubContDecay;
     
         
     char change = false;
@@ -6229,14 +6272,37 @@ void checkDecayContained( int inX, int inY, int inSubCont ) {
     // looking it up over and over.
     int lastIDWithNoDecay = 0;
     
+    int nextFillI = 0;
     
     for( int i=0; i<numContained; i++ ) {
+        // set them all to NULL to start, so we know which ones to destroy later
+        newSubContCount[i] = 0;
+        newSubCont[i] = NULL;
+        newSubContDecay[i] = NULL;
+        
+
         int oldID = contained[i];
         
         if( oldID == lastIDWithNoDecay ) {
             // same ID we've already seen before
             newContained.push_back( oldID );
             newDecayEta.push_back( 0 );
+
+            if( inSubCont == 0 &&
+                oldID < 0 ) {
+                // oldID is a sub-container in our main container
+                // preserve what it contains
+                newSubCont[nextFillI] =
+                    getContainedRaw( inX, inY, 
+                                     &( newSubContCount[nextFillI] ),
+                                     i + 1 );
+                newSubContDecay[nextFillI] = 
+                    getContainedEtaDecay( inX, inY, 
+                                          &( newSubContCount[nextFillI] ),
+                                          i + 1 );
+                }
+            
+            nextFillI++;
             continue;
             }
         
@@ -6255,11 +6321,27 @@ void checkDecayContained( int inX, int inY, int inSubCont ) {
             // no auto-decay for this object
             if( isSubCont ) {
                 oldID *= -1;
+                
+                if( inSubCont == 0 ) {    
+                    // oldID is a sub-container in our main container
+                    // preserve what it contains
+                    newSubCont[nextFillI] =
+                        getContainedRaw( inX, inY, 
+                                         &( newSubContCount[nextFillI] ),
+                                         i + 1 );
+                    newSubContDecay[nextFillI] = 
+                        getContainedEtaDecay( inX, inY, 
+                                              &( newSubContCount[nextFillI] ),
+                                              i + 1 );
+                    }
+                
                 }
             lastIDWithNoDecay = oldID;
             
             newContained.push_back( oldID );
             newDecayEta.push_back( 0 );
+            
+            nextFillI++;
             continue;
             }
     
@@ -6331,22 +6413,36 @@ void checkDecayContained( int inX, int inY, int inSubCont ) {
                     // negative IDs indicate sub-containment 
                     newID *= -1;
                     }
+                
+                if( inSubCont == 0 ) {    
+                    // oldID is a sub-container in our main container
+                    // preserve what it contains
+                    newSubCont[nextFillI] =
+                        getContainedRaw( inX, inY, 
+                                         &( newSubContCount[nextFillI] ),
+                                         i + 1 );
+                    newSubContDecay[nextFillI] = 
+                        getContainedEtaDecay( inX, inY, 
+                                              &( newSubContCount[nextFillI] ),
+                                              i + 1 );
+                    }
                 }
             newContained.push_back( newID );
             newDecayEta.push_back( mapETA );
+            nextFillI++;
             }
         }
     
     
     if( change ) {
         int *containedArray = newContained.getElementArray();
-        int numContained = newContained.size();
+        int numNewContained = newContained.size();
 
-        setContained( inX, inY, newContained.size(), containedArray, 
+        setContained( inX, inY, numNewContained, containedArray, 
                       inSubCont );
         delete [] containedArray;
         
-        for( int i=0; i<numContained; i++ ) {
+        for( int i=0; i<numNewContained; i++ ) {
             timeSec_t mapETA = newDecayEta.getElementDirect( i );
             
             if( mapETA != 0 ) {
@@ -6355,11 +6451,47 @@ void checkDecayContained( int inX, int inY, int inSubCont ) {
             
             setSlotEtaDecay( inX, inY, i, mapETA, inSubCont );
             }
+        
+
+        if( inSubCont == 0 ) {
+            // we're checking decay in a top-level container
+            // (don't do this for sub-containers, because we can't
+            // have sub-sub-containers)
+
+            // loop over all old slots to set/clear sub-contained items
+            // we don't want any sub-contained things to linger in slots that
+            // are now empty (when numNewContained < numContained )
+            for( int i=0; i<numContained; i++ ) {
+                if( newSubCont[i] != NULL ) {
+                    setContained( inX, inY, newSubContCount[i], 
+                                  newSubCont[i],
+                                  i + 1 );
+                    setContainedEtaDecay( inX, inY, newSubContCount[i], 
+                                          newSubContDecay[i],
+                                          i + 1 );
+                    }
+                else {
+                    clearAllContained( inX, inY, i + 1 );
+                    }
+                }
+            }
         }
 
     if( contained != NULL ) {
         delete [] contained;
         }
+
+    for( int i=0; i<numContained; i++ ) {
+        if( newSubCont[i] != NULL ) {
+            delete [] newSubCont[i];
+            }
+        if( newSubContDecay[i] != NULL ) {
+            delete [] newSubContDecay[i];
+            }
+        }
+    delete [] newSubContCount;
+    delete [] newSubCont;
+    delete [] newSubContDecay;
     }
 
 
@@ -8846,7 +8978,8 @@ char getEvePosition( const char *inEmail, int inID, int *outX, int *outY,
 
     doublePair ave = { 0, 0 };
 
-    printf( "Placing new Eve...\n" );
+    eveLogPrintf( "\nPlacing new Eve for %s (%d) at time %.f...\n", 
+                  inEmail, inID, Time::timeSec() );
     
     
     int pX, pY, pR;
@@ -8854,9 +8987,8 @@ char getEvePosition( const char *inEmail, int inID, int *outX, int *outY,
     int result = eveDBGet( inEmail, &pX, &pY, &pR );
     
     if( inAllowRespawn && result == 1 && pR > 0 ) {
-        printf( "Placing new Eve:  "
-                "Found camp center (%d,%d) r=%d in db for %s\n",
-                pX, pY, pR, inEmail );
+        eveLogPrintf( "  Found camp center (%d,%d) r=%d in db for %s\n",
+                      pX, pY, pR, inEmail );
         
         ave.x = pX;
         ave.y = pY;
@@ -8864,15 +8996,18 @@ char getEvePosition( const char *inEmail, int inID, int *outX, int *outY,
         didEveRespawn = true;
         }
     else if( SettingsManager::getIntSetting( "useEveMovingGrid", 0 ) ) {
-        printf( "Placing new Eve:  "
-                "using Eve moving grid method\n" );
+        eveLogPrintf( "  Using Eve moving grid method\n" );
         
         int gridX = eveLocation.x;
         int gridY = eveLocation.y;
         
+        eveLogPrintf( "  Last eveLocation = %d, %d\n", gridX, gridY );
 
         getEveMovingGridPosition( & gridX, & gridY, inIncrementPosition );
         
+        eveLogPrintf( "  Applying moving grid takes us to = %d, %d\n",
+                      gridX, gridY );
+
         ave.x = gridX;
         ave.y = gridY;
         
@@ -8880,20 +9015,25 @@ char getEvePosition( const char *inEmail, int inID, int *outX, int *outY,
         currentEveRadius = 50;
 
         if( inIncrementPosition ) {
+            eveLogPrintf( "  inIncrementPosition set, so saving for future\n" );
+
             // update advancing position
             eveLocation.x = gridX;
             eveLocation.y = gridY;
             }
 
         if( SettingsManager::getIntSetting( "eveToWestOfHomelands", 0 ) ) {
+
+            eveLogPrintf( "  Pushing Eve to west of homelands\n" );
+
             // we've placed Eve based on walking grid
             // now move her farther west, to avoid plopping her down
             // in middle of active homelands
             
             FILE *tempLog = fopen( "evePlacementHomelandLog.txt", "a" );
             
-            fprintf( tempLog, "Placing Eve for %s at time %.f:\n",
-                     inEmail, Time::timeSec() );
+            fprintf( tempLog, "Placing Eve for %s (%d) at time %.f:\n",
+                     inEmail, inID, Time::timeSec() );
 
 
             fprintf( tempLog, "    First homeland list:  " );
@@ -8987,9 +9127,10 @@ char getEvePosition( const char *inEmail, int inID, int *outX, int *outY,
                     if( xBoundary < ave.x ) {
                         ave.x = xBoundary;
                         
-                        AppLog::infoF( 
-                            "Pushing Eve to west of homeland %d at x=%d\n",
-                            i, h->x );
+                        eveLogPrintf( 
+                            "  Pushing Eve to west of homeland %d at x=%d "
+                            "(new ave.x = %f)\n",
+                            i, h->x, ave.x );
 
                         fprintf( 
                             tempLog, 
@@ -9011,6 +9152,10 @@ char getEvePosition( const char *inEmail, int inID, int *outX, int *outY,
                 eveLocation.x = ave.x;
                 eveLocation.y = ave.y;
                 
+                eveLogPrintf( "  inIncrementPosition set, so saving pushed "
+                              "location %d, %d for future\n",
+                              eveLocation.x, eveLocation.y );
+                
                 writeEveLocation();
                 }
             }
@@ -9024,8 +9169,7 @@ char getEvePosition( const char *inEmail, int inID, int *outX, int *outY,
             SettingsManager::getIntSetting( "maxEveStartupLocationUsage", 10 );
 
 
-        printf( "Placing new Eve:  "
-                "using Eve spiral method\n" );
+        eveLogPrintf( "  Using Eve spiral method\n" );
 
         
         // first try new grid placement method
@@ -9375,8 +9519,7 @@ char getEvePosition( const char *inEmail, int inID, int *outX, int *outY,
         }
     
     while( !found ) {
-        printf( "Placing new Eve:  "
-                "trying radius of %d from camp\n", currentEveRadius );
+        eveLogPrintf( "  trying radius of %d from camp\n", currentEveRadius );
 
         int tryCount = 0;
         
@@ -9447,8 +9590,7 @@ char getEvePosition( const char *inEmail, int inID, int *outX, int *outY,
             }
         }
 
-    printf( "Placing new Eve:  "
-            "Final location (%d,%d)\n", *outX, *outY );
+    eveLogPrintf( "  Final location (%d,%d)\n", *outX, *outY );
 
 
     
