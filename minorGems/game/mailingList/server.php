@@ -335,10 +335,9 @@ function ml_subscribe() {
         
         eval( $footer );
 
-        $email = "";
-        if( isset( $_REQUEST[ "email" ] ) ) {
-            $email = $_REQUEST[ "email" ];
-            }
+        $email = ml_requestFilter( "email",
+                                   "/[A-Z0-9._%+-]+@[A-Z0-9.-]+/i",
+                                   "");
         
         ml_log( "Email '$email' signed up too fast ($seconds sec) ".
                 "after loading form." );
@@ -353,21 +352,20 @@ function ml_subscribe() {
         
         eval( $footer );
 
-        $email = "";
-        if( isset( $_REQUEST[ "email" ] ) ) {
-            $email = $_REQUEST[ "email" ];
-            }
+        $email = ml_requestFilter( "email",
+                                   "/[A-Z0-9._%+-]+@[A-Z0-9.-]+/i",
+                                   "");
         
         ml_log( "Email '$email' signed up too slow ($seconds sec) ".
                 "after loading form." );
         return;
         }
 
-    $email = "";
-    if( isset( $_REQUEST[ "email" ] ) ) {
-        $email = $_REQUEST[ "email" ];
-        }
-
+    
+    $email = ml_requestFilter( "email",
+                               "/[A-Z0-9._%+-]+@[A-Z0-9.-]+/i",
+                               "");
+    
     eval( $header );
 
     echo "Are you human?<br><br>";
@@ -390,16 +388,13 @@ function ml_subscribe() {
 function ml_subscribeStepB() {
     
     // input filtering handled below
-    $email = "";
-    if( isset( $_REQUEST[ "email" ] ) ) {
-        $email = $_REQUEST[ "email" ];
-        }
+    $email = ml_requestFilter( "email",
+                               "/[A-Z0-9._%+-]+@[A-Z0-9.-]+/i",
+                               "");
 
-    $human_test = "";
-    if( isset( $_REQUEST[ "human_test" ] ) ) {
-        $human_test = $_REQUEST[ "human_test" ];
-        $human_test = strtolower( $human_test );
-        }
+    $human_test = ml_requestFilter( "human_test",
+                                    "/[a-z0-9]+/i",
+                                    "");
 
     if( $human_test != "tree" ) {
         echo "You failed the human test.";
@@ -436,6 +431,11 @@ function ml_massSubscribe() {
     $alreadySubscribedCount = 0;
     $successCount = 0;
     foreach( $emailArray as $email ) {
+
+        $email = ml_filter( $email,
+                            "/[A-Z0-9._%+-]+@[A-Z0-9.-]+/i",
+                            "");
+        
         $result = ml_createSubscription( $email, $confirmed, 1 );
 
         switch( $result ) {
@@ -474,17 +474,16 @@ function ml_massSubscribe() {
 function ml_createSubscription( $email, $confirmed, $manual ) {
     global $tableNamePrefix, $remoteIP, $header, $footer;
 
-    $unfilteredEmail = $email;
     $email = ml_filter( $email, "/[A-Z0-9._%+-]+@[A-Z0-9.-]+/i", "" );
 
     if( $email == "" ) {
         if( $manual ) {
-            echo "Invalid email address: $unfilteredEmail<br>";
+            echo "Invalid email address.<br>";
             }
         else {
             eval( $header );
             
-            echo "Invalid email address: <b>$unfilteredEmail</b>";
+            echo "Invalid email address.";
             
             eval( $footer );
             }
@@ -751,11 +750,10 @@ function ml_massRemove() {
     $successCount = 0;
     foreach( $emailArray as $email ) {
 
-        $unfilteredEmail = $email;
         $email = ml_filter( $email, "/[A-Z0-9._%+-]+@[A-Z0-9.-]+/i", "" );
 
         if( $email == "" ) {
-            echo "Invalid email address: $unfilteredEmail<br>";
+            echo "Invalid email address.<br>";
             $failedCount++;
             }
         else {
@@ -1413,7 +1411,7 @@ function ml_checkPassword( $inFunctionName ) {
 
     
     if( isset( $_REQUEST[ "password" ] ) ) {
-        $password = $_REQUEST[ "password" ];
+        $password = ml_requestFilter( "password", "/[a-z0-9,#]+/i", "" );
 
         // generate a new hash cookie from this password
         $newSalt = time();
@@ -1422,7 +1420,8 @@ function ml_checkPassword( $inFunctionName ) {
         $password_hash = $newSalt . "_" . $newHash;
         }
     else if( isset( $_COOKIE[ $cookieName ] ) ) {
-        $password_hash = $_COOKIE[ $cookieName ];
+        $password_hash = ml_filter( $_COOKIE[ $cookieName ],
+                                    "/[a-f0-9_]+/i", "" );
         
         // check that it's a good hash
         
@@ -1462,8 +1461,7 @@ function ml_checkPassword( $inFunctionName ) {
             
             echo "Incorrect password.";
 
-            ml_log( "Failed $inFunctionName access with password:  ".
-                    "$password" );
+            ml_log( "Failed $inFunctionName access with bad password." );
             }
         else {
             echo "Session expired.";

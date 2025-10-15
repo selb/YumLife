@@ -62,6 +62,19 @@
 *                                   New fast implemention of getElementArray 
 *                                   using memcpy for simple types that don't
 *                                   need deep copying.
+*		Jason Rohrer	11-8-2024   Profiling found inefficiency in
+*	                                push_back_other after deleting all
+*                                   elements in target vector, since vector
+*	                                max size would shrink back to 2, and then
+*                                   get expanded/copied over and over
+*	                                for each push.  Refactored expansion code
+*                                   into expandToNewMaxSize, and invoked it in
+*                                   push_back_other to make room for other
+*                                   vector in one expansion step.
+*                                   Function for setting useFastMethods
+*                                   manually, and fast version of
+*	                                push_back_other that uses memcpy.  This
+*                                   makes push_back_other 2x faster.
 */
 
 #include "minorGems/common.h"
@@ -85,7 +98,21 @@ class SimpleVector {
 		SimpleVector(int sizeEstimate); // create an empty vector with a size estimate
 		
 		~SimpleVector();
-		
+        
+        // fast methods default to OFF
+        // when off, all operations that involve bulk copying are done
+        // with element-by-element assignment, which allows for
+        // copy-constructors to be invoked.
+        //
+        // if inUseFastMethods is set to true
+        // bulk copy operations use memcpy instead, which is much faster
+        // but doesn't invoke copy constructors for each element
+        //
+        // Note that certain operations automatically use fast methods
+        // for vectors of atomic types (ints, chars, floats)
+        void toggleFastMethods( char inUseFastMethods );
+        
+
         
         // copy constructor
         SimpleVector( const SimpleVector &inCopy );
@@ -290,7 +317,9 @@ class SimpleVector {
 		int numFilledElements;
 		int maxSize;
 		int minSize;	// number of allocated elements when vector is empty
-
+        
+        char useFastMethods;
+        
 
         char printExpansionMessage;
         const char *vectorName;
@@ -302,7 +331,9 @@ class SimpleVector {
         
         // same for fast getElementArray, for simple types
         Type *getElementArrayFast();
+        
 
+        void expandToNewMaxSize( int inNewMaxSize );
 		};
 		
 		
@@ -313,7 +344,8 @@ inline SimpleVector<Type>::SimpleVector()
 	numFilledElements = 0;
 	maxSize = defaultStartSize;
 	minSize = defaultStartSize;
-
+    useFastMethods = false;
+    
     printExpansionMessage = false;
     }
 
@@ -330,7 +362,8 @@ inline SimpleVector<Type>::SimpleVector(int sizeEstimate)
 	numFilledElements = 0;
 	maxSize = sizeEstimate;
 	minSize = sizeEstimate;
-    
+    useFastMethods = false;
+
     printExpansionMessage = false;
     }
 	
@@ -347,17 +380,24 @@ inline SimpleVector<Type>::SimpleVector( const SimpleVector<Type> &inCopy )
         : elements( new Type[ inCopy.maxSize ] ),
           numFilledElements( inCopy.numFilledElements ),
           maxSize( inCopy.maxSize ), minSize( inCopy.minSize ),
+          useFastMethods( inCopy.useFastMethods ),
           printExpansionMessage( inCopy.printExpansionMessage ),
           vectorName( inCopy.vectorName ) {
     
-    // if these objects contain pointers to stack, etc, this is not 
-    // going to work (not a deep copy)
-    // because it won't invoke the copy constructors of the objects!
-    //memcpy( elements, inCopy.elements, sizeof( Type ) * numFilledElements );
-    
-    for( int i=0; i<inCopy.numFilledElements; i++ ) {
-        elements[i] = inCopy.elements[i];
+
+
+    if( useFastMethods ) {
+        // if these objects contain pointers to stack, etc, this is not 
+        // going to work (not a deep copy)
+        // because it won't invoke the copy constructors of the objects!
+        memcpy( elements, inCopy.elements, sizeof( Type ) * numFilledElements );
         }
+    else {    
+        for( int i=0; i<inCopy.numFilledElements; i++ ) {
+            elements[i] = inCopy.elements[i];
+            }
+        }
+    
 
     }
 
@@ -376,14 +416,18 @@ inline SimpleVector<Type> & SimpleVector<Type>::operator = (
         // 1: allocate new memory and copy the elements
         Type *newElements = new Type[ inOther.maxSize ];
 
-        // again, memcpy doesn't work here, because it doesn't invoke
-        // copy constructor on contained object
-        /*memcpy( newElements, inOther.elements, 
-                sizeof( Type ) * inOther.numFilledElements );
-        */
-        for( int i=0; i<inOther.numFilledElements; i++ ) {
-            newElements[i] = inOther.elements[i];
+        if( useFastMethods ) {
+            // again, memcpy  doesn't invoke
+            // copy constructor on contained object
+            memcpy( newElements, inOther.elements, 
+                    sizeof( Type ) * inOther.numFilledElements );
             }
+        else {    
+            for( int i=0; i<inOther.numFilledElements; i++ ) {
+                newElements[i] = inOther.elements[i];
+                }
+            }
+        
 
 
         // 2: deallocate old memory
@@ -633,40 +677,9 @@ inline void SimpleVector<Type>::push_back(Type x)	{
 	else {					// need to allocate more space for vector
 
 		int newMaxSize = maxSize << 1;		// double size
-		
-        if( printExpansionMessage ) {
-            printf( "SimpleVector \"%s\" is expanding itself from %d to %d"
-                    " max elements\n", vectorName, maxSize, newMaxSize );
-            }
-
-
-        // NOTE:  memcpy does not work here, because it does not invoke
-        // copy constructors on elements.
-        // And then "delete []" below causes destructors to be invoked
-        //  on old elements, which are shallow copies of new objects.
-
-        Type *newAlloc = new Type[newMaxSize];
-        /*
-		unsigned int sizeOfElement = sizeof(Type);
-		unsigned int numBytesToMove = sizeOfElement*(numFilledElements);
-		
-
-		// move into new space
-		memcpy((void *)newAlloc, (void *) elements, numBytesToMove);
-		*/
-
-        // must use element-by-element assignment to invoke constructors
-        for( int i=0; i<numFilledElements; i++ ) {
-            newAlloc[i] = elements[i];
-            }
         
-
-		// delete old space
-		delete [] elements;
-		
-		elements = newAlloc;
-		maxSize = newMaxSize;	
-		
+        expandToNewMaxSize( newMaxSize );
+        
 		elements[numFilledElements] = x;
 		numFilledElements++;	
 		}
@@ -704,11 +717,82 @@ inline void SimpleVector<Type>::push_back(Type *inArray, int inLength)	{
 
 
 template <class Type>
+inline void SimpleVector<Type>::expandToNewMaxSize( int inNewMaxSize ) {
+    int newMaxSize = inNewMaxSize;
+
+    if( printExpansionMessage ) {
+        printf( "SimpleVector \"%s\" is expanding itself from %d to %d"
+                " max elements\n", vectorName, maxSize, newMaxSize );
+        }
+    
+
+    // NOTE:  memcpy does not work here, because it does not invoke
+    // copy constructors on elements.
+    // And then "delete []" below causes destructors to be invoked
+    //  on old elements, which are shallow copies of new objects.
+    
+    Type *newAlloc = new Type[newMaxSize];
+    /*
+      unsigned int sizeOfElement = sizeof(Type);
+      unsigned int numBytesToMove = sizeOfElement*(numFilledElements);
+      
+      
+      // move into new space
+      memcpy((void *)newAlloc, (void *) elements, numBytesToMove);
+    */
+
+    // must use element-by-element assignment to invoke constructors
+    for( int i=0; i<numFilledElements; i++ ) {
+        newAlloc[i] = elements[i];
+        }
+    
+
+    // delete old space
+    delete [] elements;
+	
+    elements = newAlloc;
+    maxSize = newMaxSize;    
+    }
+
+
+
+
+template <class Type>
 inline void SimpleVector<Type>::push_back_other(
     SimpleVector<Type> *inOtherVector ) {
+
     
-    for( int i=0; i<inOtherVector->size(); i++ ) {
-        push_back( inOtherVector->getElementDirect( i ) );
+    int newMaxSize = numFilledElements + inOtherVector->size();
+    
+
+    if( newMaxSize > maxSize ) {
+        // not enough room in vector
+
+        // expand it all in one operation now
+        
+        // otherwise, as we push back individual elements, the
+        // vector might need to be expanded over and over
+        
+        expandToNewMaxSize( newMaxSize );
+        }
+
+    
+    // we have room in vector
+    
+    if( useFastMethods ) {
+        
+        memcpy( &( elements[numFilledElements] ),
+                inOtherVector->elements, 
+                inOtherVector->numFilledElements * sizeof( Type ) );
+        
+        numFilledElements += inOtherVector->numFilledElements;
+        }
+    else {
+        // slow method, with element-by-element assignment
+        // so that copy constructors can be deployed
+        for( int i=0; i<inOtherVector->size(); i++ ) {
+            push_back( inOtherVector->getElementDirect( i ) );
+            }
         }
     }
 
@@ -811,12 +895,17 @@ inline char *SimpleVector<char>::getElementString() {
 
 template <class Type>
 inline void SimpleVector<Type>::appendArray( Type *inArray, int inSize ) {
-    // slow but correct
+    if( useFastMethods ) {
+        appendArrayFast( inArray, inSize );
+        }
+    else {
+        // slow but correct
 
-    // push-back, element-by-element, allows deep copying with copy constructor
-    // for types that need that.
-    for( int i=0; i<inSize; i++ ) {
-        push_back( inArray[i] );
+        // push-back, element-by-element, allows deep copying with copy
+        // constructor for types that need that.
+        for( int i=0; i<inSize; i++ ) {
+            push_back( inArray[i] );
+            }
         }
     }
 
@@ -937,6 +1026,12 @@ inline void SimpleVector<Type>::setPrintMessageOnVectorExpansion(
     vectorName = inVectorName;
     }
 
+
+
+template <class Type>
+inline void SimpleVector<Type>::toggleFastMethods( char inUseFastMethods ) {
+    useFastMethods = inUseFastMethods;
+    }
 
 
 
