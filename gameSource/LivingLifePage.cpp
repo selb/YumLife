@@ -420,6 +420,32 @@ static char *applyWordBlacklist( char *inSpeech ) {
                             next = &( found[lookI] );
                             }
                         
+                        if( lettersLeft == 0 ) {
+                            // got to end of target word, but maybe
+                            // the last letter repeats a bit more
+                            char nextLetter = found[lookI];
+                            while( nextLetter != '\0' && 
+                                   ( nextLetter == wordStart[ wordLen - 1 ] 
+                                     ||
+                                     nextLetter < 'A'
+                                     ||
+                                     nextLetter > 'Z' ) ) {
+                                // a match to the last letter in our
+                                // word, or a skippable character
+                                if( nextLetter == wordStart[ wordLen - 1 ] ) {
+                                    xIndex.push_back( lookI );
+                                    }
+                                // else skip the non-alpha character
+                                // This ensures that WORDD?DDD
+                                // maps to XXXXX?XXX correctly
+                            
+                                lookI++;
+                                nextLetter = found[lookI];
+                                }
+                            }
+                        
+                               
+                        
                         if( lettersLeft != 0 ) {
                             match = false;
                             }
@@ -16940,10 +16966,37 @@ void LivingLifePage::step() {
                                     LiveObject *causingPlayer =
                                         getLiveObject( - responsiblePlayerID );
 
-                                    if( causingPlayer != NULL &&
-                                        causingPlayer->holdingID 
-                                        != oldContID ) {
+                                    char swapHappened = false;
+                                    
+                                    if( causingPlayer != NULL ) {
                                         
+                                        if( causingPlayer->holdingID 
+                                            == oldContID ) {
+                                            swapHappened = true;
+                                            }
+                                        else {
+                                            // what player is holding
+                                            // does not match what used
+                                            // to be in container
+                                            // But maybe there was a bare-hand
+                                            // pick up transition that caused
+                                            // this change?
+                                            TransRecord *pickup =
+                                                getTrans( 0, oldContID );
+                                            
+                                            if( pickup != NULL &&
+                                                pickup->newActor ==
+                                                causingPlayer->holdingID ) {
+                                                swapHappened = true;
+                                                }
+                                            }
+                                        }
+                                    
+
+                                    if( ! swapHappened ) {
+                                        // a player swap action
+                                        // didn't cause this change
+                                        // to the contained item
 
                                         ObjectRecord *newObj = 
                                             getObject( newContID );
