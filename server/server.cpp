@@ -16761,6 +16761,31 @@ char isHungryWorkBlocked( LiveObject *inPlayer,
     }
 
 
+void applyHungryWorkCost( LiveObject *inPlayer, int inHungryWorkCost ) {
+    if( inHungryWorkCost > 0 ) {
+        if( inPlayer->yummyBonusStore > 0 ) {
+            if( inPlayer->yummyBonusStore
+                >= inHungryWorkCost ) {
+                inPlayer->yummyBonusStore -=
+                    inHungryWorkCost;
+                inHungryWorkCost = 0;
+                }
+            else {
+                inHungryWorkCost -= 
+                    inPlayer->yummyBonusStore;
+                inPlayer->yummyBonusStore = 0;
+                }
+            }
+                                        
+        inPlayer->foodStore -= inHungryWorkCost;
+                                        
+        // we checked above, so player
+        // never is taken down below 5 here
+        inPlayer->foodUpdate = true;
+        }
+    }
+
+
 
 const char *numberToWords( int inNumber ) {
     switch( inNumber ) {
@@ -23067,6 +23092,31 @@ int main( int inNumArgs, const char **inArgs ) {
                              nextPlayer->lastSayTimeSeconds > 
                              minSayGapInSeconds ) {
                         
+                        
+                        // for testing, allow a player to jump to a particular
+                        // location
+                        if( false )
+                        if( strcmp( m.saidText, "JUMP" ) == 0 ) {
+                            GridPos destPos = { 20000, 0 };
+                                               
+                            nextPlayer->xd = destPos.x;
+                            nextPlayer->xs = destPos.x;
+                            nextPlayer->yd = destPos.y;
+                            nextPlayer->ys = destPos.y;
+                            
+                            FlightDest fd = {
+                                nextPlayer->id,
+                                destPos };
+
+                            newFlightDest.push_back( fd );
+
+                            nextPlayer->firstMessageSent = false;
+                            nextPlayer->firstMapSent = false;
+                            nextPlayer->inFlight = true;
+                            }
+
+
+                        
                         nextPlayer->lastSayTimeSeconds = 
                             Time::getCurrentTime();
 
@@ -23928,6 +23978,17 @@ int main( int inNumArgs, const char **inArgs ) {
 
                                     if( dist < getMaxChunkDimension() ) {
                                         otherPlayer->ghostDestroyed = true;
+                                        
+                                        if( otherPlayer->murderPerpEmail 
+                                            != NULL ) {
+                                            delete [] 
+                                                otherPlayer->murderPerpEmail;
+                                            }
+                                        otherPlayer->murderPerpEmail =
+                                            stringDuplicate(
+                                                nextPlayer->email );
+                                        otherPlayer->murderPerpID =
+                                            nextPlayer->id;
                                         }
                                     }
                                 }
@@ -25060,27 +25121,8 @@ int main( int inNumArgs, const char **inArgs ) {
                                             }
                                         }
                                     
-                                    if( hungryWorkCost > 0 ) {
-                                        if( nextPlayer->yummyBonusStore > 0 ) {
-                                            if( nextPlayer->yummyBonusStore
-                                                >= hungryWorkCost ) {
-                                                nextPlayer->yummyBonusStore -=
-                                                    hungryWorkCost;
-                                                hungryWorkCost = 0;
-                                                }
-                                            else {
-                                                hungryWorkCost -= 
-                                                    nextPlayer->yummyBonusStore;
-                                                nextPlayer->yummyBonusStore = 0;
-                                                }
-                                            }
-                                        
-                                        nextPlayer->foodStore -= hungryWorkCost;
-                                        
-                                        // we checked above, so player
-                                        // never is taken down below 5 here
-                                        nextPlayer->foodUpdate = true;
-                                        }
+                                    applyHungryWorkCost( nextPlayer,
+                                                         hungryWorkCost );
                                     
                                     
                                     setResponsiblePlayer( -1 );
@@ -25464,6 +25506,21 @@ int main( int inNumArgs, const char **inArgs ) {
                                             floorID );
                                         }
                                         
+                                    int hungryWorkCost = 0;
+                                
+                                    if( r != NULL && 
+                                        r->newTarget > 0 ) {
+
+                                        if( isHungryWorkBlocked( 
+                                                nextPlayer,
+                                                r->newTarget,
+                                                &hungryWorkCost ) ) {
+                                            r = NULL;
+                                        
+                                            sendHungryWorkSpeech( nextPlayer );
+                                            }
+                                        }
+                                    
 
                                     if( r != NULL && 
                                         // make sure we're not too young
@@ -25528,6 +25585,8 @@ int main( int inNumArgs, const char **inArgs ) {
                                                 usedOnFloor = true;
                                                 }
                                             }
+                                        applyHungryWorkCost( nextPlayer,
+                                                             hungryWorkCost );
                                         }
                                     }
                                 
