@@ -71,6 +71,21 @@ Version 431    ???
   which update your birth position, making all future coordinates sent by the
   server relative to where you land.  Fixes #1166
 
+--Changed default log file name from log.txt to gameLog.txt.  This avoids
+  conflicting with the OHOL server, which outputs log.txt, and might be running
+  in the same folder.  Part of #1180
+
+--Build scripts for Windows and Mac now copy server settings into 
+  serverSettings and also copy several server .txt files.  Fixes #1181
+
+--regenerateCaches fixed to use a real dataVersionNumber.
+
+--Using %lf format specifier for a double in vsnprintf was producing crashes
+  and other undefined behavior Windows via the MinGW gcc implementation, which
+  perhaps does not support C99's introduction of %lf for printf-family
+  functions.  Replaced all of thse with %f for both client and server code.
+  %lf is for scanf-family functions only.  Seems to be the cause of #1182.
+
 
 
 
@@ -151,6 +166,18 @@ Server Fixes:
   Donkeytown, which is 200M away.  Fixes #1172
 
 --HungryWork now correctly applies to floor objects.
+
+--Periodic Placements now support randomization intervals (like every 5 hours,
+  +/- 1 hour).  Part of #1174
+
+--Support for Eve to start her life holding an object with new contentSetting
+  eveStartsHolding.ini.  Allows AHAP Eve to start game flying around in a
+  rocket ship to pick place to land.  Fixes #1179
+
+--Server now uses serverSettings folder (instead of settings) if it exists, but
+  defaults to using settings if serverSettings does not exist.  Part of #1181
+
+
 
 
 

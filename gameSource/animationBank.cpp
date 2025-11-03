@@ -863,7 +863,7 @@ void addAnimation( AnimationRecord *inRecord, char inNoWriteToFile ) {
 
             for( int j=0; j<inRecord->numSounds; j++ ) {
                 lines.push_back( autoSprintf( 
-                                     "soundParam=%s %lf %lf %lf %lf %d",
+                                     "soundParam=%s %f %f %f %f %d",
                                      printSoundUsage( 
                                          inRecord->soundAnim[j].sound ),
                                      inRecord->soundAnim[j].repeatPerSec,
@@ -882,21 +882,21 @@ void addAnimation( AnimationRecord *inRecord, char inNoWriteToFile ) {
             for( int j=0; j<inRecord->numSprites; j++ ) {
                 lines.push_back( 
                     autoSprintf( 
-                        "offset=(%lf,%lf)",
+                        "offset=(%f,%f)",
                         inRecord->spriteAnim[j].offset.x,
                         inRecord->spriteAnim[j].offset.y ) );
                 
                 lines.push_back( 
                     autoSprintf( 
-                        "startPause=%lf",
+                        "startPause=%f",
                         inRecord->spriteAnim[j].startPauseSec ) );
                 
                 lines.push_back( 
                     autoSprintf( 
                         "animParam="
-                        "%lf %lf %lf %lf %lf %lf (%lf,%lf) %lf %lf "
-                        "%lf %lf %lf %lf %lf "
-                        "%lf %lf %lf %lf %lf",
+                        "%f %f %f %f %f %f (%f,%f) %f %f "
+                        "%f %f %f %f %f "
+                        "%f %f %f %f %f",
                         inRecord->spriteAnim[j].xOscPerSec,
                         inRecord->spriteAnim[j].xAmp,
                         inRecord->spriteAnim[j].xPhase,
@@ -927,19 +927,19 @@ void addAnimation( AnimationRecord *inRecord, char inNoWriteToFile ) {
             for( int j=0; j<inRecord->numSlots; j++ ) {
                 lines.push_back( 
                     autoSprintf( 
-                        "offset=(%lf,%lf)",
+                        "offset=(%f,%f)",
                         inRecord->slotAnim[j].offset.x,
                         inRecord->slotAnim[j].offset.y ) );
 
                 lines.push_back( 
                     autoSprintf( 
-                        "startPause=%lf",
+                        "startPause=%f",
                         inRecord->slotAnim[j].startPauseSec ) );
                 
                 lines.push_back( 
                     autoSprintf( 
                         "animParam="
-                        "%lf %lf %lf %lf %lf %lf %lf %lf",
+                        "%f %f %f %f %f %f %f %f",
                         inRecord->slotAnim[j].xOscPerSec,
                         inRecord->slotAnim[j].xAmp,
                         inRecord->slotAnim[j].xPhase,
