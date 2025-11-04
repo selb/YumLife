@@ -4029,6 +4029,7 @@ int longestShutdownLine = -1;
 void handleShutdownDeath( LiveObject *inPlayer,
                           int inX, int inY ) {
     if( inPlayer->curseStatus.curseLevel == 0 &&
+        ! inPlayer->isGhost &&
         inPlayer->parentChainLength > longestShutdownLine ) {
         
         // never count a cursed player as a long line
@@ -13317,8 +13318,17 @@ char *isNamingSay( char *inSaidString, SimpleVector<char*> *inPhraseList ) {
             // hit
             int phraseLen = strlen( testString );
             // skip spaces after
+            int spaceCount = 0;
             while( saidString[ phraseLen ] == ' ' ) {
                 phraseLen++;
+                spaceCount++;
+                }
+            if( spaceCount == 0 ) {
+                // no space after the naming phrase?
+                // then it's not a valid naming phrase!
+                // Like if they say, I AM EVERHARD
+                // we don't want to match the "I AM EVE ____" phrase.
+                continue;
                 }
             return &( saidString[ phraseLen ] );
             }
@@ -15513,7 +15523,58 @@ void executeKillAction( int inKillerIndex,
                                         
                     hitPlayer->murderPerpID =
                         nextPlayer->id;
-                                        
+
+                    // send DING message to nearby players
+                    const char *killerName = "UNNAMED PERSON";
+                    const char *victimName = "UNNAMED PERSON";
+                    if( nextPlayer->name != NULL ) {
+                        killerName = nextPlayer->name;
+                        }
+                    if( hitPlayer->name != NULL ) {
+                        victimName = hitPlayer->name;
+                        }
+
+                    ObjectRecord *weapon = getObject( nextPlayer->holdingID,
+                                                      true );
+                    char *weaponName;
+
+                    if( weapon != NULL ) {
+                        weaponName = stringDuplicate( weapon->description );
+                        stripDescriptionComment( weaponName );
+                        }
+                    else {
+                        weaponName = stringDuplicate( "UNKNOWN WEAPON" );
+                        }
+
+
+                    char *message = autoSprintf( "%s HAS JUST WOUNDED %s**"
+                                                 "WITH THE %s.", 
+                                                 killerName, victimName,
+                                                 weaponName );
+                    delete [] weaponName;
+                    
+                    // send only to nearby players, and 
+                    // NOT to victim or perp
+                    for( int pm=0; pm<players.size(); pm++ ) {
+                        LiveObject *messagePlayer = players.getElement( pm );
+            
+                        if( messagePlayer == nextPlayer ||
+                            messagePlayer == hitPlayer ||
+                            messagePlayer->error ) {
+                            continue;
+                            }
+
+                        if( distance( getPlayerPos( hitPlayer ), 
+                                      getPlayerPos( messagePlayer ) ) > 100 ) {
+                            // only consider nearby players
+                            continue;
+                            }
+                        sendGlobalMessage( message, messagePlayer );
+                        }
+                    
+                    delete [] message;
+                    
+                    
                     // brand this player as a murderer
                     nextPlayer->everKilledAnyone = true;
 
@@ -23535,7 +23596,10 @@ int main( int inNumArgs, const char **inArgs ) {
                                 }
                             }
                         
-                        if( otherToForgive != NULL ) {
+                        if( otherToForgive != NULL &&
+                            isCursed( nextPlayer->email, 
+                                      otherToForgive->email ) ) {
+                            
                             clearDBCurse( nextPlayer->id, 
                                           nextPlayer->email, 
                                           otherToForgive->email );
@@ -26040,22 +26104,13 @@ int main( int inNumArgs, const char **inArgs ) {
                                     getHitPlayer( m.x, m.y, m.id,
                                                   false, 
                                                   babyAge, -1, &hitIndex );
-                                
-                                if( hitPlayer != NULL && holdingDrugs ) {
-                                    // can't even feed baby drugs
+
+                               if( hitPlayer != NULL && holdingDrugs ) {
+                                    // can't even feed babies drugs
                                     // too confusing
                                     hitPlayer = NULL;
                                     }
-
-                                if( hitPlayer == NULL ||
-                                    hitPlayer == nextPlayer ) {
-                                    // try click on elderly
-                                    hitPlayer = 
-                                        getHitPlayer( m.x, m.y, m.id,
-                                                      false, -1, 
-                                                      55, &hitIndex );
-                                    }
-                                
+ 
                                 if( ( hitPlayer == NULL ||
                                       hitPlayer == nextPlayer )
                                     &&

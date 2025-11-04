@@ -177,6 +177,39 @@ Server Fixes:
 --Server now uses serverSettings folder (instead of settings) if it exists, but
   defaults to using settings if serverSettings does not exist.  Part of #1181
 
+--DING message now sent to players within radius of 100 when one player wounds
+  another player, giving the name of the killer, the victim, and the murder
+  weapon.  Fixes #1183
+
+--Fixed so that you can't feed drugs to anyone, since it's too confusing
+  (before, there was a missed case where you could feed drugs to the elderly).
+  Part of #1185
+
+--Got rid of weird case in server code that allowed UBABY when holding non-food
+  (or empty handed) on elderly to put clothing on them or swap their clothing,
+  since this wasn't working in the vanilla client anyway, and it could be used
+  to steal backpacks, etc.  Part of #1185
+
+--Fixed missing check that player actually has another player cursed before
+  carrying out the FORGIVE action sever-side, which returns their curse name.
+  This allowed people to spam FORGIVE actions for everyone to determine to
+  curse name for everyone, even for people that they had never cursed.  Curses
+  are supposed to be limited and used only when necessary.  Other players who
+  are not cursed are supposed to be anonymous.  Fixes #1185
+
+--During shutdown, when considering position of longest lineage for Eve
+  location at next server startup, we no longer consider ghost players, who
+  can walk very far afield.  Fixes #1188
+
+--Fixed to require a space after a naming phrase, to avoid bad case of
+  I AM EVERHARD matching the I AM EVE naming phrase, making the last name
+  RHARD.  Fixes #1194
+
+--ahapGate now keeps same content leader as before in the event of a tie vote.
+  Fixes #1196
+
+--Fixed a missing parameter bug in ahapGate.
+
 
 
 
