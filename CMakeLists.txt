@@ -160,6 +160,7 @@ set(CLIENT_SOURCE_FILES
     gameSource/AHAPResultPage.cpp
     gameSource/AHAPSettingsPage.cpp
     gameSource/rocketAnimation.cpp
+    gameSource/GridPos.cpp
 )
 
 # These are the compile options from the original build system. Note that -O0
