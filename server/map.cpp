@@ -390,6 +390,13 @@ static DB metaDB;
 static char metaDBOpen = false;
 
 
+static DB statueDB;
+static char statueDBOpen = false;
+
+static DB statueTimeDB;
+static char statueTimeDBOpen = false;
+
+
 
 static int randSeed = 124567;
 //static JenkinsRandomSource randSource( randSeed );
@@ -3985,7 +3992,100 @@ char initMap() {
     
 
 
+
+    error = DB_open( &statueDB, 
+                     "statue.db", 
+                     KISSDB_OPEN_MODE_RWCREAT,
+                     // starting size doesn't matter here
+                     500,
+                     8, // two 32-bit ints, xy
+                     MAP_STATUE_DATA_LENGTH
+                     );
     
+    if( error ) {
+        AppLog::errorF( "Error %d opening statue KissDB", error );
+        return false;
+        }
+    
+    statueDBOpen = true;
+    
+
+    error = DB_open( &statueTimeDB, 
+                     "statueTime.db", 
+                     KISSDB_OPEN_MODE_RWCREAT,
+                     // starting size doesn't matter here
+                     500,
+                     8, // two 32-bit ints, xy
+                     8  // one 64-bit double, representing an ETA time
+                        // in whatever binary format and byte order
+                        // "double" on the server platform uses
+                     );
+    
+    if( error ) {
+        AppLog::errorF( "Error %d opening statueTime KissDB", error );
+        return false;
+        }
+    
+    statueTimeDBOpen = true;
+
+
+
+    // populate statueDB from file, if it exists
+    const char *statueFileName = "statueForceLoad.txt";
+    
+    FILE *statueLoadFile = fopen( statueFileName, "r" );
+
+    if( statueLoadFile != NULL ) {
+        char buffer[ MAP_STATUE_DATA_LENGTH ];
+        memset( buffer, 0, MAP_STATUE_DATA_LENGTH );
+
+        int linesLoaded = 0;
+        
+        while( true ) {
+            // format:
+            //  x,y,statue_time#
+            // followed by rest of line which is database entry string
+            int x, y;
+            double statueTime;
+            
+            int numRead = fscanf( statueLoadFile, "%d,%d,%lf#", 
+                                  &x, &y,
+                                  &statueTime );
+            
+            if( numRead != 3 ) {
+                break;
+                }
+            
+            char *read = fgets( buffer, sizeof( buffer ), statueLoadFile );
+
+            if( read == NULL ) {
+                // failed to read line
+                break;
+                }
+
+            // terminate at first newline character (don't include them)
+            int c = 0;
+            while( read[c] != '\0' ) {
+                if( read[c] == '\n' || read[c] == '\r' ) {
+                    read[c] = '\0';
+                    break;
+                    }
+                c++;
+                }
+            
+            addStatueData( x, y, statueTime, buffer );
+            linesLoaded++;
+            }
+        
+        printf( "Added %d lines of statue data from statueForceLoad.txt\n",
+                linesLoaded );
+        
+        fclose( statueLoadFile );
+        }
+    
+
+
+
 
 
     if( lookTimeDBEmpty && cellsLookedAtToInit > 0 ) {
@@ -4449,6 +4549,44 @@ char initMap() {
         delete specialPlacements;
         }
     
+
+    useContentSettings();
+    int statueObjectID = SettingsManager::getIntSetting( "statueObject", 0 );
+    useMainSettings();
+    
+    if( statueObjectID > 0 ) {
+        // make sure there is a statue base object at every location
+        // in the map that we have statue data for
+
+        // fixme
+        DB_Iterator dbi;
+    
+    
+        DB_Iterator_init( &statueDB, &dbi );
+    
+        unsigned char key[8];
+    
+        unsigned char value[MAP_STATUE_DATA_LENGTH];
+
+        int numSet = 0;
+        while( DB_Iterator_next( &dbi, key, value ) > 0 ) {
+            int x = valueToInt( key );
+            int y = valueToInt( &( key[4] ) );
+            
+            setMapObjectRaw( x, y, statueObjectID );
+
+            numSet++;
+            }
+
+        AppLog::infoF( "Placed %d statue bases in map.", numSet );
+        }
+    else {
+        AppLog::info( "No statueObject set in contentSettings, "
+                      "not placing any statue bases in map." );
+        }
+    
+
+
     
     reseedMap( false );
         
@@ -4789,6 +4927,14 @@ void freeMap( char inSkipCleanup ) {
         metaDBOpen = false;
         }
     
+    if( statueDBOpen ) {
+        DB_close( &statueDB );
+        statueDBOpen = false;
+        }
+    if( statueTimeDBOpen ) {
+        DB_close( &statueTimeDB );
+        statueTimeDBOpen = false;
+        }
 
     writeEveRadius();
     writeEveLocation();
@@ -4847,6 +4993,7 @@ void wipeMapFiles() {
     deleteFileByName( "mapTime.db" );
     deleteFileByName( "playerStats.db" );
     deleteFileByName( "meta.db" );
+
     
     deleteFileByName( "mapDummyRecall.txt" );
     deleteFileByName( "lastEveLocation.txt" );
@@ -9799,6 +9946,46 @@ int addMetadata( int inObjectID, unsigned char *inBuffer ) {
 
     
     return mapID;
+    }
+
+
+
+char getStatueData( int inX, int inY, 
+                    timeSec_t *outStatueTime, char *outBuffer ) {
+
+    unsigned char key[8];    
+    intPairToKey( inX, inY, key );
+
+    int result = DB_get( &statueDB, key, (unsigned char *)outBuffer );
+
+    if( result == 0 ) {
+        unsigned char value[8];
+        
+        result = DB_get( &statueTimeDB, key, value );
+        
+        if( result == 0 ) {
+            *outStatueTime = valueToTime( value );
+            return true;
+            }
+        }
+
+    return false;
+    }
+
+
+
+void addStatueData( int inX, int inY, 
+                    timeSec_t inStatueTime, const char *inDataString ) {
+    
+    unsigned char key[8];    
+    intPairToKey( inX, inY, key );
+
+    DB_put( &statueDB, key, (unsigned char *)inDataString );
+    
+    unsigned char value[8];
+    timeToValue( inStatueTime, value );
+    
+    DB_put( &statueTimeDB, key, value );
     }
 
 

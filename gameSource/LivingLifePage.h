@@ -414,7 +414,24 @@ typedef struct GraveInfo {
         // over another grave
         double lastMouseOverTime;
     } GraveInfo;
+
+
+
+typedef struct StatueInfo {
+        GridPos worldPos;
+        int displayID;
         
+        char *name;
+        char *lastWords;
+        
+        ClothingSet clothing;
+        
+        double personAgeYears;
+        
+        double statueCreationTime;
+    } StatueInfo;
+   
+     
 
 typedef struct OwnerInfo {
     GridPos worldPos;
@@ -1124,6 +1141,8 @@ class LivingLifePage : public GamePage, public ActionListener {
 
         SimpleVector<GraveInfo> mGraveInfo;
 
+        SimpleVector<StatueInfo> mStatueInfo;
+
         SimpleVector<OwnerInfo> mOwnerInfo;
         
         void clearOwnerInfo();
@@ -1199,6 +1218,10 @@ class LivingLifePage : public GamePage, public ActionListener {
 
 
         void displayPhoto( const char *inPhotoID, char inNegative );
+
+
+        void checkForStatueAtPosition( int inWorldX, int inWorldY );
+        
     };
 
 

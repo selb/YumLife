@@ -984,7 +984,7 @@ typedef struct LiveObject {
         const char *errorCauseString;
 
         char rodeRocket;
-        
+        GridPos rodeRocketLocation;
 
         int customGraveID;
         
@@ -1158,7 +1158,9 @@ typedef struct LiveObject {
         char postVogMode;
         
         char forceSpawn;
-        
+
+        char forcedName;
+        char forcedNameSent;
 
         // list of positions owned by this player
         SimpleVector<GridPos> ownedPositions;
@@ -1283,6 +1285,7 @@ static LiveObject *findFittestOffspring( int inPlayerID, int inSkipID,
         LiveObject *otherPlayer = players.getElement( j );
         
         if( ! otherPlayer->error &&
+            ! otherPlayer->isGhost && 
             otherPlayer->id != inPlayerID &&
             otherPlayer->id != inSkipID ) {
             
@@ -3079,6 +3082,7 @@ typedef enum messageType {
     JUMP,
     DIE,
     GRAVE,
+    STATUE,
     OWNER,
     FORCE,
     MAP,
@@ -3326,6 +3330,9 @@ ClientMessage parseMessage( LiveObject *inPlayer, char *inMessage ) {
         }
     else if( strcmp( nameBuffer, "GRAVE" ) == 0 ) {
         m.type = GRAVE;
+        }
+    else if( strcmp( nameBuffer, "STATUE" ) == 0 ) {
+        m.type = STATUE;
         }
     else if( strcmp( nameBuffer, "OWNER" ) == 0 ) {
         m.type = OWNER;
@@ -4068,6 +4075,9 @@ static SimpleVector<int> newEmotTTLs;
 
 static SimpleVector<int> newGhostPlayers;
 
+static void leaderDied( LiveObject *inLeader );
+
+
 
 double computeAge( LiveObject *inPlayer ) {
     double age = computeAge( inPlayer->lifeStartTimeSeconds );
@@ -4095,6 +4105,9 @@ double computeAge( LiveObject *inPlayer ) {
 
             inPlayer->alreadyCheckedGhostChance = true;
             inPlayer->isGhost = true;
+            
+            // they don't keep leadership as ghost
+            leaderDied( inPlayer );
             
             newGhostPlayers.push_back( inPlayer->id );
             
@@ -6926,6 +6939,180 @@ static void forcePlayerToRead( LiveObject *inPlayer,
 
 
 
+
+static const char *numberToWords( int inNumber );
+
+
+static void replaceSpacesWithUnderscores( char *inString ) {
+    char *s = inString;
+    int i = 0;
+    while( s[i] != '\0' ) {
+        if( s[i] == ' ' ) {
+            s[i] = '_';
+            }
+        i++;
+        }
+    }
+
+
+static void replaceUnderscoresWithSpaces( char *inString ) {
+    char *s = inString;
+    int i = 0;
+    while( s[i] != '\0' ) {
+        if( s[i] == '_' ) {
+            s[i] = ' ';
+            }
+        i++;
+        }
+    }
+
+
+static void playerReadsStatue( LiveObject *inPlayer,
+                               int inX, int inY ) {
+    char buffer[ MAP_STATUE_DATA_LENGTH ];
+    timeSec_t statueTime;
+    
+    char found = getStatueData( inX, inY, &statueTime, buffer );
+    
+    if( ! found ) {
+        makePlayerSay( inPlayer, (char*)":FORGOTTEN STATUE" );
+        return;
+        }
+    // fixme
+    double deltaSeconds = 
+        Time::getCurrentTime() - statueTime;
+    
+    double age = deltaSeconds * getAgeRate();
+    
+    char *ageString = NULL;
+    
+    if( age < 1 ) {
+        ageString = stringDuplicate( "JUST NOW" );
+        }
+    else if( age < 2 ) {
+        ageString = stringDuplicate( "ONE YEAR AGO" );
+        }
+    else if( age < 20 ) {
+        ageString = autoSprintf( "%s YEARS AGO", 
+                                 numberToWords( (int)floor( age ) ) );
+        }
+    else if( age < 200 ) {
+        ageString = autoSprintf( "%s DECADES AGO", 
+                                 numberToWords( (int)floor( age / 10 ) ) );
+        }
+    else if( age < 2000 ) {
+        ageString = autoSprintf( "%s CENTURIES AGO", 
+                                 numberToWords( (int)floor( age / 100 ) ) );
+        }
+    else if( age < 20000 ) {
+        ageString = autoSprintf( "%s MILLENNIA AGO", 
+                                 numberToWords( (int)floor( age / 1000 ) ) );
+        }
+    else if( age < 200000 ) {
+        ageString = autoSprintf( "%s MYRIAD YEARS AGO", 
+                                 numberToWords( (int)floor( age / 10000 ) ) );
+        }
+    else if( age < 2000000 ) {
+        ageString = autoSprintf( "%s HUNDRED MILLENNIA AGO", 
+                                 numberToWords( (int)floor( age / 100000 ) ) );
+        }
+    else if( age < 20000000 ) {
+        ageString = autoSprintf( 
+            "%s THOUSAND MILLENNIA AGO", 
+            numberToWords( (int)floor( age / 1000000 ) ) );
+        }
+    else if( age < 200000000 ) {
+        ageString = autoSprintf( 
+            "%s THOUSAND MYRIAD YEARS AGO", 
+            numberToWords( (int)floor( age / 10000000 ) ) );
+        }
+    else if( age < 2000000000 ) {
+        ageString = autoSprintf( 
+            "%s HUNDRED THOUSAND MILLENNIA AGO", 
+            numberToWords( (int)floor( age / 100000000 ) ) );
+        }
+    else if( age < 20000000000 ) {
+        ageString = autoSprintf( 
+            "%s MILLION MILLENNIA AGO", 
+            numberToWords( (int)floor( age / 1000000000 ) ) );
+        }
+    else if( age < 200000000000 ) {
+        ageString = autoSprintf( 
+            "%s MILLION MYRIAD YEARS AGO", 
+            numberToWords( (int)floor( age / 10000000000 ) ) );
+        }  
+    else if( age < 2000000000000 ) {
+        ageString = autoSprintf( 
+            "%s HUNDRED MILLION MILLENNIA AGO", 
+            numberToWords( (int)floor( age / 100000000000 ) ) );
+        }
+    else if( age < 20000000000000 ) {
+        ageString = autoSprintf( 
+            "%s BILLION MILLENNIA AGO", 
+            numberToWords( (int)floor( age / 1000000000000 ) ) );
+        }
+    else if( age < 200000000000000 ) {
+        ageString = autoSprintf( 
+            "%s BILLION MYRIAD YEARS AGO", 
+            numberToWords( (int)floor( age / 10000000000000 ) ) );
+        }
+    else {
+        // will become "MANY HUNDRED BILLION MILLENNIA" if
+        // we go over 20 here
+        // but we still support correct number scaling all the way up
+        // to 3 billion years of real-world time
+        // (each year in real world is roughly 500K in-game years)
+        ageString = autoSprintf( 
+            "%s HUNDRED BILLION MILLENNIA AGO", 
+            numberToWords( (int)floor( age / 100000000000000 ) ) );
+        }
+
+    int numParts;
+    char **parts = split( buffer, "|", &numParts );
+    
+    char *playerSays = NULL;
+    
+    if( numParts == 10 ) {
+        char *name = parts[2];
+        char *lastWords = parts[9];
+        
+        replaceUnderscoresWithSpaces( name );
+        replaceUnderscoresWithSpaces( lastWords );
+        
+        const char *workingName = name;
+        
+        if( strcmp( workingName, "-" ) == 0 ) {
+            workingName = "A NAMLESS PERSON";
+            }
+        if( strcmp( lastWords, "-" ) == 0 ) {
+            playerSays = autoSprintf( 
+                ":%s LEFT THE PLANET %s AND SAID NOTHING. "
+                "JUST GAVE US A GLANCE... "
+                "JUST GAVE US A VERY SAD, SAD BACKWARD GLANCE...",
+                workingName, ageString, lastWords );
+            }
+        else {
+            playerSays = autoSprintf( ":%s LEFT THE PLANET %s AND SAID: %s",
+                                      workingName, ageString, lastWords );
+            }
+        }
+    else {
+        playerSays = 
+            autoSprintf( ":AN UNKNOWN PERSON FLEW AWAY %s", ageString );
+        }
+    for( int i=0; i<numParts; i++ ) {
+        delete [] parts[i];
+        }
+    delete [] parts;
+    
+    delete [] ageString;
+    
+    makePlayerSay( inPlayer, playerSays );
+    
+    delete [] playerSays;
+    }
+
+
 char canPlayerUseTool( LiveObject *inPlayer, int inToolID );
 
 
@@ -8290,7 +8477,10 @@ static int isPlayerCountable( LiveObject *p, int inLineageEveID,
     if( p->vogMode ) {
         return false;
         }
-    
+    if( p->isGhost ) {
+        return false;
+        }
+
     if( inLineageEveID != -1 &&
         p->lineageEveID != inLineageEveID ) {
         return false;
@@ -8424,7 +8614,7 @@ static int countHelplessBabies() {
 
 
 // counts only those inside barrier, if barrier on
-// always ignores tutorial and donkytown players
+// always ignores tutorial and donkytown players and ghosts
 static int countLivingPlayers() {
     
     int barrierRadius = 
@@ -8798,6 +8988,9 @@ static void setupToolSlots( LiveObject *inPlayer ) {
 
 
 typedef struct ForceSpawnRecord {
+        // true means get born as baby
+        // false means spawn at pos/age given
+        char getBorn;
         GridPos pos;
         double age;
         char *firstName;
@@ -8833,12 +9026,20 @@ char getForceSpawn( char *inEmail, ForceSpawnRecord *outRecordToFill ) {
 
             char emailBuff[100];
             
+            // 1 to force spawn at location
+            // 2 to force display id and clothes but let them
+            //   get born as a baby
             int on = 0;
             
             sscanf( lines[i],
                     "%99s %d", emailBuff, &on );
 
-            if( on == 1 ) {
+            if( on > 0 ) {
+                outRecordToFill->getBorn = false;
+                
+                if( on == 2 ) {
+                    outRecordToFill->getBorn = true;
+                    }
                 
                 outRecordToFill->firstName = new char[20];
                 outRecordToFill->lastName = new char[20];
@@ -10115,6 +10316,7 @@ int processLoggedInPlayer( int inAllowOrForceReconnect,
     
     
     char forceSpawn = false;
+    char forceDisplayID = false;
     ForceSpawnRecord forceSpawnInfo;
     
     if( SettingsManager::getIntSetting( "forceAllPlayersEve", 0 ) ) {
@@ -10124,7 +10326,17 @@ int processLoggedInPlayer( int inAllowOrForceReconnect,
         forceSpawn = getForceSpawn( inEmail, &forceSpawnInfo );
     
         if( forceSpawn ) {
-            parentChoices.deleteAll();
+            
+            if( ! forceSpawnInfo.getBorn ) {
+                parentChoices.deleteAll();
+                }
+            else {
+                // keep parent choices
+                // just use forceSpawnInfo to set display ID and clothes
+                // for baby
+                forceSpawn = false;
+                forceDisplayID = true;
+                }
             }
         }
 
@@ -11181,23 +11393,30 @@ int processLoggedInPlayer( int inAllowOrForceReconnect,
         currentTime + 
         computeFoodDecrementTimeSeconds( &newObject );
 
+    
+    newObject.forcedName = false;
+    
+    if( forceSpawn || forceDisplayID ) {
+        if( forceSpawn ) {
+            newObject.forceSpawn = true;
+            newObject.xs = forceSpawnInfo.pos.x;
+            newObject.ys = forceSpawnInfo.pos.y;
+            newObject.xd = forceSpawnInfo.pos.x;
+            newObject.yd = forceSpawnInfo.pos.y;
         
-    if( forceSpawn ) {
-        newObject.forceSpawn = true;
-        newObject.xs = forceSpawnInfo.pos.x;
-        newObject.ys = forceSpawnInfo.pos.y;
-        newObject.xd = forceSpawnInfo.pos.x;
-        newObject.yd = forceSpawnInfo.pos.y;
+            newObject.birthPos = forceSpawnInfo.pos;
         
-        newObject.birthPos = forceSpawnInfo.pos;
-        
-        newObject.lifeStartTimeSeconds = 
-            Time::getCurrentTime() -
-            forceSpawnInfo.age * ( 1.0 / getAgeRate() );
+            newObject.lifeStartTimeSeconds = 
+                Time::getCurrentTime() -
+                forceSpawnInfo.age * ( 1.0 / getAgeRate() );
+            }
         
         newObject.name = autoSprintf( "%s %s", 
                                       forceSpawnInfo.firstName,
                                       forceSpawnInfo.lastName );
+        newObject.forcedName = true;
+        newObject.forcedNameSent = false;
+        
         newObject.displayID = forceSpawnInfo.displayID;
         
         newObject.clothing.hat = getObject( forceSpawnInfo.hatID, true );
@@ -16403,12 +16622,8 @@ static char *getToolSetDescription( ObjectRecord *inToolO ) {
                     }
                 }
             // now replace any _ with ' '
-            tagLen = strlen( tagPos );
-            for( int i=0; i<tagLen; i++ ) {
-                if( tagPos[i] == '_' ) {
-                    tagPos[i] = ' ';
-                    }
-                }
+            replaceUnderscoresWithSpaces( tagPos );
+
             char *newDes = stringDuplicate( tagPos );
             delete [] des;
             des = newDes;
@@ -16861,7 +17076,7 @@ void applyHungryWorkCost( LiveObject *inPlayer, int inHungryWorkCost ) {
 
 
 
-const char *numberToWords( int inNumber ) {
+static const char *numberToWords( int inNumber ) {
     switch( inNumber ) {
         case 1:
             return "ONE";
@@ -17507,7 +17722,8 @@ static void leaderDied( LiveObject *inLeader ) {
                 &&
                 distance( location, getPlayerPos( otherPlayer ) ) <= maxDistance
                 &&
-                ! isExiled( inLeader, otherPlayer ) ) {
+                ! isExiled( inLeader, otherPlayer ) &&
+                ! otherPlayer->isGhost ) {
                 
                 fittestFitness = otherPlayer->fitnessScore;
                 fittestFollower = otherPlayer;
@@ -17522,7 +17738,8 @@ static void leaderDied( LiveObject *inLeader ) {
                 LiveObject *otherPlayer = directFollowers.getElementDirect( i );
                 
                 if( otherPlayer->fitnessScore > fittestFitness &&
-                    ! isExiled( inLeader, otherPlayer ) ) {
+                    ! isExiled( inLeader, otherPlayer ) &&
+                    ! otherPlayer->isGhost ) {
                     
                     fittestFitness = otherPlayer->fitnessScore;
                     fittestFollower = otherPlayer;
@@ -17542,7 +17759,8 @@ static void leaderDied( LiveObject *inLeader ) {
                 if( otherPlayer->fitnessScore > fittestFitness 
                     &&
                     distance( location, getPlayerPos( otherPlayer ) ) 
-                    <= maxDistance ) {
+                    <= maxDistance &&
+                    ! otherPlayer->isGhost ) {
                 
                     fittestFitness = otherPlayer->fitnessScore;
                     fittestFollower = otherPlayer;
@@ -17557,7 +17775,8 @@ static void leaderDied( LiveObject *inLeader ) {
                         directFollowers.getElementDirect( i );
             
                     // ignore exile status this time
-                    if( otherPlayer->fitnessScore > fittestFitness ) {
+                    if( otherPlayer->fitnessScore > fittestFitness &&
+                        ! otherPlayer->isGhost ) {
                         
                         fittestFitness = otherPlayer->fitnessScore;
                         fittestFollower = otherPlayer;
@@ -18435,8 +18654,10 @@ static char messageFloodCheck( LiveObject *inPlayer, messageType inType ) {
     // or GRAVE messages all at once
     // (And note that OWNER and GRAVE messages don't result in anything being
     //  sent to nearby players)
+    // Same with walking into an area with a lot of statues.
     if( inType == OWNER ||
-        inType == GRAVE ) {
+        inType == GRAVE ||
+        inType == STATUE ) {
         return false;
         }
     
@@ -18541,6 +18762,90 @@ void removeOwnership( int inX, int inY ) {
 
 
 
+// inString can be null, returned string will be "-"
+// returned string newly allocated, destroyed by caller
+static char *prepareRocketString( char *inString ) {
+    char *s;
+    if( inString == NULL ) {
+        s = stringDuplicate( "-" );
+        }
+    else {
+        s = stringDuplicate( inString );
+            
+        replaceSpacesWithUnderscores( s );
+        }
+    return s;
+    }
+
+
+void buildPostRocketStatue( LiveObject *inPlayer, GridPos inPos ) {
+    int x = inPos.x;
+    int y = inPos.y;
+    
+
+    useContentSettings();
+    
+    int statueObjectID =
+        SettingsManager::getIntSetting( "postRocketStatueObject", -1 );
+
+    useMainSettings();
+    
+
+    if( statueObjectID == -1 ) {
+        AppLog::errorF( "Player %d rode rocket at %d,%d but no "
+                        "postRocketStatueObject "
+                        "set in conentSettings, so we can't build statue.",
+                        inPlayer->id, x, y );
+        return;
+        }
+
+    setMapObject( x, y, statueObjectID );
+        
+    // stick data in statue database
+        
+    int clothingIDs[ NUM_CLOTHING_PIECES ];
+    for( int i=0; i< NUM_CLOTHING_PIECES; i++ ) {
+        ObjectRecord *co = clothingByIndex( inPlayer->clothing, i );
+        if( co == NULL ) {
+            clothingIDs[i] = 0;
+            }
+        else {
+            clothingIDs[i] = co->id;
+            }
+        }
+        
+    char *name = prepareRocketString( inPlayer->name );
+    char *finalWords = prepareRocketString( inPlayer->lastSay );
+    timeSec_t statueTime = Time::timeSec();
+    //        displayID|age|name|
+    //           hat|tunic|frontShoe|backShoe|bottom|backpack|
+    //           final_words
+    char *data = autoSprintf( "%d|%0.2f|%s|"
+                              "%d|%d|%d|%d|%d|%d|"
+                              "%s",
+                              inPlayer->displayID,
+                              computeAge( inPlayer ),
+                              name,
+                              clothingIDs[0],
+                              clothingIDs[1],
+                              clothingIDs[2],
+                              clothingIDs[3],
+                              clothingIDs[4],
+                              clothingIDs[5],
+                              finalWords );
+                                  
+    delete [] name;
+    delete [] finalWords;
+ 
+    addStatueData( x, y,
+                   statueTime,
+                   data );
+        
+    delete [] data;   
+    }
+
+
+
 void startAHAPGrant( int inX, int inY, LiveObject *inPlayer ) {
     int rocketEnabled =
         SettingsManager::getIntSetting( "rocketEnabled", 0 );
@@ -18569,6 +18874,8 @@ void startAHAPGrant( int inX, int inY, LiveObject *inPlayer ) {
         }
 
     inPlayer->rodeRocket = true;
+    inPlayer->rodeRocketLocation.x = inX;
+    inPlayer->rodeRocketLocation.y = inY;
     
     inPlayer->dying = true;
     inPlayer->dyingETA = Time::getCurrentTime() + rocketAnimationTime;
@@ -19323,7 +19630,7 @@ int main( int inNumArgs, const char **inArgs ) {
             monumentStep();
             
             char specialBiomeStatusChanged = 
-                updateSpecialBiomes( players.size() );
+                updateSpecialBiomes( countLivingPlayers() );
             
             if( specialBiomeStatusChanged ) {
                 for( int i=0; i< players.size(); i++ ) {
@@ -20802,6 +21109,11 @@ int main( int inNumArgs, const char **inArgs ) {
                 setupToolSlots( nextPlayer );
                 }
 
+            if( nextPlayer->forcedName && ! nextPlayer->forcedNameSent ) {
+                playerIndicesToSendNamesAbout.push_back( i );
+                nextPlayer->forcedNameSent = true;
+                }
+
 
             double curCrossTime = Time::getCurrentTime();
 
@@ -21809,6 +22121,63 @@ int main( int inNumArgs, const char **inArgs ) {
                     
                     delete [] defaultO.name;
                     delete defaultO.lineage;
+                    }
+                else if( m.type == STATUE ) {
+                    // immediately send ST response
+                    timeSec_t statueTime;
+
+                    char dataBuffer[MAP_STATUE_DATA_LENGTH];
+                    memset( dataBuffer, 0, MAP_STATUE_DATA_LENGTH );
+
+                    char found = getStatueData( m.x, m.y,
+                                                &statueTime, dataBuffer );
+                    
+                    if( found ) {
+                        double statueAge = computeAge( statueTime );
+                        int displayID;
+                        double age;
+                        char nameBuffer[100];
+                        char finalWordsBuffer[100];
+                        int hat, tunic, frontShoe, backShoe, bottom, backpack;
+
+                        int i = 0;
+                        while( dataBuffer[i] != '\0' ) {
+                            if( dataBuffer[i] == '|' ) {
+                                dataBuffer[i] = ' ';
+                                }
+                            i++;
+                            }
+                        
+                        int numRead = sscanf(
+                            dataBuffer,
+                            "%d %lf %99s %d %d %d %d %d %d %99s",
+                            &displayID,
+                            &age, nameBuffer,
+                            &hat, &tunic, &frontShoe, 
+                            &backShoe, &bottom, &backpack,
+                            finalWordsBuffer );
+
+                        if( numRead == 10 ) {
+                            char *message = autoSprintf( 
+                                "ST\n"
+                                "%d %d %d %f %f %s %d;%d;%d;%d;%d;%d %s\n#",
+                                m.x - nextPlayer->birthPos.x,
+                                m.y - nextPlayer->birthPos.y,
+                                displayID, age, statueAge,
+                                nameBuffer,
+                                hat, tunic, frontShoe, backShoe, 
+                                bottom, backpack,
+                                finalWordsBuffer );
+                            
+                            sendMessageToPlayer( nextPlayer, message, 
+                                             strlen( message ) );
+                            delete [] message;
+                            }
+                        else {
+                            printf( "Bad data string found in statue db: %s",
+                                    dataBuffer );
+                            }
+                        }
                     }
                 else if( m.type == OWNER ) {
                     // immediately send OW response
@@ -24569,6 +24938,13 @@ int main( int inNumArgs, const char **inArgs ) {
                                                          targetObj );
                                     }
                                 
+                                // handle statue case
+                                if( targetObj->permanent &&
+                                    targetObj->isStatue ) {
+                                    
+                                    playerReadsStatue( nextPlayer,
+                                                       m.x, m.y );
+                                    }
 
                                 // try using object on this target 
                                 
@@ -27879,8 +28255,9 @@ int main( int inNumArgs, const char **inArgs ) {
                 
                 char male = ! getFemale( nextPlayer );
                 
-                if( ! nextPlayer->isTutorial )
-                recordPlayerLineage( nextPlayer->email, 
+                if( ! nextPlayer->isTutorial ) {
+                    
+                    recordPlayerLineage( nextPlayer->email, 
                                      age,
                                      nextPlayer->id,
                                      nextPlayer->parentID,
@@ -27889,6 +28266,14 @@ int main( int inNumArgs, const char **inArgs ) {
                                      nextPlayer->name,
                                      nextPlayer->lastSay,
                                      male );
+                    
+                    if( nextPlayer->rodeRocket ) {
+                        buildPostRocketStatue( nextPlayer,
+                                               nextPlayer->rodeRocketLocation );
+                        }
+                    }
+                
+                
 
 
                 // both tutorial and non-tutorial players
@@ -29601,7 +29986,9 @@ int main( int inNumArgs, const char **inArgs ) {
                     LiveObject *nextPlayer = players.getElement(j);
                     
                     // don't give mid-life tokens to twins or cursed players
+                    // or ghosts
                     if( ! nextPlayer->isTwin &&
+                        ! nextPlayer->isGhost &&
                         nextPlayer->curseStatus.curseLevel == 0 &&
                         strcmp( nextPlayer->email, email ) == 0 ) {
                         

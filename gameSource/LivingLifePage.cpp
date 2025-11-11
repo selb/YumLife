@@ -1706,6 +1706,7 @@ typedef enum messageType {
     GRAVE,
     GRAVE_MOVE,
     GRAVE_OLD,
+    STATUE_INFO,
     OWNER,
     FOLLOWING,
     EXILED,
@@ -1824,6 +1825,9 @@ messageType getMessageType( char *inMessage ) {
         }
     else if( strcmp( copy, "GO" ) == 0 ) {
         returnValue = GRAVE_OLD;
+        }
+    else if( strcmp( copy, "ST" ) == 0 ) {
+        returnValue = STATUE_INFO;
         }
     else if( strcmp( copy, "OW" ) == 0 ) {
         returnValue = OWNER;
@@ -3913,6 +3917,12 @@ LivingLifePage::~LivingLifePage() {
         }
     mGraveInfo.deleteAll();
 
+    for( int i=0; i<mStatueInfo.size(); i++ ) {
+        delete [] mStatueInfo.getElement(i)->name;
+        delete [] mStatueInfo.getElement(i)->lastWords;
+        }
+    mStatueInfo.deleteAll();
+
     clearOwnerInfo();
 
     clearLocationSpeech();
@@ -5170,6 +5180,86 @@ void LivingLifePage::drawMapCell( int inMapI,
                 }
             }
         
+
+        if( oRecord->isStatue ) {
+            int x = inMapI % mMapD;
+            int y = inMapI / mMapD;
+            
+            int worldY = y + mMapOffsetY - mMapD / 2;
+
+            int worldX = x + mMapOffsetX - mMapD / 2;
+            
+            GridPos worldPos = { worldX, worldY };
+            
+            StatueInfo *si = NULL;
+            
+            for( int s=0; s<mStatueInfo.size(); s++ ) {
+                if( equal( mStatueInfo.getElement(s)->worldPos, worldPos ) ) {
+                    si = mStatueInfo.getElement( s );
+                    break;
+                    }
+                }
+
+            if( si != NULL ) {
+
+                char unused;
+                
+                ObjectAnimPack p = 
+                    drawObjectAnimPacked( 
+                        si->displayID, ground, 
+                        0,
+                        0,
+                        ground,
+                        0,
+                        0,
+                        &unused,
+                        endAnimType,
+                        endAnimType,
+                        passPos,
+                        0,
+                        false,
+                        false,
+                        si->personAgeYears,
+                        false,
+                        false,
+                        false,
+                        si->clothing,
+                        NULL,
+                        0,
+                        NULL, NULL );
+                
+                toggleGrayscaleDrawing( true, 0.6, 32 );
+                
+                drawObjectAnim( p );
+
+                toggleGrayscaleDrawing( false );
+
+                // does statue object have a +overlay?
+
+                if( oRecord->overlayID > 0 ) {
+                    ObjectRecord *overlayObject
+                        = getObject( oRecord->overlayID );
+
+                    // this is safe to do only if statue object
+                    // has +noHighlight
+
+                    startAddingToStencil( false, true, 0.95 );
+                    drawObjectAnim( p );
+                
+                    startDrawingThroughStencil();
+                
+                    drawObject( overlayObject, passPos,
+                                0, false, false, 0,
+                                0,
+                                false,
+                                false,
+                                getEmptyClothingSet(),
+                                0, NULL, NULL );
+                
+                    stopStencil();
+                    }
+                }
+            }
 
 
 
@@ -13523,7 +13613,26 @@ void LivingLifePage::displayPhoto( const char *inPhotoID, char inNegative ) {
     }
 
 
+void LivingLifePage::checkForStatueAtPosition( int inWorldX, int inWorldY ) {
+    
+    GridPos worldPos = { inWorldX, inWorldY };
 
+    for( int s=0; s<mStatueInfo.size(); s++ ) {
+        if( equal( mStatueInfo.getElement(s)->worldPos, worldPos ) ) {
+            // already present
+            return;
+            }
+        }
+
+    // else send request
+    char *message = 
+        autoSprintf( "STATUE %d %d#",
+                     sendX( inWorldX ), sendY( inWorldY ) );
+    sendToServerSocket( message );
+    delete [] message;
+    }
+
+        
 // color list from here:
 // https://sashat.me/2017/01/11/list-of-20-simple-distinct-colors/
 
@@ -15838,32 +15947,26 @@ void LivingLifePage::step() {
                     }
                 }            
             }
-        else if( type == GRAVE_OLD ) {
-            int posX, posY, playerID, displayID;
+        else if( type == STATUE_INFO ) {
+            int posX, posY, displayID;
             double age;
-            
-            int eveID = -1;
-            
+            double statueAge;
+ 
 
-            char nameBuffer[200];
+            char nameBuffer[100];
+            char clothingBuffer[60];
+            char finalWordsBuffer[100];
             
-            nameBuffer[0] = '\0';
-            
-            int numRead = sscanf( message, "GO\n%d %d %d %d %lf %199s",
-                                  &posX, &posY, &playerID, &displayID,
-                                  &age, nameBuffer );
-            if( numRead == 6 ) {
+            int numRead = sscanf( message, "ST\n%d %d %d %lf %lf "
+                                  "%99s %99s %99s",
+                                  &posX, &posY, &displayID,
+                                  &age, &statueAge, nameBuffer, clothingBuffer,
+                                  finalWordsBuffer );
+            if( numRead == 8 ) {
                 applyReceiveOffset( &posX, &posY );
 
                 GridPos thisPos = { posX, posY };
-                
-                for( int i=0; i<graveRequestPos.size(); i++ ) {
-                    if( equal( graveRequestPos.getElementDirect( i ),
-                               thisPos ) ) {
-                        graveRequestPos.deleteElement( i );
-                        break;
-                        }
-                    }
+
                 
                 int nameLen = strlen( nameBuffer );
                 for( int i=0; i<nameLen; i++ ) {
@@ -15871,120 +15974,64 @@ void LivingLifePage::step() {
                         nameBuffer[i] = ' ';
                         }
                     }
-                
-                
-                SimpleVector<int> otherLin;
-
-                int numLines;
-                
-                char **lines = split( message, "\n", &numLines );
-
-                if( numLines > 1 ) {
-                    SimpleVector<char *> *tokens = 
-                        tokenizeString( lines[1] );
-                    
-                    int numNormalTokens = tokens->size();
-                                
-                    if( tokens->size() > 6 ) {
-                        char *lastToken =
-                            tokens->getElementDirect( 
-                                tokens->size() - 1 );
-                                    
-                        if( strstr( lastToken, "eve=" ) ) {   
-                            // eve tag at end
-                            numNormalTokens--;
-                            
-                            sscanf( lastToken, "eve=%d", &( eveID ) );
-                            }
+                int wordsLen = strlen( finalWordsBuffer );
+                for( int i=0; i<wordsLen; i++ ) {
+                    if( finalWordsBuffer[i] == '_' ) {
+                        finalWordsBuffer[i] = ' ';
                         }
+                    }
 
-                    for( int t=6; t<numNormalTokens; t++ ) {
-                        char *tok = tokens->getElementDirect( t );
-                                    
-                        int mID = 0;
-                        sscanf( tok, "%d", &mID );
+                ClothingSet clothing = getEmptyClothingSet();
+                
+                int numClothes;
+                char **clothesParts = split( clothingBuffer, ";", &numClothes );
+
+                if( numClothes == NUM_CLOTHING_PIECES ) {
+                    for( int i=0; i <NUM_CLOTHING_PIECES; i++ ) {
+                        int readID = 0;
                         
-                        if( mID != 0 ) {
-                            otherLin.push_back( mID );
+                        sscanf( clothesParts[i], "%d", &readID );
+                        
+                        if( readID > 0 ) {
+                            setClothingByIndex( &( clothing ), 
+                                                i, 
+                                                getObject( readID ) ); 
                             }
                         }
-                    tokens->deallocateStringElements();
-                    delete tokens;
                     }
-
-
-                for( int i=0; i<numLines; i++ ) {
-                    delete [] lines[i];
+                
+                for( int i=0; i<numClothes; i++ ) {
+                    delete [] clothesParts[i];
                     }
-                delete [] lines;
+                delete [] clothesParts;
                 
                 LiveObject *ourLiveObject = getOurLiveObject();
-
-                char *relationName = getRelationName( 
-                    &( ourLiveObject->lineage ),
-                    &otherLin,
-                    ourID,
-                    playerID,
-                    ourLiveObject->displayID,
-                    displayID,
-                    ourLiveObject->age,
-                    age,
-                    ourLiveObject->lineageEveID,
-                    eveID );
-
-                GraveInfo g;
-                g.worldPos.x = posX;
-                g.worldPos.y = posY;
                 
-                char *des = relationName;
-                char *desToDelete = NULL;
-                    
-                if( des == NULL ) {
-                    des = (char*)translate( "unrelated" );
-                    
-                    if( strcmp( nameBuffer, "" ) == 0 ||
-                        strcmp( nameBuffer, "~" ) == 0 ) {
-                        // call them nameless instead
-                        des = (char*)translate( "namelessPerson" );
+                double creationTime = 
+                    game_getCurrentTime() - statueAge / ourLiveObject->ageRate;
 
-                        if( playerID == 0 ) {
-                            // call them forgotten instead
-                            des = (char*)translate( "forgottenPerson" );
-                            }
+                StatueInfo info = {
+                    thisPos,
+                    displayID,
+                    stringDuplicate( nameBuffer ),
+                    stringDuplicate( finalWordsBuffer ),
+                    clothing,
+                    age,
+                    creationTime
+                    };
+                
+                for( int i=0; i<mStatueInfo.size(); i++ ) {
+                    StatueInfo *otherInfo = mStatueInfo.getElement( i );
+                    
+                    if( equal( otherInfo->worldPos, thisPos ) ) {
+                        // replacing this one
+                        delete [] otherInfo->name;
+                        delete [] otherInfo->lastWords;
+                        mStatueInfo.deleteElement( i );
+                        i--;
                         }
                     }
-                if( strcmp( nameBuffer, "" ) != 0 &&
-                    strcmp( nameBuffer, "~" ) != 0 ) {
-                    des = autoSprintf( "%s - %s",
-                                       nameBuffer, des );
-                    desToDelete = des;
-                    }
-
-                g.relationName = stringDuplicate( des );
-                
-                if( desToDelete != NULL ) {
-                    delete [] desToDelete;
-                    }
-                
-                if( relationName != NULL ) {
-                    delete [] relationName;
-                    }
-                
-                g.creationTime = 
-                    game_getCurrentTime() - age / ourLiveObject->ageRate;
-                
-                if( age == -1 ) {
-                    g.creationTime = 0;
-                    g.creationTimeUnknown = true;
-                    }
-                else {
-                    g.creationTimeUnknown = false;
-                    }
-                
-                g.lastMouseOverYears = -1;
-                g.lastMouseOverTime = g.creationTime;
-                
-                mGraveInfo.push_back( g );
+                mStatueInfo.push_back( info );
                 }
             }
         else if( type == OWNER ) {
@@ -16607,7 +16654,18 @@ void LivingLifePage::step() {
                                 // our placement status cleared
                                 mMapPlayerPlacedFlags[mapI] = false;
                                 }
-
+                            
+                            if( mMap[mapI] != 0 ) {
+                                ObjectRecord *obj = getObject( mMap[mapI] );
+                                
+                                if( obj->isStatue ) {
+                                    int worldPosX = x + cX;
+                                    int worldPosY = y + cY;
+                                    checkForStatueAtPosition(
+                                        worldPosX, worldPosY ); 
+                                    }
+                                }
+                            
                             mMapContainedStacks[mapI].deleteAll();
                             mMapSubContainedStacks[mapI].deleteAll();
                             
@@ -17055,6 +17113,15 @@ void LivingLifePage::step() {
                             mMapContainedStacks[mapI].deleteAll();
                             mMapSubContainedStacks[mapI].deleteAll();
                             }
+
+                        if( newID > 0 ) {
+                            ObjectRecord *newObj = getObject( newID );
+                            
+                            if( newObj->isStatue ) {
+                                checkForStatueAtPosition( x, y );
+                                }
+                            }
+                        
                         
                         if( speed > 0 ) {
                             // this cell moved from somewhere
@@ -24035,6 +24102,12 @@ void LivingLifePage::makeActive( char inFresh ) {
         delete [] mGraveInfo.getElement(i)->relationName;
         }
     mGraveInfo.deleteAll();
+
+    for( int i=0; i<mStatueInfo.size(); i++ ) {
+        delete [] mStatueInfo.getElement(i)->name;
+        delete [] mStatueInfo.getElement(i)->lastWords;
+        }
+    mStatueInfo.deleteAll();
 
     clearOwnerInfo();
     

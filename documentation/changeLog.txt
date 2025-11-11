@@ -4,7 +4,7 @@ http://onehouronelife.com/updateLog.php
 
 
 
-Version 431    ???
+Version 432    2025-November-11
 
 --Added better message after hitting the AHAP VOTE button.  Vote isn't
   submitted until you log in to the game.
@@ -220,7 +220,22 @@ Server Fixes:
   direction.  Now, if all pads are closer than 250, you will land at the
   closest one in the flight direction.  Fixes #1198
 
---Ghost are now ignored when finding closest expert for waystone.  Fixes #1199
+--Ghosts are now ignored when finding closest expert for waystone.  Fixes #1199
+
+--Ghosts are now ignored when picking heir for property.  Part of #1201
+
+--Ghosts now stop being leaders when they become ghosts.  Ghosts are no longer
+  considered to inherit leadership.  Final part of #1201
+
+--Ghosts no longer counted in countLivingPlayers(), and countLivingPlayers()
+  used to toggle special biomes instead of just raw player count.  Some other
+  things (like Languages), still depend on raw player count.  Fixes #1202
+
+--forceSpawnAccounts.ini now supports 2 switch for forcing player to be born as
+  baby with specific displayID.  Forced-spawn players now have their forced
+  name transmitted correctly upon spawning.
+
+--Ghosts no longer earn curse tokens.  Fixes #1210
 
 
 
