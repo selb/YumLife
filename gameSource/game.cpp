@@ -8,7 +8,7 @@ const char *yumSubVersion = ".1";
 // to update this with every upstream versionNumber bump! Tracking this allows
 // us to accurately apply data updates when users "leapfrog" a data update with
 // a newer version of the client.
-int yumExpectedDataVersionNumber = 431;
+int yumExpectedDataVersionNumber = 433;
 
 // Note to modders:
 // Please use this tag to describe your client honestly and uniquely
