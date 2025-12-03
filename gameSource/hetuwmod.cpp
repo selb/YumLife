@@ -4289,6 +4289,7 @@ void HetuwMod::updatePlayersInRangePanel() {
 				fam.count++;
 				if (youngWoman) fam.youngWomenCount++;
 				if (o->curseLevel > 0) fam.cursedCount++;
+				if (o->isGhost) fam.ghostCount++;
 				found = true;
 				break;
 			}
@@ -4302,6 +4303,7 @@ void HetuwMod::updatePlayersInRangePanel() {
 			fam.count = 1;
 			fam.youngWomenCount = (youngWoman ? 1 : 0);
 			fam.cursedCount = (o->curseLevel > 0 ? 1 : 0);
+			fam.ghostCount = (o->isGhost ? 1 : 0);
 			fam.generation = o->lineage.size()+1;
 			fam.eveID = o->lineageEveID;
 			fam.race = getRaceLetter(obj);
@@ -4334,10 +4336,11 @@ void HetuwMod::updatePlayersInRangePanel() {
 	}
 
 	FamilyInRange soloEveFam;
-	soloEveFam.name = "SOLO EVES";
+	soloEveFam.name = "EVE/TUTORIAL";
 	soloEveFam.count = 0;
 	soloEveFam.youngWomenCount = 0;
 	soloEveFam.cursedCount = 0;
+	soloEveFam.ghostCount = 0;
 	soloEveFam.generation = 1;
 	soloEveFam.eveID = 0;
 	soloEveFam.race = 0;
@@ -4347,9 +4350,20 @@ void HetuwMod::updatePlayersInRangePanel() {
 	donkeyFam.count = 0;
 	donkeyFam.youngWomenCount = 0;
 	donkeyFam.cursedCount = 0;
+	donkeyFam.ghostCount = 0;
 	donkeyFam.generation = 0;
 	donkeyFam.eveID = 0;
 	donkeyFam.race = 0;
+
+	FamilyInRange ghostFam;
+	ghostFam.name = "GHOST";
+	ghostFam.count = 0;
+	ghostFam.youngWomenCount = 0;
+	ghostFam.cursedCount = 0;
+	ghostFam.ghostCount = 0;
+	ghostFam.generation = 0;
+	ghostFam.eveID = 0;
+	ghostFam.race = 0;
 
 	for (ssize_t i = 0; i < (ssize_t)familiesInRange.size(); i++) {
 		FamilyInRange &fam = familiesInRange[i];
@@ -4365,6 +4379,7 @@ void HetuwMod::updatePlayersInRangePanel() {
 			soloEveFam.count += fam.count;
 			soloEveFam.youngWomenCount += fam.youngWomenCount;
 			soloEveFam.cursedCount += fam.cursedCount;
+			soloEveFam.ghostCount += fam.ghostCount;
 		} else if (fam.cursedCount == fam.count) {
 			// A family where everyone is cursed is assumed to be a DT family:
 			// the server broadcasts CU messages about everyone in DT regardless
@@ -4377,10 +4392,22 @@ void HetuwMod::updatePlayersInRangePanel() {
 			donkeyFam.count += fam.count;
 			donkeyFam.youngWomenCount += fam.youngWomenCount;
 			donkeyFam.cursedCount += fam.cursedCount;
+			donkeyFam.ghostCount += fam.ghostCount;
 			if (fam.generation > donkeyFam.generation) {
 				donkeyFam.generation = fam.generation;
 				donkeyFam.eveID = fam.eveID;
 				donkeyFam.race = fam.race;
+			}
+		} else if (fam.ghostCount == fam.count) {
+			// A family where everyone remaining is a ghost.
+			ghostFam.count += fam.count;
+			// no youngWomenCount, ghosts are by definition not young
+			ghostFam.cursedCount += fam.cursedCount;
+			ghostFam.ghostCount += fam.ghostCount;
+			if (fam.generation > ghostFam.generation) {
+				ghostFam.generation = fam.generation;
+				ghostFam.eveID = fam.eveID;
+				// Don't track race for ghosts
 			}
 		} else {
 			erase = false;
@@ -4400,6 +4427,10 @@ void HetuwMod::updatePlayersInRangePanel() {
 
 	if (donkeyFam.count != 0) {
 		familiesInRange.push_back(donkeyFam);
+	}
+
+	if (ghostFam.count != 0) {
+		familiesInRange.push_back(ghostFam);
 	}
 }
 

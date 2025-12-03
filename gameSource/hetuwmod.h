@@ -74,6 +74,7 @@ class HetuwMod
 		int count = 0;
 		int youngWomenCount = 0;
 		int cursedCount = 0;
+		int ghostCount = 0;
 		char race = 0;
 		int generation = 0;
 		int eveID = 0;
