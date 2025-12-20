@@ -54,20 +54,21 @@ class yumStateStore {
         // in case encoding changes in the future.
         // Values are arbitrary.
         void clear(const char *key);
+        void clearPrefix(const char *prefix);
         void clearAll();
         void push(const char *key, const char *value);
         void push(const char *key, int value);
         void push(const char *key, double value);
 
-        // Calling hasChanged() isn't mandatory, but it's useful for batching
-        // writes to some interval.
-        inline bool hasChanged() const { return mChanged; };
+        // Returns true if the current state differs from the last read/written
+        // state. Useful for avoiding unnecessary writes.
+        bool hasChanged() const;
         void write();
 
     private:
         std::string mFilename;
         std::map<std::string, std::vector<std::string>> mState;
-        bool mChanged;
+        std::map<std::string, std::vector<std::string>> mLastWrittenState;
 
         // state for nextField() / get()
         std::deque<std::string> mKeys;

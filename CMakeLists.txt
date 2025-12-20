@@ -91,6 +91,7 @@ set(CLIENT_SOURCE_FILES
     gameSource/hetuwTCPConnection.cpp
     gameSource/yumBlob.cpp
     gameSource/yumConfig.cpp
+    gameSource/yumGPS.cpp
     gameSource/yumRebirthComponent.cpp
     gameSource/yumStateStore.cpp
     gameSource/game.cpp

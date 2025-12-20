@@ -213,7 +213,7 @@ public:
 	};
 
 	enum homePosType {
-		hpt_custom, hpt_birth, hpt_home, hpt_bell, hpt_apoc, hpt_tarr, hpt_map, hpt_baby, hpt_babyboy, hpt_babygirl, hpt_expert, hpt_rocket, hpt_plane
+		hpt_custom, hpt_birth, hpt_home, hpt_bell, hpt_apoc, hpt_tarr, hpt_map, hpt_baby, hpt_babyboy, hpt_babygirl, hpt_expert, hpt_rocket, hpt_plane, hpt_gps
 	};
 
 	struct HomePos {
@@ -228,6 +228,7 @@ public:
 		int personID = -1;
 		bool hasCustomColor = false; // set it to true if you want rgb to be used
 		float rgba[4];
+		bool isGlobal = false;
 	};
 
 	struct ExtraPUData {
@@ -318,6 +319,7 @@ public:
 	static unsigned char charKey_HidePlayers;
 	static unsigned char charKey_ShowGrid;
 	static unsigned char charKey_MakePhoto;
+	static unsigned char charKey_ShowGPSStatus;
 
 	static unsigned char charKey_Minitech;
 
@@ -405,6 +407,7 @@ public:
 	static void initHelpText();
 	static void initOnBirth();
 	static void initOnServerJoin();
+	static void onDonkeyTown();
 
 	static void setLivingLifePage(LivingLifePage *inLivingLifePage, SimpleVector<LiveObject> *inGameObjects,
 							SimpleVector<int> *inmMapContainedStacks, SimpleVector<SimpleVector<int>> *inmMapSubContainedStacks,
@@ -518,13 +521,14 @@ public:
 	static void onPlayerUpdate( LiveObject* o, const ExtraPUData& puData );
 	static void onNameUpdate(LiveObject* o);
 	static void onCurseUpdate(LiveObject* o);
+	static void onStatueResponse(int birthRelativeX, int birthRelativeY, int displayID, const char *name, const char *clothingSet, const char *finalWords);
 	static void removeLastName(char *newName, const char* name );
 	static string getLastName(const char* name);
 
 	static int playersInRangeNum;
 
 	static std::vector<HomePos*> homePosStack;
-	static void addHomeLocation( int x, int y, homePosType type, char c = 0, int personID = -1 );
+	static void addHomeLocation( int x, int y, homePosType type, char c = 0, int personID = -1, bool isGlobal = false );
 	static void setHomeLocationText(int x, int y, homePosType type, char *text);
 	static void setMapText(char *message, int mapX, int mapY);
 	static void logHomeLocation(HomePos* hp);
@@ -584,6 +588,10 @@ public:
 	static void decodeDigits(char *msg);
 	static void causeDisconnect();
 
+	// Chat command and message routing
+	static bool tryHandleCommand(const char *command);
+	static void onLocalChat(int playerID, const char *message);
+
 	static float colorRainbowFast[3];
 	static void stepColorRainbowFast();
 
@@ -599,6 +607,7 @@ public:
 	static void onJustAteFood(ObjectRecord *food);
 	static void onCraving(int foodID);
 	static bool bDrawYum;
+	static bool bDrawGPSStatus;
 	static void setYumObjectsColor();
 	static void resetObjectsColor();
 
@@ -612,6 +621,7 @@ public:
 	static bool bHoldDownTo_XRay;
 	static bool bHoldDownTo_FindYum;
 	static bool bHoldDownTo_ShowGrid;
+	static bool bHoldDownTo_ShowGPSStatus;
 
 	static bool b_drawYumColor;
 	static bool b_drawYumPulsate;
@@ -663,6 +673,8 @@ public:
 	static bool experimentForgiveName;
 
 private:
+
+	static void updateStateStore();
 
 	static void zoomCalc();
 
@@ -738,6 +750,7 @@ private:
 	static bool objIdReverseAction( int objId );
 
 	static bool bDrawHomeCords;
+    static void resolveGlobalCoords();
 	static void drawHomeCords();
 	static void setDrawColorToCoordType(homePosType type);
 	static bool bNextCharForHome;
@@ -747,8 +760,8 @@ private:
 	static void writeCharKeyToStream( ofstream &ofs, const char* keyName, char key );
 
 	static void drawInputString();
-	static bool addToTempInputString( unsigned char c, bool onlyNumbers, int minStrLen );
-	static bool bDrawInputString;
+    static bool addToTempInputString(unsigned char c, bool onlyNumbers, int minStrLen);
+    static bool bDrawInputString;
 	static string tempInputString;
 
 	static int getCustomCords;

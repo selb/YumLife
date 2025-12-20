@@ -43,5 +43,6 @@ SDL-devel-1.2.15-mingw32.tar.gz
 
 .vscode/
 *.code-workspace
+notes/
 
 .DS_Store

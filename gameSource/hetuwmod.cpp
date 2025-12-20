@@ -26,6 +26,7 @@
 #include "fitnessScore.h"
 #include "yumRebirthComponent.h"
 #include "yumStateStore.h"
+#include "yumGPS.h"
 
 using namespace std;
 
@@ -74,6 +75,7 @@ LivingLifePage *HetuwMod::livingLifePage;
 LiveObject *HetuwMod::ourLiveObject = NULL;
 
 static yumStateStore stateStore("yumstate.dat");
+static yumGPS gps;
 
 bool HetuwMod::bDrawHelp;
 
@@ -110,6 +112,7 @@ unsigned char HetuwMod::charKey_FindYum = 'y';
 unsigned char HetuwMod::charKey_HidePlayers = 254;
 unsigned char HetuwMod::charKey_ShowGrid = 'k';
 unsigned char HetuwMod::charKey_MakePhoto = 254;
+unsigned char HetuwMod::charKey_ShowGPSStatus = '\\';
 
 unsigned char HetuwMod::charKey_CreateHome = 'r';
 unsigned char HetuwMod::charKey_FixCamera = 'f';
@@ -248,6 +251,7 @@ float HetuwMod::sayDelay = 2.1;
 int *HetuwMod::becomesFoodID;
 SimpleVector<int> HetuwMod::yummyFoodChain;
 bool HetuwMod::bDrawYum = false;
+bool HetuwMod::bDrawGPSStatus = false;
 
 double *HetuwMod::objectDrawScale = NULL;
 float HetuwMod::colorRainbowFast[3];
@@ -258,6 +262,7 @@ bool HetuwMod::bHoldDownTo_FixCamera = true;
 bool HetuwMod::bHoldDownTo_XRay = true;
 bool HetuwMod::bHoldDownTo_FindYum = true;
 bool HetuwMod::bHoldDownTo_ShowGrid = true;
+bool HetuwMod::bHoldDownTo_ShowGPSStatus = true;
 
 bool HetuwMod::b_drawYumColor = false;
 bool HetuwMod::b_drawYumPulsate = true;
@@ -396,6 +401,7 @@ void HetuwMod::init() {
 
 	cordOffset = { 0, 0 };
 	addHomeLocation( 0, 0, hpt_birth ); // add birth location
+	addHomeLocation( 0, 0, hpt_gps ); // add GPS entry
 
 	initClosedDoorIDs();
 
@@ -813,6 +819,7 @@ void HetuwMod::initSettings() {
 	yumConfig::registerSetting("key_findyum", charKey_FindYum);
 	yumConfig::registerSetting("key_hideplayers", charKey_HidePlayers);
 	yumConfig::registerSetting("key_showgrid", charKey_ShowGrid);
+	yumConfig::registerSetting("key_show_gps_status", charKey_ShowGPSStatus);
 
 	yumConfig::registerSetting("key_confirmexit", charKey_ConfirmExit, {preComment: "\n"});
 
@@ -857,6 +864,7 @@ void HetuwMod::initSettings() {
 	yumConfig::registerSetting("keep_button_pressed_to_fixcamera", bHoldDownTo_FixCamera, {preComment: "\n"});
 	yumConfig::registerSetting("keep_button_pressed_to_findyum", bHoldDownTo_FindYum);
 	yumConfig::registerSetting("keep_button_pressed_to_showgrid", bHoldDownTo_ShowGrid);
+	yumConfig::registerSetting("keep_button_pressed_to_showgpsstatus", bHoldDownTo_ShowGPSStatus);
 
 	yumConfig::registerSetting("keep_button_pressed_to_xray", bHoldDownTo_XRay, {preComment: "\n"});
 	yumConfig::registerScaledSetting("xray_opacity", xRayOpacity, 10, {postComment: " // how visible objects should be, can be 0 - 10"});
@@ -898,6 +906,14 @@ void HetuwMod::initSettings() {
 
 	yumConfig::registerSetting("auto_die_unless", defaultAutoDieOptions, {preComment: "\n// comma-separated auto /DIE options to pre-select on startup\n// (example: ARCTIC,JUNGLE,DESERT,MALE)\n"});
 	yumConfig::registerSetting("auto_die_faster", autoDieFaster, {postComment: " // auto-die repeatedly instead of waiting on the rebirth choice screen"});
+
+	if (!isAHAP) {
+		yumConfig::registerSetting("gps_enabled", yumGPS::cfgEnabled, {preComment: "\n"});
+		yumConfig::registerSetting("gps_scan_rate", yumGPS::cfgScanRate, {postComment: " // how often to scan for statues (higher = faster scanning but more lag potential)"});
+	} else {
+		// our known statue coords are only relevant in OHOL
+		yumGPS::cfgEnabled = false;
+	}
 
 	const char *experimentInstructions =
 		"\n"
@@ -965,6 +981,12 @@ static void shuffle(vector<T> &vec) {
 void HetuwMod::initOnBirth() { // will be called from LivingLifePage.cpp
 	ourLiveObject = livingLifePage->getOurLiveObject();
 
+	gps.onNewLife(livingLifePage);
+	// Disable GPS in tutorial or non-main-server
+	if (livingLifePage->getTutorialNumber() > 0 || !connectedToMainServer) {
+		gps.disable();
+	}
+
 	currentEmote = -1;
 	lastSpecialEmote = 0;
 
@@ -984,6 +1006,7 @@ void HetuwMod::initOnBirth() { // will be called from LivingLifePage.cpp
 
 	cordOffset = { 0, 0 };
 	addHomeLocation( 0, 0, hpt_birth ); // add birth location
+	addHomeLocation( 0, 0, hpt_gps ); // add GPS entry
 
 	bTeachLanguage = false;
 	teachLanguageCount = 0;
@@ -1010,31 +1033,74 @@ void HetuwMod::initOnBirth() { // will be called from LivingLifePage.cpp
 
 	stateStore.read();
 
+	// invalidate all life.* fields if life.id doesn't match
 	int stateStoreLifeID = -1;
-	stateStore.get("life_id", stateStoreLifeID);
-	if (stateStoreLifeID != ourLiveObject->id) {
-		stateStore.clearAll();
-		stateStore.push("life_id", ourLiveObject->id);
-	} else {
-		std::string key;
-		while (stateStore.nextField(key)) {
-			if (key == "meh") {
+	stateStore.get("life.id", stateStoreLifeID);
+	bool lifeChanged = stateStoreLifeID != ourLiveObject->id;
+
+	std::string key;
+	while (stateStore.nextField(key)) {
+		if (key.find("life.") == 0) {
+			if (lifeChanged) continue;
+
+			if (key == "life.meh") {
 				int objID;
 				while (stateStore.get(objID)) {
 					if (objID < 0 || objID >= maxObjects) continue;
 					yummyFoodChain.push_back(objID);
 				}
-			} else if (key == "coords") {
+			} else if (key == "life.coords") {
 				loadHomeLocations();
-			} else if (key == "search") {
+			} else if (key == "life.search") {
 				std::string word;
 				while (stateStore.get(word)) {
 					addSearchWord(word.c_str());
 				}
 				setSearchArray();
+			} else if (key.find("life.gps.") == 0) {
+				gps.load(stateStore, key);
 			}
+		} else if (key.find("gps.") == 0) {
+			gps.load(stateStore, key);
 		}
 	}
+
+	if (lifeChanged) {
+		stateStore.clearPrefix("life.");
+		stateStore.push("life.id", ourLiveObject->id);
+	}
+
+	// Convert all saved GPS coords to global homePos entries
+	for (const auto &coord : gps.getSavedCoordinates()) {
+		// ... but only if it's not already there
+		bool exists = false;
+		for (const auto &hp : homePosStack) {
+			if (hp->type == hpt_custom && hp->c == coord.name) {
+				exists = true;
+				break;
+			}
+		}
+		if (exists) continue;
+		addHomeLocation(coord.coords.first, coord.coords.second, hpt_custom, coord.name, -1, true);
+	}
+
+	// Register any saved custom homePos entries with GPS
+	for (const auto &hp : homePosStack) {
+		if (hp->type == hpt_custom && !hp->isGlobal) {
+			gps.addSavedCoordinate(hp->c, hp->x, hp->y);
+		}
+	}
+}
+
+void HetuwMod::onDonkeyTown() {
+	gps.disable();
+}
+
+void HetuwMod::updateStateStore() {
+	storeHomeLocations();
+	storeSearchList();
+	storeFoodChain();
+	gps.save(stateStore);
 }
 
 void HetuwMod::initOnServerJoin() { // will be called from LivingLifePage.cpp and hetuwmod.cpp
@@ -1137,9 +1203,9 @@ bool HetuwMod::charArrEqualsCharArr(const char *a, const char *b) {
 }
 
 void HetuwMod::storeSearchList() {
-	stateStore.clear("search");
+	stateStore.clear("life.search");
 	for (unsigned i=0; i<searchWordList.size(); i++) {
-		stateStore.push("search", searchWordList[i]);
+		stateStore.push("life.search", searchWordList[i]);
 	}
 }
 
@@ -1444,6 +1510,8 @@ void HetuwMod::livingLifeStep() {
 
 	colorRainbow->step();
 
+	gps.step();
+
 	if (stepCount % 50 == 0) {
 		updateMap();
 	}
@@ -1507,6 +1575,15 @@ void HetuwMod::livingLifeStep() {
 
 	autoNameBB();
 
+	// Periodically (fairly frequently, but expected to be cheap) update state store
+	// so that we don't have to make every feature notify us when its state changes.
+	if (stepCount % 8 == 0 && !stateStore.isReading()) {
+		updateStateStore();
+	}
+
+	// Write every frame if anything has changed. This allows us to explicitly
+	// save data that we really need to persist immediately in addition to the
+	// above periodic updates.
 	if (stateStore.hasChanged()) {
 		stateStore.write();
 	}
@@ -1705,6 +1782,23 @@ void HetuwMod::decodeDigits(char *msg) {
 	msg[j] = '\0';
 }
 
+bool HetuwMod::tryHandleCommand(const char *command) {
+	// Check for /GPS command (case insensitive)
+	if (strncasecmp(command, "/GPS", 4) == 0) {
+		// Must be exactly "/GPS" or "/GPS "
+		if (command[4] == '\0' || command[4] == ' ') {
+			gps.onGPSCommand();
+			return true;
+		}
+	}
+
+	return false; // Not handled
+}
+
+void HetuwMod::onLocalChat(int playerID, const char *message) {
+	gps.onLocalChat(playerID, message);
+}
+
 void HetuwMod::teachLanguage() {
 	double curTime = game_getCurrentTime();
 	if (curTime-timeLastLanguage < 2.1) return;
@@ -1752,7 +1846,8 @@ homeTypeName homeTypeNames[] = {
 	{ HetuwMod::hpt_babygirl, "babygirl" },
 	{ HetuwMod::hpt_expert, "expert" },
 	{ HetuwMod::hpt_rocket, "rocket" },
-	{ HetuwMod::hpt_plane, "plane" }
+	{ HetuwMod::hpt_plane, "plane" },
+	{ HetuwMod::hpt_gps, "gps" }
 };
 
 const char *HetuwMod::getHomeTypeName(homePosType type) {
@@ -1824,12 +1919,15 @@ void HetuwMod::logHomeLocation(HomePos* hp) {
 	data = data + "Y: " + to_string(hp->y);
 	if (hp->type == hpt_custom) data = data + hetuwLogSeperator + hp->c;
 	if (hp->text.length() > 0) data = data + hetuwLogSeperator + hp->text;
+	if (hp->isGlobal) data = data + hetuwLogSeperator + "global";
 
 	writeLineToLogs("coord", data);
 }
 
 void HetuwMod::loadHomeLocations() {
-	homePosStack.clear();
+	// preserve birth and gps coordinates
+	homePosStack.resize(2);
+
 	stateStore.get(cordOffset.x);
 	stateStore.get(cordOffset.y);
 	int x, y, personID;
@@ -1842,28 +1940,30 @@ void HetuwMod::loadHomeLocations() {
 		stateStore.get(personID);
 		if (!stateStore.get(text)) break;
 		int type = getHomeTypeFromName(typeName.c_str());
+		// skip birth/gps saved in older versions
+		if (type == hpt_birth || type == hpt_gps) continue;
 		addHomeLocation(x, y, (homePosType)type, c[0], personID);
 	}
 }
 
 void HetuwMod::storeHomeLocations() {
-	if (stateStore.isReading()) return;
-
-	stateStore.clear("coords");
-	stateStore.push("coords", cordOffset.x);
-	stateStore.push("coords", cordOffset.y);
+	stateStore.clear("life.coords");
+	stateStore.push("life.coords", cordOffset.x);
+	stateStore.push("life.coords", cordOffset.y);
 	for (unsigned i=0; i<homePosStack.size(); i++) {
-		stateStore.push("coords", homePosStack[i]->x);
-		stateStore.push("coords", homePosStack[i]->y);
-		stateStore.push("coords", getHomeTypeName(homePosStack[i]->type));
+		if (homePosStack[i]->type == hpt_birth || homePosStack[i]->type == hpt_gps) continue;
+		if (homePosStack[i]->isGlobal) continue;
+		stateStore.push("life.coords", homePosStack[i]->x);
+		stateStore.push("life.coords", homePosStack[i]->y);
+		stateStore.push("life.coords", getHomeTypeName(homePosStack[i]->type));
 		char c[2] = {homePosStack[i]->c, 0};
-		stateStore.push("coords", c);
-		stateStore.push("coords", homePosStack[i]->personID);
-		stateStore.push("coords", homePosStack[i]->text.c_str());
+		stateStore.push("life.coords", c);
+		stateStore.push("life.coords", homePosStack[i]->personID);
+		stateStore.push("life.coords", homePosStack[i]->text.c_str());
 	}
 }
 
-void HetuwMod::addHomeLocation( int x, int y, homePosType type, char c, int personID ) {
+void HetuwMod::addHomeLocation( int x, int y, homePosType type, char c, int personID, bool isGlobal ) {
 	if (personID >= 0 && type != hpt_expert) {
 		for (unsigned i=0; i<homePosStack.size(); i++) {
 			if (homePosStack[i]->personID == personID && homePosStack[i]->type == type) {
@@ -1876,32 +1976,33 @@ void HetuwMod::addHomeLocation( int x, int y, homePosType type, char c, int pers
 
 	int id = -1;
 	if (type == hpt_custom) {
-		bool cordsAlreadyExist = false;
+		// check for existing coord with this character
 		for (unsigned i=0; i<homePosStack.size(); i++) {
 			if (c == homePosStack[i]->c) {
 				id = i;
-			}
-			if (homePosStack[i]->x == x && homePosStack[i]->y == y) {
-				cordsAlreadyExist = true;
+				break;
 			}
 		}
-		if (cordsAlreadyExist) return;
 		if (id >= 0) { // overwrite existing
 			homePosStack[id]->x = x;
 			homePosStack[id]->y = y;
-			storeHomeLocations();
+			homePosStack[id]->isGlobal = isGlobal;
 			logHomeLocation(homePosStack[id]);
+			if (!isGlobal) gps.addSavedCoordinate(c, x, y);
 			return;
 		}
 	}
- 
-	for (unsigned i=0; i<homePosStack.size(); i++) {
-		if (homePosStack[i]->x == x && homePosStack[i]->y == y) {
-			id = i;
-			break;
+
+	// check for duplicate coordinates for most types
+	if (type != hpt_gps && type != hpt_birth && type != hpt_custom) {
+		for (unsigned i=0; i<homePosStack.size(); i++) {
+			if (homePosStack[i]->x == x && homePosStack[i]->y == y) {
+				id = i;
+				break;
+			}
 		}
+		if (id >= 0) return; // already exists
 	}
-	if (id >= 0) return; // home already exists
 
 	HomePos *p = new HomePos();
 	p->x = x;
@@ -1909,9 +2010,12 @@ void HetuwMod::addHomeLocation( int x, int y, homePosType type, char c, int pers
 	p->type = type;
 	p->c = c;
 	p->personID = personID;
+	p->isGlobal = isGlobal;
 	homePosStack.push_back(p);
-	storeHomeLocations();
 	logHomeLocation(p);
+	if (type == hpt_custom) {
+		if (!isGlobal) gps.addSavedCoordinate(c, x, y);
+	}
 }
 
 void HetuwMod::setHomeLocationText(int x, int y, homePosType type, char *text) {
@@ -2061,10 +2165,10 @@ int HetuwMod::becomesFood( int objectID, int depth ) {
 }
 
 void HetuwMod::storeFoodChain() {
-	stateStore.clear("meh");
+	stateStore.clear("life.meh");
 	for (int i = 0; i < yummyFoodChain.size(); i++) {
 		int objID = yummyFoodChain.getElementDirect(i);
-		stateStore.push("meh", objID);
+		stateStore.push("life.meh", objID);
 	}
 }
 
@@ -2084,7 +2188,7 @@ void HetuwMod::foodIsMeh(ObjectRecord *obj) {
 	int objID = getObjYumID(obj);
 	if (!isYummy(objID)) return;
 	yummyFoodChain.push_back(objID);
-	storeFoodChain();
+	storeFoodChain(); // store immediately since we won't learn this again
 }
 
 void HetuwMod::onJustAteFood(ObjectRecord *food) {
@@ -2097,7 +2201,7 @@ void HetuwMod::onJustAteFood(ObjectRecord *food) {
 	}
 	if (!isYummy(objID)) return;
 	yummyFoodChain.push_back(objID);
-	storeFoodChain();
+	storeFoodChain(); // store immediately since we won't learn this again
 }
 
 void HetuwMod::onCraving(int foodID) {
@@ -2117,7 +2221,6 @@ void HetuwMod::onCraving(int foodID) {
 			break;
 		}
 	}
-	storeFoodChain();
 }
 
 void HetuwMod::livingLifeDraw() {
@@ -2578,9 +2681,24 @@ void HetuwMod::drawInputString() {
 	livingLifePage->hetuwDrawScaledHandwritingFont( sBufA, drawPosA, guiScale, alignCenter );
 }
 
+void HetuwMod::resolveGlobalCoords() {
+	int absX, absY;
+	bool hasX = gps.getAbsoluteX(absX);
+	bool hasY = gps.getAbsoluteY(absY);
+
+	if (!hasX || !hasY) return;
+
+	for (size_t i = 0; i < homePosStack.size(); i++) {
+		if (homePosStack[i]->isGlobal) {
+			homePosStack[i]->x -= absX;
+			homePosStack[i]->y -= absY;
+			homePosStack[i]->isGlobal = false;
+		}
+	}
+}
+
 void HetuwMod::createCordsDrawStr() {
 	float biggestTextWidth = 0;
-	char sBufA[64];
 	int homeCount = 0;
 	int bellCount = 0;
 	int apocCount = 0;
@@ -2590,8 +2708,6 @@ void HetuwMod::createCordsDrawStr() {
 	int expertCount = 0;
 	int rocketCount = 0;
 	int flightCount = 0;
-
-	// TODO: Factor out all the generic coord types
 
 	for (unsigned i=0; i<homePosStack.size(); i++) {
 		double dx = double(homePosStack[i]->x) - ourLiveObject->currentPos.x;
@@ -2630,69 +2746,92 @@ void HetuwMod::createCordsDrawStr() {
 		}
 		std::string eta = ss.str();
 
+		ss.str("");
+
+		int x = homePosStack[i]->x+cordOffset.x;
+		int y = homePosStack[i]->y+cordOffset.y;
+
+		auto countedCoord = [&](const char *label, int &count) {
+			ss << label << " " << char('A' + count) << " " << x << " " << y << eta;
+			count++;
+		};
 
 		switch (homePosStack[i]->type) {
-			case hpt_custom:
-				snprintf( sBufA, sizeof(sBufA), "%c %d %d%s", homePosStack[i]->c, homePosStack[i]->x+cordOffset.x, homePosStack[i]->y+cordOffset.y, eta.c_str() );
+			case hpt_custom: {
+					int absY;
+					bool hasY = gps.getAbsoluteY(absY);
+
+					if (!homePosStack[i]->isGlobal) {
+						ss << homePosStack[i]->c << " " << x << " " << y << eta;
+					} else if (hasY) {
+						ss << homePosStack[i]->c << " - " << y - absY;
+					} else {
+						ss << homePosStack[i]->c << " - -";
+					}
+				}
 				break;
 			case hpt_birth:
-				snprintf( sBufA, sizeof(sBufA), "BIRTH %d %d%s", homePosStack[i]->x+cordOffset.x, homePosStack[i]->y+cordOffset.y, eta.c_str() );
+				ss << "BIRTH " << x << " " << y << eta;
 				break;
 			case hpt_home:
-				snprintf( sBufA, sizeof(sBufA), "HOME %c %d %d%s", (char)(homeCount+65), homePosStack[i]->x+cordOffset.x, homePosStack[i]->y+cordOffset.y, eta.c_str() );
-				homeCount++;
+				countedCoord("HOME", homeCount);
 				break;
 			case hpt_bell:
-				snprintf( sBufA, sizeof(sBufA), "BELL %c %d %d%s", (char)(bellCount+65), homePosStack[i]->x+cordOffset.x, homePosStack[i]->y+cordOffset.y, eta.c_str() );
-				bellCount++;
+				countedCoord("BELL", bellCount);
 				break;
 			case hpt_apoc:
-				snprintf( sBufA, sizeof(sBufA), "APOC %c %d %d%s", (char)(apocCount+65), homePosStack[i]->x+cordOffset.x, homePosStack[i]->y+cordOffset.y, eta.c_str() );
-				apocCount++;
+				countedCoord("APOC", apocCount);
 				break;
 			case hpt_tarr:
-				// if (tarrCount > 0) break; // make sure it doesnt add more than 1 tarr monument to the list - saftey feature because of bug - idk what causes the bug
-				snprintf( sBufA, sizeof(sBufA), "TARR %c %d %d%s", (char)(tarrCount+65), homePosStack[i]->x+cordOffset.x, homePosStack[i]->y+cordOffset.y, eta.c_str() );
-				tarrCount++;
+				countedCoord("TARR", tarrCount);
 				break;
 			case hpt_map: {
-				string mapName = string("MAP ")+(char)(mapCount+65);
 				if (homePosStack[i]->text.length() > 0) {
-					if (homePosStack[i]->text.length() > 12) {
-						mapName = homePosStack[i]->text.substr(0, 12);
-					} else mapName = homePosStack[i]->text;
+					ss << homePosStack[i]->text.substr(0, 12) << " " << x << " " << y << eta;
+				} else {
+					countedCoord("MAP", mapCount);
 				}
-				snprintf( sBufA, sizeof(sBufA), "%s %d %d%s", mapName.c_str(), homePosStack[i]->x+cordOffset.x, homePosStack[i]->y+cordOffset.y, eta.c_str() );
-				mapCount++;
 				break; }
 			case hpt_baby:
-				snprintf( sBufA, sizeof(sBufA), "BABY %c %d %d%s", (char)(babyCount+65), homePosStack[i]->x+cordOffset.x, homePosStack[i]->y+cordOffset.y, eta.c_str() );
-				babyCount++;
+				countedCoord("BABY", babyCount);
 				break;
 			case hpt_babyboy:
-				snprintf( sBufA, sizeof(sBufA), "BABY BOY %c %d %d%s", (char)(babyCount+65), homePosStack[i]->x+cordOffset.x, homePosStack[i]->y+cordOffset.y, eta.c_str() );
-				babyCount++;
+				countedCoord("BABY BOY", babyCount);
 				break;
 			case hpt_babygirl:
-				snprintf( sBufA, sizeof(sBufA), "BABY GIRL %c %d %d%s", (char)(babyCount+65), homePosStack[i]->x+cordOffset.x, homePosStack[i]->y+cordOffset.y, eta.c_str() );
-				babyCount++;
+				countedCoord("BABY GIRL", babyCount);
 				break;
 			case hpt_expert:
-				snprintf( sBufA, sizeof(sBufA), "EXPERT %c %d %d%s", (char)(expertCount+65), homePosStack[i]->x+cordOffset.x, homePosStack[i]->y+cordOffset.y, eta.c_str() );
-				expertCount++;
+				countedCoord("EXPERT", expertCount);
 				break;
 			case hpt_rocket:
-				snprintf( sBufA, sizeof(sBufA), "ROCKET %c %d %d%s", (char)(rocketCount+65), homePosStack[i]->x+cordOffset.x, homePosStack[i]->y+cordOffset.y, eta.c_str() );
-				rocketCount++;
+				countedCoord("ROCKET", rocketCount);
 				break;
 			case hpt_plane:
-				snprintf( sBufA, sizeof(sBufA), "PLANE %c %d %d%s", (char)(flightCount+65), homePosStack[i]->x+cordOffset.x, homePosStack[i]->y+cordOffset.y, eta.c_str() );
-				flightCount++;
+				countedCoord("PLANE", flightCount);
 				break;
+			case hpt_gps: {
+				int absX, absY;
+				bool hasX = gps.getAbsoluteX(absX);
+				bool hasY = gps.getAbsoluteY(absY);
+				// these are the coords of the birth position, but we want this
+				// to point to 0,0 so clicking on it gives global coords for
+				// other locations.
+				absX *= -1;
+				absY *= -1;
+				if (hasX && hasY) {
+					ss << "GPS " << absX+cordOffset.x << " " << absY+cordOffset.y;
+				} else if (hasY) {
+					ss << "GPS - " << absY+cordOffset.y;
+				} else {
+					ss << "GPS - -";
+				}
+				break;
+			}
 		}
-		homePosStack[i]->drawStr = string(sBufA);
+		homePosStack[i]->drawStr = ss.str();
 
-		float textWidth = livingLifePage->hetuwMeasureScaledHandwritingFont( sBufA, guiScale );
+		float textWidth = livingLifePage->hetuwMeasureScaledHandwritingFont( homePosStack[i]->drawStr.c_str(), guiScale );
 		if (textWidth > biggestTextWidth) biggestTextWidth = textWidth;
 	}
 	longestCordsTextWidth = biggestTextWidth;
@@ -2732,6 +2871,10 @@ void HetuwMod::setDrawColorToCoordType(homePosType type) {
 		case hpt_rocket:
 		case hpt_plane:
 			setDrawColor( 1.0, 0.8, 0.2, 1.0 );
+			break;
+		case hpt_gps:
+			setDrawColor( 1.0, 0.2, 1.0, 1.0 );
+			break;
 	}
 }
 
@@ -2741,6 +2884,7 @@ void HetuwMod::drawHomeCords() {
 	int mouseX, mouseY;
 	livingLifePage->hetuwGetMouseXY( mouseX, mouseY );
 	
+	resolveGlobalCoords();
 	createCordsDrawStr();
 
 	doublePair drawPosA = lastScreenViewCenter;
@@ -2756,9 +2900,23 @@ void HetuwMod::drawHomeCords() {
 	setDrawColor( 0, 0, 0, 0.8 );
 	drawRect( drawPosB, recWidth + 6*guiScale, recHeight + 14*guiScale );
 
-	for (unsigned i=0; i<homePosStack.size(); i++) {
-		if (homePosStack[i]->hasCustomColor) hSetDrawColor(homePosStack[i]->rgba);
-		else setDrawColorToCoordType(homePosStack[i]->type);
+	// remove GPS-related coords if it's disabled
+	if (!gps.isEnabled()) {
+		for (size_t i = 0; i < homePosStack.size(); i++) {
+			if (homePosStack[i]->type == hpt_gps || homePosStack[i]->isGlobal) {
+				homePosStack.erase(homePosStack.begin() + i);
+			}
+		}
+	}
+
+	for (size_t i = 0; i < homePosStack.size(); i++) {
+		if (homePosStack[i]->hasCustomColor) {
+			hSetDrawColor(homePosStack[i]->rgba);
+		} else if (homePosStack[i]->type == hpt_custom && homePosStack[i]->isGlobal) {
+			setDrawColor( 0.6, 0.6, 0.6, 1.0 );
+		} else {
+			setDrawColorToCoordType(homePosStack[i]->type);
+		}
 
 		livingLifePage->hetuwDrawScaledHandwritingFont( homePosStack[i]->drawStr.c_str(), drawPosA, guiScale );
 
@@ -2773,6 +2931,14 @@ void HetuwMod::drawHomeCords() {
 				hDrawRect( homePosStack[i]->drawStartPos, homePosStack[i]->drawEndPos );
 			}
 		}
+	}
+
+	// Display GPS status when key is held
+	if (bDrawGPSStatus) {
+		std::string status = gps.getStatus();
+		drawPosA.y -= 12*guiScale;
+		setDrawColor( 1, 1, 0, 1 ); // Yellow color for status
+		livingLifePage->hetuwDrawScaledHandwritingFont( status.c_str(), drawPosA, guiScale );
 	}
 }
 
@@ -3316,7 +3482,6 @@ bool HetuwMod::livingLifeKeyDown(unsigned char inASCII) {
 			if (strSearch.size() < 1) return true;
 			addSearchWord(strSearch.c_str());
 			setSearchArray();
-			storeSearchList();
 			//printf("hetuw strSearch: %s\n", strSearch.c_str());
 		} else { // not enter
 			addToTempInputString( toupper(inASCII), false, 8);
@@ -3410,7 +3575,6 @@ bool HetuwMod::livingLifeKeyDown(unsigned char inASCII) {
 	if (!commandKey && shiftKey && isCharKey(inASCII, charKey_ShowCords)) {
 		cordOffset.x = -ourLiveObject->xd;
 		cordOffset.y = -ourLiveObject->yd;
-		storeHomeLocations();
 		return true;
 	}
 	if (!commandKey && isCharKey(inASCII, charKey_ShowDeathMessages)) {
@@ -3443,7 +3607,6 @@ bool HetuwMod::livingLifeKeyDown(unsigned char inASCII) {
 	}
 	if (!commandKey && shiftKey && isCharKey(inASCII, charKey_Search)) {
 		if (searchWordList.size() > 0) searchWordListDelete[searchWordList.size()-1] = true;
-		storeSearchList();
 		return true;
 	}
 	if (!commandKey && isCharKey(inASCII, charKey_FixCamera)) {
@@ -3477,6 +3640,11 @@ bool HetuwMod::livingLifeKeyDown(unsigned char inASCII) {
 	if (!commandKey && !shiftKey && isCharKey(inASCII, charKey_ShowGrid)) {
 		if (bHoldDownTo_ShowGrid) bDrawGrid = true;
 		else bDrawGrid = !bDrawGrid;
+		return true;
+	}
+	if (!commandKey && isCharKey(inASCII, charKey_ShowGPSStatus)) {
+		if (bHoldDownTo_ShowGPSStatus) bDrawGPSStatus = true;
+		else bDrawGPSStatus = !bDrawGPSStatus;
 		return true;
 	}
 	if (!commandKey && isCharKey(inASCII, charKey_MakePhoto)) {
@@ -3709,6 +3877,12 @@ bool HetuwMod::livingLifeKeyUp(unsigned char inASCII) {
 		}
 		r = true;
 	}
+	if (!commandKey && isCharKey(inASCII, charKey_ShowGPSStatus)) {
+		if (bHoldDownTo_ShowGPSStatus) {
+			bDrawGPSStatus = false;
+		}
+		r = true;
+	}
 
 	if (inASCII == charKey_MapZoomIn || inASCII == toupper(charKey_MapZoomIn)) {
 		mapZoomInKeyDown = false;
@@ -3783,12 +3957,32 @@ bool HetuwMod::livingLifePageMouseDown( float mX, float mY ) {
 			if (mX >= homePosStack[i]->drawStartPos.x && mX <= homePosStack[i]->drawEndPos.x) {
 				if (mY >= homePosStack[i]->drawStartPos.y && mY <= homePosStack[i]->drawEndPos.y) {
 					if (isCommandKeyDown()) {
+						auto hp = homePosStack[i];
+						// Prevent deletion of birth and GPS coordinates
+						if (hp->type == hpt_birth || hp->type == hpt_gps) {
+							return true;
+						}
+						if (hp->type == hpt_custom) {
+							gps.removeSavedCoordinate(hp->c);
+						}
 						homePosStack.erase(homePosStack.begin()+i);
 					} else {
-						cordOffset.x = -homePosStack[i]->x;
-						cordOffset.y = -homePosStack[i]->y;
+						if (homePosStack[i]->type == hpt_gps) {
+							// GPS uses live coordinates from tracker
+							int absX, absY;
+							if (gps.getAbsoluteX(absX) && gps.getAbsoluteY(absY)) {
+								// inverted because these are global coords of the birth pos,
+								// not birth-relative coords to global 0,0
+								cordOffset.x = absX;
+								cordOffset.y = absY;
+							}
+						} else if (homePosStack[i]->isGlobal) {
+							/* don't touch offsets, we don't know where these coords are yet */
+						} else {
+							cordOffset.x = -homePosStack[i]->x;
+							cordOffset.y = -homePosStack[i]->y;
+						}
 					}
-					storeHomeLocations();
 					return true;
 				}
 			}
@@ -4598,6 +4792,10 @@ void HetuwMod::onCurseUpdate(LiveObject* o) {
 	HetuwMod::writeLineToLogs(type, data);
 }
 
+void HetuwMod::onStatueResponse(int birthRelativeX, int birthRelativeY, int displayID, const char *name, const char *clothingSet, const char *finalWords) {
+	gps.onStatueResponse(birthRelativeX, birthRelativeY, displayID, name, clothingSet, finalWords);
+}
+
 void HetuwMod::drawDeathMessages() {
 	if ( deathMessages.size() <= 0 ) return;
 
@@ -4900,7 +5098,6 @@ void HetuwMod::drawSearchList() {
 			searchWordListDelete.erase(searchWordListDelete.begin()+i);
 			i--;
 			setSearchArray();
-			storeSearchList();
 		}
 	}
 	if (searchWordList.size() == 0) {

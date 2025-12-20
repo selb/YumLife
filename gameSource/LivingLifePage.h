@@ -678,6 +678,7 @@ class LivingLifePage : public GamePage, public ActionListener {
         void applyReceiveOffset( int *inX, int *inY );
 		public: // hetuw mod
 		bool hetuwUsesGlobalOffset();
+		int getTutorialNumber() { return mTutorialNumber; }
         // converts local coors for sending back to server
         int sendX( int inX );
         int sendY( int inY );

@@ -15141,6 +15141,7 @@ void LivingLifePage::step() {
                 if( numLines > 1 ) {
                     if (NULL != strstr(lines[1], "WELCOME_TO_DONKEYTOWN")) {
                         yumGotDonkeyTownMessage = true;
+                        HetuwMod::onDonkeyTown();
                     }
                     displayGlobalMessage( lines[1] );
                     HetuwMod::writeLineToLogs("globalMessage", string(lines[1]));
@@ -16116,7 +16117,8 @@ void LivingLifePage::step() {
 
                 GridPos thisPos = { posX, posY };
 
-                
+                HetuwMod::onStatueResponse(posX, posY, displayID, nameBuffer, clothingBuffer, finalWordsBuffer);
+
                 int nameLen = strlen( nameBuffer );
                 for( int i=0; i<nameLen; i++ ) {
                     if( nameBuffer[i] == '_' ) {
@@ -21050,11 +21052,13 @@ void LivingLifePage::step() {
                                         existing->currentSpeech = NULL;
                                         }
                                     
-                                    existing->currentSpeech = 
+                                    existing->currentSpeech =
                                         stringDuplicate( &( firstSpace[1] ) );
                                     HetuwMod::decodeDigits( existing->currentSpeech );  // YumLife mod
+
+                                    HetuwMod::onLocalChat( id, existing->currentSpeech );
                                 }
-                                
+
 
                                 double curTime = game_getCurrentTime();
                                 
@@ -27883,6 +27887,9 @@ void LivingLifePage::keyDown( unsigned char inASCII ) {
                                         setSignal( "tutorial" );
                                         }
                                     }
+                                }
+                            else if ( HetuwMod::tryHandleCommand( typedText ) ) {
+                                // Command handled by HetuwMod
                                 }
                             else {
                                 // filter hints

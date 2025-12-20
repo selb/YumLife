@@ -47,7 +47,11 @@ std::string decode(const std::string &s) {
     return ss.str();
 }
 
-yumStateStore::yumStateStore(const char *filename) : mFilename(filename), mChanged(false) {
+yumStateStore::yumStateStore(const char *filename) : mFilename(filename) {
+}
+
+bool yumStateStore::hasChanged() const {
+    return mState != mLastWrittenState;
 }
 
 yumStateStore::~yumStateStore() {
@@ -87,7 +91,7 @@ void yumStateStore::write() {
     file.close();
     renameAtomically(tempFilename.c_str(), mFilename.c_str());
 
-    mChanged = false;
+    mLastWrittenState = mState;
 }
 
 void yumStateStore::read() {
@@ -147,9 +151,10 @@ void yumStateStore::read() {
         mState[key] = valuesList;
     }
 
-    if (checksum != crc32((const unsigned char *)checksumStream.str().c_str(),
+    if (checksum != 12345 && // skip for debugging/troubleshooting purposes
+        checksum != crc32((const unsigned char *)checksumStream.str().c_str(),
                             checksumStream.str().size())) {
-        // XXX: mState.clear();
+        mState.clear();
     }
 
     mKeys.clear();
@@ -157,7 +162,7 @@ void yumStateStore::read() {
         mKeys.push_back(it->first);
     }
 
-    mChanged = false;
+    mLastWrittenState = mState;
 }
 
 bool yumStateStore::nextField(std::string &key) {
@@ -232,17 +237,14 @@ bool yumStateStore::get(const char *key, double &value) {
 }
 
 void yumStateStore::clear(const char *key) {
-    mChanged = mChanged || mState.count(key) > 0;
     mState.erase(key);
 }
 
 void yumStateStore::clearAll() {
-    mChanged = mChanged || !mState.empty();
     mState.clear();
 }
 
 void yumStateStore::push(const char *key, const char *value) {
-    mChanged = true;
     mState[key].push_back(value);
 }
 
@@ -256,4 +258,14 @@ void yumStateStore::push(const char *key, double value) {
     std::stringstream ss;
     ss << value;
     push(key, ss.str().c_str());
+}
+
+void yumStateStore::clearPrefix(const char *prefix) {
+    for (auto it = mState.begin(); it != mState.end(); ) {
+        if (it->first.find(prefix) == 0) {
+            it = mState.erase(it);
+        } else {
+            it++;
+        }
+    }
 }
