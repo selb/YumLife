@@ -27866,27 +27866,15 @@ void LivingLifePage::keyDown( unsigned char inASCII ) {
                                     addToBlacklist( firstSpace );
                                     }
                                 }
-                            else if( commandTyped( typedText, "/REBORN" ) ||
-                                     commandTyped( typedText, "/TUTORIAL" ) ) {
-                                // YumLife mod
-                                if ( computeCurrentAge( ourLiveObject ) < 2 ) {
-                                    char *message = autoSprintf( "DIE 0 0#" );
-                                    sendToServerSocket( message );
-                                    delete [] message;
-                                    }
-                                else {
-                                    if ( mServerSocketOld != -1 ) {
-                                        closeSocket( mServerSocketOld );
-                                        }
-                                    mServerSocketOld = mServerSocket;
-                                    mServerSocket = -1;
-                                    if( commandTyped( typedText, "/REBORN" ) ) {
-                                        setSignal( "reborn" );
-                                        }
-                                    else {
-                                        setSignal( "tutorial" );
-                                        }
-                                    }
+                            else if ( commandTyped( typedText, "/KILLME" ) ) {
+                                // YumLife mod: target self with currently held
+                                // item; if it's a weapon, unfollow first
+                                if ( ourLiveObject->holdingID > 0 && getObject( ourLiveObject->holdingID )->deadlyDistance > 0 ) {
+                                    sendToServerSocket( (char*)"UNFOL 0 0#" );
+                                }
+                                char killMessage[128] = "";
+                                snprintf( killMessage, sizeof(killMessage), "KILL %d %d %d#", ourLiveObject->xd, ourLiveObject->yd, ourLiveObject->id );
+                                sendToServerSocket( killMessage );
                                 }
                             else if ( HetuwMod::tryHandleCommand( typedText ) ) {
                                 // Command handled by HetuwMod
