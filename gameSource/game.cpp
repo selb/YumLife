@@ -3,12 +3,12 @@ int dataVersionNumber = 0;
 
 int binVersionNumber = versionNumber;
 
-const char *yumSubVersion = ".3";
+const char *yumSubVersion = "";
 // The last data version number released _before_ this client version. Make sure
 // to update this with every upstream versionNumber bump! Tracking this allows
 // us to accurately apply data updates when users "leapfrog" a data update with
 // a newer version of the client.
-int yumExpectedDataVersionNumber = 433;
+int yumExpectedDataVersionNumber = 435;
 
 // Note to modders:
 // Please use this tag to describe your client honestly and uniquely
