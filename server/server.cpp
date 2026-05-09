@@ -164,6 +164,9 @@ static int newPlayerFoodEatingBonus = 5;
 // first 10 hours of living
 static double newPlayerFoodBonusHalfLifeSeconds = 36000;
 
+// 20 hours
+static double accountUntrustedTotalLifeSeconds = 72000;
+
 
 
 static double indoorFoodDecrementSecondsBonus = 20.0;
@@ -706,6 +709,8 @@ typedef struct LiveObject {
         // for tracking old email after player has been deleted 
         // but is still on list
         char *origEmail;
+
+        char *twinCode;
 
         int id;
         
@@ -2090,7 +2095,7 @@ int getPlayerDisplayID( int inID ) {
 char isPlayerIgnoredForEvePlacement( int inID ) {
     LiveObject *o = getLiveObject( inID );
     if( o != NULL ) {
-        return ( o->curseStatus.curseLevel > 0 ) || o->isTutorial;
+        return ( o->curseStatus.curseLevel > 0 ) || o->isTutorial || o->isGhost;
         }
 
     // player id doesn't even exist
@@ -2594,6 +2599,9 @@ void quitCleanup() {
             }
         if( nextPlayer->origEmail != NULL  ) {
             delete [] nextPlayer->origEmail;
+            }
+        if( nextPlayer->twinCode != NULL  ) {
+            delete [] nextPlayer->twinCode;
             }
         if( nextPlayer->lastBabyEmail != NULL  ) {
             delete [] nextPlayer->lastBabyEmail;
@@ -3822,6 +3830,7 @@ static void restockPostWindowFamilies() {
         
         if( ! o->error &&
             ! o->isTutorial &&
+            ! o->isGhost &&
             o->curseStatus.curseLevel == 0 &&
             familyLineageEveIDsAfterEveWindow.getElementIndex( 
                 o->lineageEveID ) == -1 ) {
@@ -3891,6 +3900,7 @@ static void logFamilyCounts() {
                 
                 if( ! o->error &&
                     ! o->isTutorial &&
+                    ! o->isGhost &&
                     o->curseStatus.curseLevel == 0 &&
                     o->lineageEveID == lineageEveID ) {
                     
@@ -6466,6 +6476,7 @@ static LiveObject *getPlayerByEmail( char *inEmail ) {
 
 static int usePersonalCurses = 0;
 
+static char friendsOnlyMode = 0;
 
 
 
@@ -6481,6 +6492,17 @@ SimpleVector<char> newSpeechCurseFlags;
 SimpleVector<char*> newLocationSpeech;
 SimpleVector<ChangePosition> newLocationSpeechPos;
 
+
+
+static char isAccountUntrusted( LiveObject *inPlayerObject ) {
+    if( isUsingStatsServer() && 
+        ! inPlayerObject->lifeStats.error &&
+        ( inPlayerObject->lifeStats.lifeTotalSeconds <
+          accountUntrustedTotalLifeSeconds ) ) {
+        return true;
+        }
+    return false;
+    }
 
 
 
@@ -6811,7 +6833,9 @@ static void makePlayerSay( LiveObject *inPlayer, char *inToSay ) {
 
     if( isCurse ) {
         if( inPlayer->curseStatus.curseLevel == 0 &&
-            hasCurseToken( inPlayer->email ) ) {
+            hasCurseToken( inPlayer->email ) &&
+            ! isAccountUntrusted( inPlayer ) ) {
+            // no curse tokens for untrusted accounts
             inPlayer->curseTokenCount = 1;
             }
         else {
@@ -9224,6 +9248,9 @@ static char isEmailAliveButDisconnected( char *inEmail ) {
 
 
 
+
+
+
 static char isNewPlayer( LiveObject *inPlayerObject,
                          int inMinLives = -1, int inMinHours = -1 ) {
     
@@ -9247,6 +9274,86 @@ static char isNewPlayer( LiveObject *inPlayerObject,
 
 
 
+static void getFriendCoordsFromTwinCode( char *inTwinCode,
+                                         int  *outX,
+                                         int  *outY ) {
+    JenkinsRandomSource friendSource;
+
+    unsigned char *digest;
+
+    if( inTwinCode != NULL ) {
+        digest = computeRawSHA1Digest( inTwinCode );
+        }
+    else {
+        // if they didn't supply a twin code, send them all to the
+        // same location
+        digest = computeRawSHA1Digest( (char*)"twin code missing" );
+        }
+
+    
+    // generate seed from first 4 bytes of hashed twin code
+    friendSource.reseed( digest[0]
+                         |
+                         digest[1] << 8
+                         |
+                         digest[2] << 16
+                         |
+                         digest[3] << 24 );
+
+    // split map into 1,000,000x1,000,000 cells (each cell is 4000 wide)
+
+    int  cellX = friendSource.getRandomBoundedInt( -500000, +500000 );
+
+    // reseed with different bytes from digest befor picking y
+    // this uses 64 bits of entropy from the digest
+    // I'm not sure if this helps.
+    friendSource.reseed( digest[4]
+                         |
+                         digest[5] << 8
+                         |
+                         digest[6] << 16
+                         |
+                         digest[7] << 24 );
+
+    delete [] digest;
+
+    
+    int  cellY = friendSource.getRandomBoundedInt( -500000, +500000 );
+
+    // these are in +/- 2 billion
+    int centerX = cellX * 4000;
+    int centerY = cellY * 4000;
+
+    
+    // now wiggle deterministically by +/- 2000
+    // don't bother grabbing more bytes of entropy for this fine-grained
+    // wiggle, since we already used 64 bits for the coarse positioning
+
+    centerX += friendSource.getRandomBoundedInt( -2000, +2000 );
+    centerY += friendSource.getRandomBoundedInt( -2000, +2000 );
+
+    AppLog::infoF( "Generated coordinates (%d, %d) from twin code %s",
+                   centerX, centerY, inTwinCode );
+    *outX = centerX;
+    *outY = centerY;
+    }
+
+
+static char twinCodesEqual( char  *inCodeA,
+                            char  *inCodeB ) {
+
+    if( inCodeA == NULL
+        ||
+        inCodeB == NULL ) {
+        return ( inCodeA == inCodeB );
+        }
+
+    return ( strcmp( inCodeA, inCodeB ) == 0 );
+    }
+
+    
+
+
 // inAllowOrForceReconnect is 0 for forbidden reconnect, 1 to allow, 
 // 2 to require
 // returns ID of new player,
@@ -9259,6 +9366,7 @@ int processLoggedInPlayer( int inAllowOrForceReconnect,
                            CurseStatus inCurseStatus,
                            PastLifeStats inLifeStats,
                            float inFitnessScore,
+                           char *inTwinCode = NULL,
                            // set to -2 to force Eve
                            int inForceParentID = -1,
                            int inForceDisplayID = -1,
@@ -9290,7 +9398,9 @@ int processLoggedInPlayer( int inAllowOrForceReconnect,
                 }
             }
         }
-    
+
+    friendsOnlyMode = SettingsManager::getIntSetting( "friendsOnlyMode",
+                                                      0 );
 
 
     // new behavior:
@@ -9450,6 +9560,10 @@ int processLoggedInPlayer( int inAllowOrForceReconnect,
         SettingsManager::getFloatSetting( "newPlayerFoodBonusHalfLifeSeconds",
                                           36000 );
 
+    accountUntrustedTotalLifeSeconds =
+        SettingsManager::getFloatSetting( "accountUntrustedTotalLifeSeconds",
+                                          72000 );
+
     babyBirthFoodDecrement = 
         SettingsManager::getIntSetting( "babyBirthFoodDecrement", 10 );
 
@@ -9538,7 +9652,12 @@ int processLoggedInPlayer( int inAllowOrForceReconnect,
 
     newObject.email = inEmail;
     newObject.origEmail = NULL;
-    
+
+    newObject.twinCode = NULL;
+
+    if( inTwinCode != NULL ) {
+        newObject.twinCode = stringDuplicate( inTwinCode );
+        }
 
     newObject.lastBabyEmail = NULL;
 
@@ -9619,6 +9738,11 @@ int processLoggedInPlayer( int inAllowOrForceReconnect,
         // score as suspect (too few data points, noisy)
 
         // don't give them any special roles based on a high fitness score
+        newObject.fitnessScore = 0;
+        }
+    else if( isAccountUntrusted( &newObject ) ) {
+        // an untrusted account with too few play hours
+        // no special roles either
         newObject.fitnessScore = 0;
         }
     
@@ -9740,6 +9864,15 @@ int processLoggedInPlayer( int inAllowOrForceReconnect,
             if( player->vogMode ) {
                 continue;
                 }
+
+            if( friendsOnlyMode
+                &&
+                ! twinCodesEqual( inTwinCode,
+                                  player->twinCode ) ) {
+                // in friends-only mode, twin codes must match
+                continue;
+                }
+                
 
             GridPos motherPos = getPlayerPos( player );
             int homeStatus = isBirthland( motherPos.x, motherPos.y,
@@ -10056,6 +10189,14 @@ int processLoggedInPlayer( int inAllowOrForceReconnect,
                     }
                 
                 if( player->vogMode ) {
+                    continue;
+                    }
+
+                if( friendsOnlyMode
+                    &&
+                    ! twinCodesEqual( inTwinCode,
+                                      player->twinCode ) ) {
+                    // in friends-only mode, twin codes must match
                     continue;
                     }
             
@@ -10928,6 +11069,7 @@ int processLoggedInPlayer( int inAllowOrForceReconnect,
             if( player->error || 
                 ! player->connected ||
                 player->isTutorial ||
+                player->isGhost ||
                 player->vogMode ) {
                 continue;
                 }
@@ -10953,11 +11095,23 @@ int processLoggedInPlayer( int inAllowOrForceReconnect,
             }
 
         int startX, startY;
-        char didEveRespawn =
-            getEvePosition( newObject.email, 
-                            newObject.id, &startX, &startY, 
-                            &otherPeoplePos, allowEveRespawn, 
-                            incrementEvePlacement );
+        char didEveRespawn;
+
+        if( friendsOnlyMode ) {
+            // force low-pop behavior where we count all eves as respawning
+            didEveRespawn = true;
+
+            // position Eve in a deterministic way based on twin code
+            getFriendCoordsFromTwinCode( inTwinCode,
+                                         &startX,
+                                         &startY );
+            }
+        else {
+            didEveRespawn = getEvePosition( newObject.email, 
+                                            newObject.id, &startX, &startY, 
+                                            &otherPeoplePos, allowEveRespawn, 
+                                            incrementEvePlacement );
+            }
         
         
         if( newObject.isEve ) {
@@ -11100,7 +11254,7 @@ int processLoggedInPlayer( int inAllowOrForceReconnect,
     
 
     newObject.holdingID = 0;
-
+    newObject.holdingEtaDecay = 0;
 
     if( areTriggersEnabled() ) {
         int id = getTriggerPlayerDisplayID( inEmail );
@@ -11134,6 +11288,8 @@ int processLoggedInPlayer( int inAllowOrForceReconnect,
         
         if( eveStartsHoldingID != 0 ) {
             newObject.holdingID = eveStartsHoldingID;
+            
+            setFreshEtaDecayForHeld( &newObject );
             }
         }
     
@@ -11150,8 +11306,12 @@ int processLoggedInPlayer( int inAllowOrForceReconnect,
     newObject.usedGhostDestroyLongWords = new SimpleVector<char*>();
 
 
-    if( newObject.curseStatus.curseLevel == 0 &&
-        hasCurseToken( inEmail ) ) {
+    if( newObject.curseStatus.curseLevel == 0
+        &&
+        hasCurseToken( inEmail )
+        &&
+        ! isAccountUntrusted( &newObject ) ) {
+        // no curse tokens for untrusted accounts
         newObject.curseTokenCount = 1;
         }
     else {
@@ -11173,7 +11333,6 @@ int processLoggedInPlayer( int inAllowOrForceReconnect,
     newObject.actionAttempt = 0;
     newObject.actionTarget.x = 0;
     newObject.actionTarget.y = 0;
-    newObject.holdingEtaDecay = 0;
     newObject.heldOriginValid = 0;
     newObject.heldOriginX = 0;
     newObject.heldOriginY = 0;
@@ -11893,7 +12052,9 @@ static void processWaitingTwinConnection( FreshConnection inConnection ) {
         
         nextLogInTwin = true;
         firstTwinID = -1;
-        
+
+        // pass the twin code in for the first player, so they get born
+        // to the right parent in case of friends-only server mode
         int newID = processLoggedInPlayer( false,
                                            inConnection.sock,
                                            inConnection.sockBuffer,
@@ -11901,7 +12062,8 @@ static void processWaitingTwinConnection( FreshConnection inConnection ) {
                                            inConnection.tutorialNumber,
                                            anyTwinCurseLevel,
                                            inConnection.lifeStats,
-                                           inConnection.fitnessScore );
+                                           inConnection.fitnessScore,
+                                           inConnection.twinCode );
         tempTwinEmails.deleteAll();
         
         if( newID == -1 ) {
@@ -11992,6 +12154,11 @@ static void processWaitingTwinConnection( FreshConnection inConnection ) {
                                    anyTwinCurseLevel,
                                    nextConnection->lifeStats,
                                    nextConnection->fitnessScore,
+                                   // don't pass twin code here for
+                                   // subsequent menbers of group, since
+                                   // their parent (or pos) is already
+                                   // forced to be the same as first member
+                                   NULL,
                                    parent,
                                    displayID,
                                    forcedEvePos,
@@ -15337,6 +15504,70 @@ static void interruptAnyKillEmots( int inPlayerID,
 
 
 
+static char getClueInfo( int *outPos, char *outLetter ) {
+    char *contMixed = 
+        SettingsManager::getSettingContents( "secretMessage" );
+    char *cont = stringToUpperCase( contMixed );
+            
+    delete [] contMixed;
+                    
+    int contLen = strlen( cont );
+                    
+    if( clueIndicesLeftToGive.size() == 0 ) {
+        // all have been given (or this is our first clue)
+        // refill with valid indices
+        for( int i=0; i<contLen; i++ ) {
+            if( cont[i] != ' ' 
+                &&
+                cont[i] != '\n' ) {
+                clueIndicesLeftToGive.push_back( i );
+                }
+            }
+        }
+                    
+    char found = false;
+    
+    if( clueIndicesLeftToGive.size() > 0 ) {
+        int i = 
+            randSource.getRandomBoundedInt( 
+                0, 
+                clueIndicesLeftToGive.size() - 1 );
+                        
+        int letterPick = 
+            clueIndicesLeftToGive.getElementDirect( i );
+        clueIndicesLeftToGive.deleteElement( i );
+
+        *outPos = letterPick + 1;
+        *outLetter = cont[ letterPick ];
+        found = true;
+        }
+    
+    delete [] cont;
+    
+    return found;
+    }
+
+
+
+static void sendGenericClueMessage( LiveObject *inPlayer) {
+    int letterPosition;
+    char letter;
+    char gotClue = getClueInfo( &letterPosition, &letter );
+
+    if( gotClue ) {
+
+        char *message = 
+            autoSprintf( 
+                "A LONG-LOST CLUE,**"
+                "MY WORD IS TRUE:  %d : %c",
+                letterPosition, letter );
+                        
+        sendGlobalMessage( message, inPlayer );
+        delete [] message;
+        }
+    }
+
+
 static void setPerpetratorHoldingAfterKill( LiveObject *nextPlayer,
                                             LiveObject *hitPlayer,
                                             TransRecord *woundHit,
@@ -15384,48 +15615,22 @@ static void setPerpetratorHoldingAfterKill( LiveObject *nextPlayer,
                     }
                 
                 if( newVictimEmot ) {
-                
-                    char *contMixed = 
-                        SettingsManager::getSettingContents( "secretMessage" );
-                    char *cont = stringToUpperCase( contMixed );
-            
-                    delete [] contMixed;
-                    
-                    int contLen = strlen( cont );
-                    
-                    if( clueIndicesLeftToGive.size() == 0 ) {
-                        // all have been given (or this is our first clue)
-                        // refill with valid indices
-                        for( int i=0; i<contLen; i++ ) {
-                            if( cont[i] != ' ' 
-                                &&
-                                cont[i] != '\n' ) {
-                                clueIndicesLeftToGive.push_back( i );
-                                }
-                            }
-                        }
-                    
-                    
-                    if( clueIndicesLeftToGive.size() > 0 ) {
-                        int i = 
-                            randSource.getRandomBoundedInt( 
-                                0, 
-                                clueIndicesLeftToGive.size() - 1 );
-                        
-                        int letterPick = 
-                            clueIndicesLeftToGive.getElementDirect( i );
-                        clueIndicesLeftToGive.deleteElement( i );
-                        
+                    // specialty message for headless horseman
+                    int letterPosition;
+                    char letter;
+                    char gotClue = getClueInfo( &letterPosition, &letter );
+
+                    if( gotClue ) {
+
                         char *message = 
                             autoSprintf( 
                                 "ANOTHER NECK HAS MET YOUR SWORD.**"
                                 "ANOTHER CLUE (I KEEP MY WORD):  %d : %c",
-                                letterPick + 1, cont[letterPick] );
+                                letterPosition, letter );
                         
                         sendGlobalMessage( message, nextPlayer );
                         delete [] message;
                         }
-                    delete [] cont;
                     }
                 else {
                     char *message = 
@@ -17152,6 +17357,7 @@ void sendNearPopSpeech( LiveObject *inPlayer,
             
             if( ! otherPlayer->error &&
                 ! otherPlayer->isTutorial &&
+                ! otherPlayer->isGhost &&
                 otherPlayer->curseStatus.curseLevel == 0 ) {
                 
                 totalCount++;
@@ -17207,6 +17413,7 @@ char isNearPopBlocked( LiveObject *inPlayer,
         
         if( ! otherPlayer->error &&
             ! otherPlayer->isTutorial &&
+            ! otherPlayer->isGhost &&
             otherPlayer->curseStatus.curseLevel == 0 ) {
             
             totalCount++;
@@ -17316,7 +17523,12 @@ static LiveObject *getPlayerByName( char *inName,
 
 
 static void findExpertForPlayer( LiveObject *inPlayer, 
-                                 ObjectRecord *inTouchedObject ) {    
+                                 ObjectRecord *inTouchedObject ) {
+
+    if( friendsOnlyMode ) {
+        // expert waystones don't function in friendsOnlyMode servers
+        return;
+        }
 
     int race = getSpecialistRace( inTouchedObject );
     
@@ -19781,6 +19993,7 @@ int main( int inNumArgs, const char **inArgs ) {
         
                     if( ! o->error &&
                         ! o->isTutorial &&
+                        ! o->isGhost &&
                         o->curseStatus.curseLevel == 0 ) {
                         
                         population.push_back( o );
@@ -19833,13 +20046,27 @@ int main( int inNumArgs, const char **inArgs ) {
                     GridPos placePos = { avePos.x + xRad,
                                          avePos.y + yRad };
                     
-
-                    setMapObject( placePos.x, placePos.y, 
-                                  placement->objectID );
-                    
-                    if( strcmp( placement->globalMessage, "" ) != 0 ) {
-                        sendGlobalMessage( placement->globalMessage );
+                    int tryCount = 0;
+                    while( tryCount < 20 &&
+                           getMapObject( placePos.x, placePos.y ) != 0 ) {
+                        // search diagonally away for empty spot
+                        placePos.x -= 5;
+                        placePos.y -= 5;
+                        tryCount++;
                         }
+
+                    if( getMapObject( placePos.x, placePos.y ) == 0 ) {
+                        // found empty spot
+                        setMapObject( placePos.x, placePos.y, 
+                                      placement->objectID );
+                    
+                        if( strcmp( placement->globalMessage, "" ) != 0 ) {
+                            sendGlobalMessage( placement->globalMessage );
+                            }
+                        }
+                    // else gave up without finding empty spot
+                    // NEVER just replace an object with a periodic placement
+                    
                     }
                 
                 delete [] placement->globalMessage;
@@ -20508,15 +20735,11 @@ int main( int inNumArgs, const char **inArgs ) {
                         processWaitingTwinConnection( *nextConnection );
                         }
                     else {
-                        if( nextConnection->twinCode != NULL ) {
-                            delete [] nextConnection->twinCode;
-                            nextConnection->twinCode = NULL;
-                            }
 
-                        if( nextConnection->ipAddress != NULL ) {
-                            delete [] nextConnection->ipAddress;
-                            nextConnection->ipAddress = NULL;
-                            }
+                        // case where twinCount is 0
+                        // but twinCode is non-NULL
+                        // might be a samFam request
+                        // on a server that supports that
                         
                         processLoggedInPlayer( 
                             nextConnection->reconnectOnly ? 2 : true,
@@ -20526,7 +20749,18 @@ int main( int inNumArgs, const char **inArgs ) {
                             nextConnection->tutorialNumber,
                             nextConnection->curseStatus,
                             nextConnection->lifeStats,
-                            nextConnection->fitnessScore );
+                            nextConnection->fitnessScore,
+                            nextConnection->twinCode );
+
+                        if( nextConnection->twinCode != NULL ) {
+                            delete [] nextConnection->twinCode;
+                            nextConnection->twinCode = NULL;
+                            }
+
+                        if( nextConnection->ipAddress != NULL ) {
+                            delete [] nextConnection->ipAddress;
+                            nextConnection->ipAddress = NULL;
+                            }
                         }
                                                         
                     newConnections.deleteElement( i );
@@ -20677,8 +20911,10 @@ int main( int inNumArgs, const char **inArgs ) {
                                     // count it as if they're not even
                                     // asking to be twins
                                     nextConnection->twinCount = 0;
-                                    delete [] nextConnection->twinCode;
-                                    nextConnection->twinCode = NULL;
+
+                                    // BUT keep the twinCode, in case
+                                    // they are requesting sameFam mode
+                                    // with a twin count of 0
                                     }
                                 
                                 }
@@ -20810,6 +21046,24 @@ int main( int inNumArgs, const char **inArgs ) {
                                             *nextConnection );
                                         }
                                     else {
+
+                                        // case where twinCount is 0
+                                        // but twinCode is non-NULL
+                                        // might be a samFam request
+                                        // on a server that supports that
+                                        
+                                        processLoggedInPlayer(
+                                            nextConnection->reconnectOnly ? 
+                                            2 : true,
+                                            nextConnection->sock,
+                                            nextConnection->sockBuffer,
+                                            nextConnection->email,
+                                            nextConnection->tutorialNumber,
+                                            nextConnection->curseStatus,
+                                            nextConnection->lifeStats,
+                                            nextConnection->fitnessScore,
+                                            nextConnection->twinCode );
+                                        
                                         if( nextConnection->twinCode != NULL ) {
                                             delete [] nextConnection->twinCode;
                                             nextConnection->twinCode = NULL;
@@ -20821,16 +21075,7 @@ int main( int inNumArgs, const char **inArgs ) {
                                             nextConnection->ipAddress = NULL;
                                             }
                                         
-                                        processLoggedInPlayer(
-                                            nextConnection->reconnectOnly ? 
-                                            2 : true,
-                                            nextConnection->sock,
-                                            nextConnection->sockBuffer,
-                                            nextConnection->email,
-                                            nextConnection->tutorialNumber,
-                                            nextConnection->curseStatus,
-                                            nextConnection->lifeStats,
-                                            nextConnection->fitnessScore );
+                                        
                                         }
                                                                         
                                     newConnections.deleteElement( i );
@@ -23819,7 +24064,15 @@ int main( int inNumArgs, const char **inArgs ) {
                         char joiningPosse = false;
                         if( isPosseJoiningSay( m.saidText ) ) {
                             joiningPosse = true;
-                            if( nextPlayer->isTwin ) {
+
+                            if( isAccountUntrusted( nextPlayer ) ) {
+                                const char *message = 
+                                    "YOUR ACCOUNT IS TOO NEW.**"
+                                    "YOU CANNOT JOIN A POSSE.";
+                                sendGlobalMessage( (char*)message, nextPlayer );
+                                joiningPosse = false;
+                                }
+                            else if( nextPlayer->isTwin ) {
                                 const char *message = 
                                     "TWINS CANNOT JOIN POSSES.";
                                 sendGlobalMessage( (char*)message, nextPlayer );
@@ -24138,6 +24391,13 @@ int main( int inNumArgs, const char **inArgs ) {
                                    otherToFollow = nextPlayer;
                                    }
                                }
+                            }
+
+                        if( otherToFollow != NULL ) {
+                            // untrusted accounts cannot be followed
+                            if( isAccountUntrusted( otherToFollow ) ) {
+                                otherToFollow = NULL;
+                                }
                             }
                         
                         if( otherToFollow != NULL ) {
@@ -25575,6 +25835,12 @@ int main( int inNumArgs, const char **inArgs ) {
                                                 
                                                 startAHAPGrant(
                                                     m.x, m.y, nextPlayer );
+                                                }
+                                            if( newO != NULL &&
+                                                newO->giveClue ) {
+                                                
+                                                sendGenericClueMessage(
+                                                    nextPlayer );
                                                 }
                                             }
                                         }
@@ -29987,9 +30253,11 @@ int main( int inNumArgs, const char **inArgs ) {
                     
                     // don't give mid-life tokens to twins or cursed players
                     // or ghosts
+                    // or untrusted accounts
                     if( ! nextPlayer->isTwin &&
                         ! nextPlayer->isGhost &&
                         nextPlayer->curseStatus.curseLevel == 0 &&
+                        ! isAccountUntrusted( nextPlayer ) &&
                         strcmp( nextPlayer->email, email ) == 0 ) {
                         
                         nextPlayer->curseTokenCount = 1;
@@ -32732,6 +33000,9 @@ int main( int inNumArgs, const char **inArgs ) {
                     }
                 if( nextPlayer->origEmail != NULL  ) {
                     delete [] nextPlayer->origEmail;
+                    }
+                if( nextPlayer->twinCode != NULL  ) {
+                    delete [] nextPlayer->twinCode;
                     }
                 if( nextPlayer->lastBabyEmail != NULL ) {
                     delete [] nextPlayer->lastBabyEmail;

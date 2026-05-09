@@ -69,13 +69,14 @@ TwinPage::TwinPage()
     mLoginButton.setVisible( false );
     
 
-    const char *choiceList[3] = { translate( "twins" ),
+    const char *choiceList[4] = { translate( "twins" ),
                                   translate( "triplets" ),
-                                  translate( "quadruplets" ) };
+                                  translate( "quadruplets" ),
+                                  translate( "sameFam" ) };
     
     mPlayerCountRadioButtonSet = 
         new RadioButtonSet( mainFont, 0, -100,
-                            3, choiceList,
+                            4, choiceList,
                             false, 4 );
     addComponent( mPlayerCountRadioButtonSet );
 
@@ -212,7 +213,15 @@ void TwinPage::actionPerformed( GUIComponent *inTarget ) {
 
         SettingsManager::setSetting( "twinCode", userTwinCode );
 
-        userTwinCount = mPlayerCountRadioButtonSet->getSelectedItem() + 2;
+        int pickedItem = mPlayerCountRadioButtonSet->getSelectedItem();
+
+        if( pickedItem == 3 ) {
+            userTwinCount = 0;
+            }
+        else {
+            userTwinCount = mPlayerCountRadioButtonSet->getSelectedItem() + 2;
+            }
+        
 
         setSignal( "done" );
         }
@@ -232,5 +241,13 @@ void TwinPage::draw( doublePair inViewCenter,
     doublePair pos = { 0, 278 };
     
     drawMessage( translate( "twinTip" ), pos );
+
+    int pickedItem = mPlayerCountRadioButtonSet->getSelectedItem();
+
+    if( pickedItem == 3 ) {
+        pos.y = -280;
+        drawMessage( translate( "sameFamExplain" ), pos );
+        }
+
     }
 

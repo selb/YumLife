@@ -3,6 +3,53 @@ This file only list changes to game code.  Changes to content can be found here:
 http://onehouronelife.com/updateLog.php
 
 
+Version 436   2026-May-9
+
+--Support for twin_count 0 to specify same family on friends-only-mode servers,
+  where twin_code is used to pick a deterministic, unguessable location on the
+  map for Eve spawns, and non-Eves are born only to people with their same twin
+  code.
+
+--Friends-only-mode servers disable expert waystones.
+
+--Fixed wall-hugging floor glitch that affected certain graphics cards.
+  Thanks to Twisted for discovering, and AdamCoulterOz for fixing.
+
+
+
+
+
+Server Fixes:
+
+--Fixed so that periodic placements only go in empty spots and never replace an
+  existing map object.
+
+--Support for object that can +giveClue when it is created by a player through
+  a transition (instead of just if the player is holding it and causing a
+  victim emote in someone else).
+
+--Fixed so that ghosts are ignored for nearPop stuff, periodic placements, and
+  Eve placements.
+
+--Fixed so that decay is set correctly for obeject that eveStartsHolding.
+  Fixes #1230
+
+--Fixed so that tapout triggers set decay on objects changed by tapout.
+  Fixes #1228
+
+--Untrusted accounts with less than 20 total lived hours cannot curse, and have
+  their fitness scores set to 0 internally on the server (not on the
+  leaderboard), so they are last picked to inherit things.
+
+--Untrusted accounts cannot be followed.
+
+--Untrusted accounts cannot join posses.
+
+
+
+
+
+
 Version 434    2025-November-11
 
 --Whoops.  Obliterated the GRAVE_OLD case in LivingLifePage when I created the
