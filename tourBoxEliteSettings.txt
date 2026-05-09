@@ -51,15 +51,15 @@ SCROLL_TURN_DOWN  KEY_LEFTCTRL KEY_DOWN
 DIAL_TURN_CCW  KEY_LEFT
 DIAL_TURN_CW   KEY_RIGHT
 
-# cut and paste
-TALL  KEY_LEFTCTRL  KEY_K
+# cut and paste whole line
+TALL  KEY_ESC KEY_0 > KEY_LEFTCTRL KEY_K > KEY_LEFTCTRL  KEY_K
 SHORT KEY_LEFTCTRL  KEY_Y
 
 # undo
 SIDE  KEY_LEFTCTRL  KEY_SLASH
 
 # auto complete
-TOUR  KEY_LEFTALT KEY_SLASH
+TOUR  KEY_LEFTALT KEY_X "jcr-next-column" KEY_ENTER
 
 
 # buffers
@@ -76,3 +76,292 @@ LEFT KEY_LEFTALT KEY_X "previous-error" KEY_ENTER
 
 # close extra window
 DOWN KEY_LEFTCTRL KEY_X > KEY_1
+
+
+# debug from current line in ddd
+DIAL_PRESS  KEY_LEFTALT KEY_X "ddd-debug-line" KEY_ENTER > KEY_ENTER
+
+
+# goto-line command
+KNOB_PRESS  KEY_LEFTALT KEY_X "goto-line" KEY_ENTER
+
+
+
+
+"Gnumeric"
+
+# undo redo
+TALL  KEY_LEFTCTRL  KEY_Z
+SHORT KEY_LEFTCTRL  KEY_Y
+
+# delete row
+LEFT KEY_LEFTALT KEY_E > KEY_D > KEY_R
+
+
+
+
+
+# For xxdiff diff tool
+
+"<->"
+
+# scroll to go through files in recursive directory listing
+SCROLL_TURN_DOWN H1 R0  KEY_DOWN
+SCROLL_TURN_UP H1 R0  KEY_UP
+
+
+# bigger jumps
+LEFT SCROLL_TURN_DOWN H2 R1  KEY_DOWN > KEY_DOWN > KEY_DOWN > KEY_DOWN
+LEFT SCROLL_TURN_UP H2 R1  KEY_UP > KEY_UP > KEY_UP  > KEY_UP 
+
+# even bigger jumps
+UP SCROLL_TURN_DOWN H2 R1  KEY_PAGEDOWN
+UP SCROLL_TURN_UP H2 R1  KEY_PAGEUP
+
+
+# pick a file to view diff
+TOP KEY_ENTER
+
+# knob to turn through diff regions
+KNOB_TURN_CW H2 R0 KEY_N
+KNOB_TURN_CCW H2 R0 KEY_P
+
+# pick version of region in left pane
+TALL KEY_H
+
+# pick version of region in right pane
+SHORT KEY_K
+
+
+# close window without saving
+C1 KEY_LEFTCTRL KEY_Q
+
+# close window and save selected changes, and force unselected
+# changes to match right region
+C2 KEY_LEFTCTRL KEY_LEFTSHIFT KEY_LEFTALT KEY_K > KEY_LEFTCTRL KEY_LEFTSHIFT KEY_R
+
+# scroll to left/right on long source lines
+DIAL_TURN_CW H2 R2 KEY_RIGHT > KEY_RIGHT
+DIAL_TURN_CCW H2 R2 KEY_LEFT > KEY_LEFT
+
+
+# For xxdiff modal dialog boxes
+
+"xxdiff"
+
+# OK button
+TOP KEY_ENTER
+
+
+
+
+
+
+# for DDD debugger
+
+"DDD"
+
+# next
+TALL KEY_F6
+
+# step
+SHORT KEY_F5
+
+# continue
+TOP  KEY_F9
+
+# run again
+UP KEY_F3
+
+# quit
+SIDE KEY_LEFTCTRL KEY_Q
+
+# show local vars, show arguments
+TOUR KEY_LEFTALT KEY_L > SLEEP_100 KEY_LEFTALT KEY_U
+
+
+
+# for cdb debugger
+
+"cdb"
+
+# next
+TALL KEY_F10
+
+# step
+SHORT KEY_F11
+
+# continue
+TOP  KEY_F5
+
+# run again
+UP KEY_LEFTCTRL KEY_F5
+
+# quit
+SIDE KEY_LEFTALT KEY_F4
+
+# knob to adjust font size
+KNOB_TURN_CW H2 R0 KEY_LEFTCTRL KEY_EQUAL
+KNOB_TURN_CCW H2 R0 KEY_LEFTCTRL KEY_MINUS
+
+
+
+
+
+
+# for terminals that have cmus open
+# had to customize title in cmus to keep it from switching based on song
+
+"cmus"
+
+KNOB_TURN_CCW H2 R1 KEY_UP
+KNOB_TURN_CW H2 R1 KEY_DOWN
+
+TOP KEY_ENTER
+
+TALL KEY_C
+
+DIAL_TURN_CCW H2 R1 KEY_TAB > KEY_UP > KEY_TAB
+DIAL_TURN_CW H2 R1 KEY_TAB > KEY_DOWN > KEY_TAB
+
+# expand/collapse album sub-tree
+DOWN  KEY_SPACE
+
+
+
+
+# for xfce4-terminal, which allows custom window titles
+# other terminals make this hard, so there's no known string to latch
+# onto
+
+"Terminal"
+
+# execute last command
+UP KEY_UP > KEY_ENTER
+
+# list directory in newest-at-bottom order
+LEFT "ls -ltr" > KEY_ENTER
+
+KNOB_TURN_CCW H2 R1 KEY_UP
+KNOB_TURN_CW H2 R1 KEY_DOWN
+
+TOP KEY_ENTER
+
+DIAL_TURN_CCW H2 R0 KEY_LEFTCTRL KEY_PAGEUP
+DIAL_TURN_CW H2 R0 KEY_LEFTCTRL KEY_PAGEDOWN
+
+# close tab
+C1 KEY_LEFTSHIFT KEY_LEFTCTRL KEY_W
+
+# new tab
+C2 KEY_LEFTSHIFT KEY_LEFTCTRL KEY_T
+
+# copy
+TALL KEY_LEFTSHIFT KEY_LEFTCTRL KEY_C
+
+# paste
+SHORT KEY_LEFTSHIFT KEY_LEFTCTRL KEY_V
+
+# delete typed line
+DOWN KEY_LEFTCTRL KEY_U
+
+
+# start a git commit message and position curor inside quotes
+RIGHT "git commit -m " KEY_LEFTSHIFT KEY_APOSTROPHE > KEY_LEFTSHIFT KEY_APOSTROPHE > KEY_LEFT
+
+
+
+
+"GIMP"
+
+KNOB_TURN_CCW H2 R2 KEY_LEFTCTRL MOUSE_SCROLL_DOWN MOUSE_SCROLL_DOWN 
+KNOB_TURN_CW H2 R2 KEY_LEFTCTRL MOUSE_SCROLL_UP MOUSE_SCROLL_UP
+
+
+SCROLL_TURN_UP H2 R2 KEY_LEFTSHIFT KEY_UP
+SCROLL_TURN_DOWN H2 R2 KEY_LEFTSHIFT KEY_DOWN
+
+DIAL_TURN_CCW H2 R2 KEY_LEFTCTRL KEY_Z
+DIAL_TURN_CW H2 R2 KEY_LEFTCTRL KEY_Y
+
+# overwrite export
+UP KEY_LEFTSHIFT KEY_LEFTCTRL KEY_E
+
+
+
+"Inkscape"
+
+KNOB_TURN_CCW H2 R2 MOUSE_SCROLL_DOWN
+KNOB_TURN_CW H2 R2 MOUSE_SCROLL_UP
+
+DIAL_TURN_CCW H2 R0 KEY_LEFTCTRL KEY_Z
+DIAL_TURN_CW H2 R0 KEY_LEFTCTRL KEY_LEFTSHIFT KEY_Z
+
+
+
+"Aseprite"
+
+# zoom
+
+KNOB_TURN_CCW H2 R2 KEY_LEFTCTRL KEY_MINUS
+KNOB_TURN_CW H2 R2 KEY_LEFTCTRL KEY_EQUAL
+
+
+# scroll through color palette
+
+DIAL_TURN_CCW H2 R2 KEY_9
+DIAL_TURN_CW H2 R2 KEY_0
+
+
+# undo/redo
+SCROLL_TURN_UP   H2 R2 KEY_LEFTCTRL KEY_Z
+SCROLL_TURN_DOWN H2 R2 KEY_LEFTCTRL KEY_Y
+
+# toggle pixel grid
+TOUR  KEY_LEFTCTRL KEY_LEFTSHIFT KEY_APOSTROPHE
+
+
+# repeat export
+#TOP  KEY_LEFTCTRL KEY_LEFTCTRL KEY_LEFTALT KEY_LEFTSHIFT KEY_S > SLEEP_100 KEY_ENTER
+
+# actually, have TOP do plain old SAVE
+TOP  KEY_LEFTCTRL KEY_S
+
+
+# hold down ALT to toggle to eyedropper
+TALL KEY_LEFTALT HOLD
+
+# rotate through tabs
+C1 KEY_LEFTCTRL KEY_LEFTSHIFT KEY_TAB
+C2 KEY_LEFTCTRL KEY_TAB
+
+# switch to pencil
+SHORT KEY_B
+
+# switch to select
+UP KEY_M
+
+# select nothing
+DOWN KEY_ESC
+
+# switch to fill
+RIGHT KEY_G
+
+# switch to line
+LEFT KEY_L
+
+# next/previous layer
+DIAL_PRESS DIAL_TURN_CW KEY_LEFTCTRL KEY_DOWN
+DIAL_PRESS DIAL_TURN_CCW KEY_LEFTCTRL KEY_UP
+
+
+
+
+"Geeqie"
+
+# zoom in and out
+KNOB_TURN_CCW  H2 R2  KEY_MINUS
+KNOB_TURN_CW   H2 R2  KEY_EQUAL
+
+DIAL_TURN_CCW H2 R2 KEY_BACKSPACE
+DIAL_TURN_CW H2 R2 KEY_SPACE
