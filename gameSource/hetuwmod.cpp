@@ -18,6 +18,7 @@
 #include "minorGems/io/file/File.h"
 #include "minorGems/graphics/converters/TGAImageConverter.h"
 #include "minorGems/util/random/JenkinsRandomSource.h"
+#include "minorGems/crypto/hashes/sha1.h"
 #include "groundSprites.h"
 #include "photos.h"
 #include "hetuwFont.h"
@@ -5595,3 +5596,21 @@ void HetuwMod::autoNameBB() {
 	ss << "YOU ARE " << foundName;
 	Say(ss.str().c_str());
 }
+
+char *HetuwMod::hashTwinCode( char *twinCode ) {
+	bool alreadyHashed = false;
+	if (strlen(twinCode) == 40) {
+		alreadyHashed = true;
+		for (int i = 0; i < 40; i++) {
+			char c = twinCode[i];
+			if (!((c >= '0' && c <= '9') ||
+				  (c >= 'A' && c <= 'F'))) {
+				alreadyHashed = false;
+				break;
+				}
+			}
+		}
+	if (alreadyHashed)
+		return stringDuplicate(twinCode);
+	return computeSHA1Digest(twinCode);
+	}

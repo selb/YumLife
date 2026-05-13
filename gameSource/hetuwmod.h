@@ -629,6 +629,8 @@ public:
 	static bool b_drawSearchTileRec;
 	static bool b_drawSearchPulsate;
 
+	static char *hashTwinCode(char *twinCode);
+
 	static char usingCustomServer;
 	static char *serverIP;
 	static int serverPort;

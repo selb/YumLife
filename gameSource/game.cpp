@@ -1349,7 +1349,7 @@ static void startConnectingNoAHAPCheck() {
                                                   userEmail );
         
         if( userTwinCode != NULL ) {
-            char *codeHash = computeSHA1Digest( userTwinCode );
+            char *codeHash = HetuwMod::hashTwinCode( userTwinCode );
             getServerAddressPage->setActionParameter( "twin_code", 
                                                       codeHash );
             delete [] codeHash;

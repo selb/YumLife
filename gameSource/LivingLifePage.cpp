@@ -15632,7 +15632,7 @@ void LivingLifePage::step() {
             char *twinExtra;
             
             if( userTwinCode != NULL ) {
-                char *hash = computeSHA1Digest( userTwinCode );
+                char *hash = HetuwMod::hashTwinCode( userTwinCode );
                 twinExtra = autoSprintf( " %s %d", hash, userTwinCount );
                 delete [] hash;
                 }
