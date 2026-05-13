@@ -88,6 +88,8 @@ int main( int inArgCount, char **inArgs ) {
 
 #include "minorGems/game/diffBundle/client/diffBundleClient.h"
 
+#include "gameSource/yumBlob.h"
+
 
 
 #include "minorGems/util/random/CustomRandomSource.h"
@@ -2441,6 +2443,10 @@ int mainFunction( int inNumArgs, char **inArgs ) {
 
     pauseOnMinimize = SettingsManager::getIntSetting( "pauseOnMinimize", 1 );
     
+
+    // register builtin English translation data compiled into the binary
+    TranslationManager::setBuiltinLanguageData(
+        "English", (const char *)blobs::English.getData() );
 
     
     // translation language

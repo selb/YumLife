@@ -20,5 +20,6 @@ struct yumBlob {
 
 namespace blobs {
     extern yumBlob font_32_64_yum;
+    extern yumBlob English;
 };
 #endif /* YUMBLOB_H */

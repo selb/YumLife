@@ -110,6 +110,15 @@ class TranslationManager {
         // Data string destroyed by caller
         static void setLanguageData( const char *inData,
                                      char inClearOldKeys = true );
+
+
+        // Registers builtin language data that takes priority over
+        // on-disk language files.  When setLanguage is called with a
+        // matching language name, the builtin data is loaded first,
+        // and the on-disk file supplements it (adding only missing keys).
+        // inData must remain valid for the lifetime of the program.
+        static void setBuiltinLanguageData( const char *inLanguageName,
+                                            const char *inData );
         
 
         
@@ -200,7 +209,10 @@ class TranslationManagerStaticMembers {
         
         char *mDirectoryName;
         char *mLanguageName;
-        
+
+        const char *mBuiltinLanguageName;
+        const char *mBuiltinLanguageData;
+
         // vectors mapping keys to strings
         SimpleVector<char *> *mTranslationKeys;
         SimpleVector<char *> *mNaturalLanguageStrings;

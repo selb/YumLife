@@ -2,9 +2,15 @@
 use warnings;
 use strict;
 
+use File::Basename;
 use Compress::Zlib qw(compress);
 
-my @files = qw(font_32_64_yum.tga);
+my @files = qw(font_32_64_yum.tga ../gameSource/languages/English.txt);
+
+if (@ARGV && $ARGV[0] eq '--deps') {
+    print "$_\n" for @files;
+    exit 0;
+}
 
 open(my $cpp, '>', '../gameSource/yumBlob.cpp') or die("open(yumBlob.cpp): $!\n");
 open(my $header, '>', '../gameSource/yumBlob.h') or die("open(yumBlob.h): $!\n");
@@ -106,10 +112,11 @@ for my $f (@files) {
         $arrayData .= ord($1);
     }
 
-    $f =~ s/\..*//;
-    print $header "    extern yumBlob $f;\n";
-    print $cpp "static uint8_t ${f}_zdata[$zSize] = {$arrayData};\n";
-    print $cpp "yumBlob blobs::$f = { $size, NULL, $zSize, ${f}_zdata };\n";
+    my $name = basename($f);
+    $name =~ s/\..*//;
+    print $header "    extern yumBlob $name;\n";
+    print $cpp "static uint8_t ${name}_zdata[$zSize] = {$arrayData};\n";
+    print $cpp "yumBlob blobs::$name = { $size, NULL, $zSize, ${name}_zdata };\n";
 }
 
 print $header <<"EOT";

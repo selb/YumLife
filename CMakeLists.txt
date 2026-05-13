@@ -84,6 +84,33 @@ set(MINORGEMS_SOURCE_FILES
     ${MINORGEMS_PLATFORM_SOURCE_FILES}
 )
 
+find_program(PERL perl)
+if(PERL)
+    execute_process(
+        COMMAND ${PERL} generate-blobs.pl --deps
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/yum
+        OUTPUT_VARIABLE BLOB_DEPS
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+    string(REPLACE "\n" ";" BLOB_DEPS "${BLOB_DEPS}")
+    set(BLOB_DEPS_ABS "")
+    foreach(DEP ${BLOB_DEPS})
+        get_filename_component(DEP_ABS "${CMAKE_SOURCE_DIR}/yum/${DEP}" ABSOLUTE)
+        list(APPEND BLOB_DEPS_ABS "${DEP_ABS}")
+    endforeach()
+    add_custom_command(
+        OUTPUT
+            ${CMAKE_SOURCE_DIR}/gameSource/yumBlob.cpp
+            ${CMAKE_SOURCE_DIR}/gameSource/yumBlob.h
+        COMMAND ${PERL} generate-blobs.pl
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/yum
+        DEPENDS
+            ${CMAKE_SOURCE_DIR}/yum/generate-blobs.pl
+            ${BLOB_DEPS_ABS}
+        COMMENT "Regenerating yumBlob data"
+    )
+endif()
+
 set(CLIENT_SOURCE_FILES
     gameSource/minitech.cpp
     gameSource/hetuwmod.cpp

@@ -114,6 +114,14 @@ void TranslationManager::setLanguageData( const char *inData,
 
 
 
+void TranslationManager::setBuiltinLanguageData( const char *inLanguageName,
+                                                  const char *inData ) {
+    mStaticMembers.mBuiltinLanguageName = inLanguageName;
+    mStaticMembers.mBuiltinLanguageData = inData;
+    }
+
+
+
 const char *TranslationManager::translate( const char *inTranslationKey ) {
 
     char *translatedString = NULL;
@@ -165,6 +173,8 @@ const char *TranslationManager::translate( const char *inTranslationKey ) {
 TranslationManagerStaticMembers::TranslationManagerStaticMembers()
     : mDirectoryName( NULL ),
       mLanguageName( NULL ),
+      mBuiltinLanguageName( NULL ),
+      mBuiltinLanguageData( NULL ),
       mTranslationKeys( NULL ),
       mNaturalLanguageStrings( NULL ) {
 
@@ -236,7 +246,17 @@ void TranslationManagerStaticMembers::setDirectoryAndLanguage(
 
 
     char dataSet = false;
-    
+
+
+    // check for builtin data first
+    if( mBuiltinLanguageName != NULL &&
+        strcmp( newLanguageName, mBuiltinLanguageName ) == 0 ) {
+        setTranslationData( mBuiltinLanguageData, inClearOldKeys );
+        dataSet = true;
+        // on-disk file can only supplement from here
+        inClearOldKeys = false;
+        }
+
 
     File *directoryFile = new File( NULL, mDirectoryName );
 
