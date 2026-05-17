@@ -9,6 +9,7 @@
 
 #include "minorGems/game/game.h"
 #include "minorGems/system/Time.h"
+#include "minorGems/io/file/File.h"
 
 #include "musicPlayer.h"
 #include "soundBank.h"
@@ -29,6 +30,7 @@ SettingsPage::SettingsPage()
           mEditAccountButton( mainFont, -463, 129, translate( "editAccount" ) ),
           mRestartButton( mainFont, 128, 128, translate( "restartButton" ) ),
           mRedetectButton( mainFont, 173, 249, translate( "redetectButton" ) ),
+          mDeleteCacheButton( mainFont, -463, 100, "Delete Cache" ),
           mVsyncBox( 0, 208, 4 ),
           mFullscreenBox( 0, 128, 4 ),
           mBorderlessBox( 0, 168, 4 ),
@@ -80,6 +82,7 @@ SettingsPage::SettingsPage()
     setButtonStyle( &mEditAccountButton );
     setButtonStyle( &mRestartButton );
     setButtonStyle( &mRedetectButton );
+    setButtonStyle( &mDeleteCacheButton );
     setButtonStyle( &mCopyButton );
     setButtonStyle( &mPasteButton );
 
@@ -108,6 +111,9 @@ SettingsPage::SettingsPage()
     
     addComponent( &mRedetectButton );
     mRedetectButton.addActionListener( this );
+
+    addComponent( &mDeleteCacheButton );
+    mDeleteCacheButton.addActionListener( this );
 
     addComponent( &mUseCustomServerBox );
     addComponent( &mCustomServerAddressField );
@@ -300,6 +306,52 @@ void SettingsPage::actionPerformed( GUIComponent *inTarget ) {
             printf( "Relaunched... but did not exit?\n" );
             setSignal( "relaunchFailed" );
             }
+        }
+    else if( inTarget == &mDeleteCacheButton ) {
+        const char *cacheDirs[] = {
+            "animations", "objects", "categories",
+            "sounds", "sprites", "transitions"
+        };
+        int numDirs = 6;
+
+        int numDeleted = 0;
+        printf( "YumLife: Deleting cache files...\n" );
+        
+        for( int d = 0; d < numDirs; d++ ) {
+            File dir( NULL, cacheDirs[d] );
+
+            int numFiles = 0;
+            File **children = dir.getChildFiles( &numFiles );
+
+            bool anyDeleted = false;
+
+            if( children != NULL ) {
+                for( int i = 0; i < numFiles; i++ ) {
+                    char *name = children[i]->getFileName();
+
+                    int nameLen = strlen( name );
+                    int suffixLen = strlen( "cache.fcz" );
+
+                    if( nameLen >= suffixLen &&
+                        strcmp( name + nameLen - suffixLen, "cache.fcz" ) == 0 ) {
+
+                        char *fullName = children[i]->getFullFileName();
+                        printf( "Deleting cache file: %s\n", fullName );
+                        delete [] fullName;
+                        
+                        children[i]->remove();
+                        anyDeleted = true;
+                        numDeleted++;
+                    }
+                    
+                    delete [] name;
+                    delete children[i];
+                }
+                delete [] children;
+            }
+            if( ! anyDeleted ) printf( "No cache files found in %s\n", cacheDirs[d] );
+        }
+        printf( "Deleted %d cache files\n", numDeleted );
         }
     else if( inTarget == &mRestartButton ) {
              

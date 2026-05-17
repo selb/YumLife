@@ -46,6 +46,8 @@ class SettingsPage : public GamePage, public ActionListener {
         TextButton mRestartButton;
         TextButton mRedetectButton;
 
+        TextButton mDeleteCacheButton;
+
         CheckboxButton mVsyncBox;
         CheckboxButton mFullscreenBox;
         CheckboxButton mBorderlessBox;
