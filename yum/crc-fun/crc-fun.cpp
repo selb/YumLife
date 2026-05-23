@@ -158,6 +158,15 @@ static uint32_t crc32Combine(uint32_t crcA, uint32_t crcB, uint64_t lenB) {
     return crc32Shift(crcA, lenB) ^ crcB;
 }
 
+// Precomputes the matrix M^n as 32 column vectors, so that
+// gf2MatrixTimes(mat, crc) == crc32Shift(crc, n) without rerunning the full
+// squaring loop on every call. Used to make the find-curse-names hot loop cheap.
+static void buildShiftMatrix(uint64_t n, uint32_t mat[32]) {
+    for (int i = 0; i < 32; i++) {
+        mat[i] = crc32Shift(static_cast<uint32_t>(1u) << i, n);
+    }
+}
+
 static uint32_t crc32String(const std::string &s) {
     return crc32(reinterpret_cast<const unsigned char *>(s.data()),
                  static_cast<int>(s.size()));
@@ -284,7 +293,7 @@ static bool candidateMatchesAll(const Candidate &c, const std::vector<Observatio
 
 // --- Calibration ---
 
-static std::vector<uint32_t> collectSeedsForAnchor(const Observation &anchor) {
+static std::vector<uint32_t> collectMatchingSeeds(const std::vector<std::string> &targetWords) {
     const uint64_t total = 1ULL << 32;
     const uint64_t batchSize = 1ULL << 20;
 
@@ -324,7 +333,7 @@ static std::vector<uint32_t> collectSeedsForAnchor(const Observation &anchor) {
                 uint64_t end = std::min(start + batchSize, total);
                 for (uint64_t i = start; i < end; i++) {
                     uint32_t seed = static_cast<uint32_t>(i);
-                    if (seedMatchesWords(seed, anchor.words)) {
+                    if (seedMatchesWords(seed, targetWords)) {
                         local.push_back(seed);
                     }
                 }
@@ -351,7 +360,7 @@ static int cmdCalibrate(const char *path, uint64_t minLen, uint64_t maxLen) {
                  obs.size(), curseWords().size());
     std::fprintf(stderr, "Scanning all 2^32 seeds against first observation...\n");
 
-    std::vector<uint32_t> anchorSeeds = collectSeedsForAnchor(obs.front());
+    std::vector<uint32_t> anchorSeeds = collectMatchingSeeds(obs.front().words);
     std::fprintf(stderr, "First observation matched %zu seeds\n", anchorSeeds.size());
 
     // For each candidate length, precompute crc32Shift(obs[i].prefixCrc, len)
@@ -510,6 +519,157 @@ static int cmdFindProperty(const char *word0, const char *word1,
 }
 
 
+// --- find-curse-names ---
+
+// Encodes the 8 least-significant base-26 digits of counter as lowercase
+// letters into buf[0..7], null-terminated. Naturally wraps at 26^8 since
+// higher bits are discarded -- so a random uint64_t start point works fine.
+static void counterToFixedPart(uint64_t counter, char buf[9]) {
+    for (int i = 7; i >= 0; i--) {
+        buf[i] = static_cast<char>('a' + counter % 26);
+        counter /= 26;
+    }
+    buf[8] = '\0';
+}
+
+static int cmdFindCurseNames(const char *atSuffix) {
+    if (!haveCalibration()) return 1;
+
+    std::string suffix(atSuffix);
+    if (suffix.empty() || suffix[0] != '@') {
+        std::fprintf(stderr, "Suffix must start with @, e.g. @example.com\n");
+        return 1;
+    }
+
+    // cursePrefix(email) = email + "_", so the fixed part after the local part
+    // is "@domain.com_" (including the underscore).
+    std::string fixedSuffix    = suffix + "_";
+    uint32_t    fixedSuffixCrc = crc32String(fixedSuffix);
+    uint64_t    fixedSuffixLen = fixedSuffix.size();
+
+    // Precompute the CRC32 shift operations as flat matrices so the hot loop
+    // only needs two gf2MatrixTimes calls instead of full squaring each time.
+    //
+    //   seed = gf2MatrixTimes(matSecret,
+    //              gf2MatrixTimes(matSuffix, CRC32(localpart))
+    //              ^ fixedSuffixCrc)
+    //          ^ kSecretCrc32
+    uint32_t matSuffix[32], matSecret[32];
+    buildShiftMatrix(fixedSuffixLen, matSuffix);
+    buildShiftMatrix(kSecretLen,     matSecret);
+
+    // Deduplication bitset: one bit per unique curse name.
+    // Curse names are indexed as i0 + N*i1 + N*N*i2, where N = 201.
+    const int      N          = static_cast<int>(curseWords().size()); // 201
+    const uint32_t totalNames = static_cast<uint32_t>(N * N * N);     // 8,120,601
+    const uint32_t bitWords   = (totalNames + 31) / 32;               // 253,769
+
+    // atomic<uint32_t> allows lock-free fetch_or for check-and-set.
+    std::vector<std::atomic<uint32_t>> seen(bitWords);
+    for (auto &w : seen) w.store(0, std::memory_order_relaxed);
+
+    // Start from a random point in the 26^8 space so repeated runs produce
+    // different example emails for each curse name.
+    uint64_t startCounter = 0;
+    if (FILE *f = fopen("/dev/urandom", "rb")) {
+        fread(&startCounter, sizeof(startCounter), 1, f);
+        fclose(f);
+    }
+
+    std::atomic<uint32_t> foundCount(0);
+    std::atomic<uint64_t> nextCounter(startCounter);
+    std::atomic<bool>     done(false);
+    std::mutex            printMutex;
+
+    unsigned int nThreads = std::thread::hardware_concurrency();
+    if (nThreads == 0) nThreads = 1;
+    if (nThreads > 64) nThreads = 64;
+
+    const uint64_t batchSize = 1ULL << 14; // 16384 — small enough for responsive done-checking
+
+    auto started = std::chrono::steady_clock::now();
+
+    std::thread progressThread([&, startCounter]() {
+        while (!done.load(std::memory_order_relaxed)) {
+            std::this_thread::sleep_for(std::chrono::seconds(5));
+            uint32_t found  = foundCount.load(std::memory_order_relaxed);
+            uint64_t tested = nextCounter.load(std::memory_order_relaxed) - startCounter;
+            double   secs   = std::chrono::duration<double>(
+                std::chrono::steady_clock::now() - started).count();
+            std::fprintf(stderr, "  %u / %u names (%.1f%%), %.1fM parts/s\n",
+                         found, totalNames, 100.0 * found / totalNames,
+                         secs > 0 ? tested / secs / 1e6 : 0.0);
+        }
+    });
+
+    std::vector<std::thread> workers;
+    workers.reserve(nThreads);
+    for (unsigned int t = 0; t < nThreads; t++) {
+        workers.emplace_back([&]() {
+            char buf[16];
+
+            while (!done.load(std::memory_order_relaxed)) {
+                uint64_t start = nextCounter.fetch_add(batchSize, std::memory_order_relaxed);
+
+                for (uint64_t i = 0; i < batchSize; i++) {
+                    counterToFixedPart(start + i, buf);
+
+                    // Compute Jenkins seed via the precomputed matrices.
+                    uint32_t localCrc  = crc32(reinterpret_cast<const unsigned char *>(buf), 8);
+                    uint32_t prefixCrc = gf2MatrixTimes(matSuffix, localCrc) ^ fixedSuffixCrc;
+                    uint32_t seed      = gf2MatrixTimes(matSecret, prefixCrc) ^ kSecretCrc32;
+
+                    // Get word indices from Jenkins.
+                    int idx[3];
+                    {
+                        JenkinsRandomSource rng(seed);
+                        for (int j = 0; j < 3; j++) {
+                            idx[j] = rng.getRandomBoundedInt(0, N - 1);
+                        }
+                    }
+
+                    // Atomically mark this curse name as seen; skip if already found.
+                    uint32_t nameIdx = static_cast<uint32_t>(idx[0])
+                                     + static_cast<uint32_t>(N) * idx[1]
+                                     + static_cast<uint32_t>(N * N) * idx[2];
+                    uint32_t word = nameIdx / 32;
+                    uint32_t bit  = 1u << (nameIdx % 32);
+                    if (seen[word].fetch_or(bit, std::memory_order_relaxed) & bit) {
+                        continue;
+                    }
+
+                    // First thread to find this name — print it.
+                    const auto &words = curseWords();
+                    uint32_t count = foundCount.fetch_add(1, std::memory_order_relaxed) + 1;
+                    {
+                        std::lock_guard<std::mutex> lock(printMutex);
+                        std::printf("%s_%s_%s\t%s%s\n",
+                                    words[idx[0]].c_str(),
+                                    words[idx[1]].c_str(),
+                                    words[idx[2]].c_str(),
+                                    buf, suffix.c_str());
+                    }
+                    if (count >= totalNames) {
+                        done.store(true, std::memory_order_relaxed);
+                        return;
+                    }
+                }
+            }
+        });
+    }
+
+    for (auto &w : workers) w.join();
+    done.store(true, std::memory_order_relaxed);
+    progressThread.join();
+
+    std::fflush(stdout);
+    uint32_t found = foundCount.load();
+    std::fprintf(stderr, "Done: %u / %u unique curse names (%.1f%%) for %s.\n",
+                 found, totalNames, 100.0 * found / totalNames, suffix.c_str());
+    return 0;
+}
+
+
 // --- Self-test ---
 
 static bool selfTestCrcCombine() {
@@ -615,11 +775,12 @@ static void usage(const char *prog) {
                  "  %s curse <email>\n"
                  "  %s property <x> <y>\n"
                  "  %s find-property <word0> <word1> <centerX> <centerY> <radius> [limit]\n"
+                 "  %s find-curse-names <@suffix>\n"
                  "\n"
                  "Observation file format (from property gates at known global coords):\n"
                  "  # x y word0 word1\n"
                  "  12345 -67890 WHEAT LAKE\n",
-                 prog, prog, prog, prog, prog, prog);
+                 prog, prog, prog, prog, prog, prog, prog);
 }
 
 int main(int argc, char **argv) {
@@ -681,6 +842,11 @@ int main(int argc, char **argv) {
             return 1;
         }
         return cmdFindProperty(argv[2], argv[3], cx, cy, radius, limit);
+    }
+
+    if (cmd == "find-curse-names") {
+        if (argc != 3) { usage(argv[0]); return 1; }
+        return cmdFindCurseNames(argv[2]);
     }
 
     usage(argv[0]);
