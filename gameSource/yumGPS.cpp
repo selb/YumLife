@@ -235,6 +235,7 @@ void yumGPS::step() {
         xCenter = STATUE_TARGETS[0].x - mKnownGlobalWells[0].first;
     }
 
+    int exhaustedCount = 0;
     for (int scan = 0; scan < scanRate; scan++) {
         // Round-robin: pick which Y guess to scan this iteration
         int guessIndex = mIterationCounter % mGuesses.size();
@@ -251,10 +252,14 @@ void yumGPS::step() {
 
         // Skip if we've reached the maximum scan offset
         if (scanDistance > MAX_SCAN_DISTANCE) {
-            scan--;
             mIterationCounter++;
+            if (++exhaustedCount >= (int)mGuesses.size()) {
+                break;  // all guesses exhausted, nothing left to scan this frame
+            }
             continue;
         }
+
+        exhaustedCount = 0;  // reset on successful scan
 
         // Send statue requests
         sendStatueRequest(xCenter + scanDistance, birthRelativeY);
