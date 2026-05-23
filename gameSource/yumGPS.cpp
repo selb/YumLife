@@ -595,6 +595,9 @@ std::string yumGPS::getStatus() {
 
     // Convert to distance and format
     if (minOffset >= 0 || maxOffset >= 0) {
+        if (minOffset * SCAN_STRIDE > MAX_SCAN_DISTANCE) {
+            return statusBase + " EXHAUSTED";
+        }
         std::ostringstream oss;
         oss << statusBase << " " << minOffset * SCAN_STRIDE
             << " / " << maxOffset * SCAN_STRIDE;
