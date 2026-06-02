@@ -3,6 +3,22 @@ This file only list changes to game code.  Changes to content can be found here:
 http://onehouronelife.com/updateLog.php
 
 
+
+Server Fixes:
+
+--Friends coordinate picking now uses a server-side secret, to make offline
+  guess-and-test brute force impossible.
+
+--Removing life/curse and food logs from public data for friends server.
+
+--Fixed two info leaks through CRC for curse name generation and property gate
+  name generation.  Now pass string through hmac_sha1 before feeding it through
+  CRC.  This will cause curse names to change, but also make it much harder to
+  map email address to their matching curse names.
+
+
+
+
 Version 436   2026-May-9
 
 --Support for twin_count 0 to specify same family on friends-only-mode servers,

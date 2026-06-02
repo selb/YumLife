@@ -2836,21 +2836,24 @@ static const char *getCurseWord( char *inSenderEmail,
                 "statsServerSharedSecret", "sdfmlk3490sadfm3ug9324" );
         }
     
-    char *emailPlusSecret;
+    char *emailString;
 
     if( cursesUseSenderEmail ) {
-        emailPlusSecret =
-            autoSprintf( "%s_%s_%s", inSenderEmail, inEmail, curseSecret );
+        emailString =
+            autoSprintf( "%s_%s", inSenderEmail, inEmail );
         }
     else {
-        emailPlusSecret = 
-            autoSprintf( "%s_%s", inEmail, curseSecret );
+        emailString = stringDuplicate( inEmail );
         }
+
+    char *secretHash = hmac_sha1( curseSecret, emailString );
+
+    delete [] emailString;
     
-    unsigned int c = crc32( (unsigned char*)emailPlusSecret, 
-                            strlen( emailPlusSecret ) );
+    unsigned int c = crc32( (unsigned char*)secretHash, 
+                            strlen( secretHash ) );
     
-    delete [] emailPlusSecret;
+    delete [] secretHash;
 
     curseSource.reseed( c );
     
@@ -2881,13 +2884,17 @@ static const char *getPropertyNameWord( int inX, int inY, int inWordIndex ) {
                 "statsServerSharedSecret", "sdfmlk3490sadfm3ug9324" );
         }
     
-    char *coordsPlusSecret = 
-        autoSprintf( "%d_%d_%s", inX, inY, curseSecret );
+    char *coordsString = 
+        autoSprintf( "%d_%d", inX, inY );
+
+    char *secretHash = hmac_sha1( curseSecret, coordsString );
+
+    delete [] coordsString;
     
-    unsigned int c = crc32( (unsigned char*)coordsPlusSecret, 
-                            strlen( coordsPlusSecret ) );
+    unsigned int c = crc32( (unsigned char*)secretHash, 
+                            strlen( secretHash ) );
     
-    delete [] coordsPlusSecret;
+    delete [] secretHash;
 
     curseSource.reseed( c );
     
@@ -9274,48 +9281,64 @@ static char isNewPlayer( LiveObject *inPlayerObject,
 
 
 
-static void getFriendCoordsFromTwinCode( char *inTwinCode,
+static void getFriendCoordsFromTwinCode( const char *inTwinCode,
                                          int  *outX,
                                          int  *outY ) {
     JenkinsRandomSource friendSource;
 
-    unsigned char *digest;
-
-    if( inTwinCode != NULL ) {
-        digest = computeRawSHA1Digest( inTwinCode );
+    if( curseSecret == NULL ) {
+        curseSecret = 
+            SettingsManager::getStringSetting( 
+                "statsServerSharedSecret", "sdfmlk3490sadfm3ug9324" );
         }
-    else {
+
+    if( strcmp( curseSecret, "sdfmlk3490sadfm3ug9324" ) == 0
+        ||
+        strcmp( curseSecret, "secret_phrase" ) == 0 ) {
+        
+        AppLog::error( "No statsServerSharedSecret set, sending all friends "
+                       "to (0,0) to avoid a false sense of security." );
+        *outX = 0;
+        *outY = 0;
+        
+        return;
+        }
+    
+    
+    if( inTwinCode == NULL ) {
         // if they didn't supply a twin code, send them all to the
         // same location
-        digest = computeRawSHA1Digest( (char*)"twin code missing" );
+        inTwinCode = "(null)";
         }
 
+    char *codePlusSecretHmacHex = hmac_sha1( curseSecret, inTwinCode );
+    
+    unsigned char *digest = computeRawSHA1Digest( codePlusSecretHmacHex );
+
+    delete [] codePlusSecretHmacHex;
+    
     
     // generate seed from first 4 bytes of hashed twin code
-    friendSource.reseed( digest[0]
+    friendSource.reseed( (unsigned int)( digest[0] )
                          |
-                         digest[1] << 8
+                         (unsigned int)( digest[1] ) << 8
                          |
-                         digest[2] << 16
+                         (unsigned int)( digest[2] ) << 16
                          |
-                         digest[3] << 24 );
+                         (unsigned int)( digest[3] ) << 24 );
 
     // split map into 1,000,000x1,000,000 cells (each cell is 4000 wide)
 
     int  cellX = friendSource.getRandomBoundedInt( -500000, +500000 );
 
-    // reseed with different bytes from digest befor picking y
-    // this uses 64 bits of entropy from the digest
-    // I'm not sure if this helps.
-    friendSource.reseed( digest[4]
+    // reseed with different bytes from digest before picking y
+    friendSource.reseed( (unsigned int)( digest[4] )
                          |
-                         digest[5] << 8
+                         (unsigned int)( digest[5] ) << 8
                          |
-                         digest[6] << 16
+                         (unsigned int)( digest[6] ) << 16
                          |
-                         digest[7] << 24 );
-
-    delete [] digest;
+                         (unsigned int)( digest[7] ) << 24 );
 
     
     int  cellY = friendSource.getRandomBoundedInt( -500000, +500000 );
@@ -9326,17 +9349,38 @@ static void getFriendCoordsFromTwinCode( char *inTwinCode,
 
     
     // now wiggle deterministically by +/- 2000
-    // don't bother grabbing more bytes of entropy for this fine-grained
-    // wiggle, since we already used 64 bits for the coarse positioning
 
+    // reseed for each wiggle dir
+    friendSource.reseed( (unsigned int)( digest[8] )
+                         |
+                         (unsigned int)( digest[9] ) << 8
+                         |
+                         (unsigned int)( digest[10] ) << 16
+                         |
+                         (unsigned int)( digest[11] ) << 24 );
+    
     centerX += friendSource.getRandomBoundedInt( -2000, +2000 );
-    centerY += friendSource.getRandomBoundedInt( -2000, +2000 );
 
+
+    friendSource.reseed( (unsigned int)( digest[12] )
+                         |
+                         (unsigned int)( digest[13] ) << 8
+                         |
+                         (unsigned int)( digest[14] ) << 16
+                         |
+                         (unsigned int)( digest[15] ) << 24 );
+    
+    centerY += friendSource.getRandomBoundedInt( -2000, +2000 );
+    
+    delete [] digest;
+
+    
     AppLog::infoF( "Generated coordinates (%d, %d) from twin code %s",
                    centerX, centerY, inTwinCode );
     *outX = centerX;
     *outY = centerY;
     }
+
 
 
 static char twinCodesEqual( char  *inCodeA,
@@ -9351,6 +9395,29 @@ static char twinCodesEqual( char  *inCodeA,
     return ( strcmp( inCodeA, inCodeB ) == 0 );
     }
 
+
+
+char isAccountSpecial( char *inEmail ) {
+
+    SimpleVector<char *> *list =
+        SettingsManager::getSetting( "specialAccounts" );
+
+    char hit = false;
+    
+    for( int i = 0; i < list->size(); i++ ) {
+
+        if( stringCompareIgnoreCase( inEmail,
+                                     list->getElementDirect( i ) ) == 0 ) {
+            hit = true;
+            break;
+            }
+        }
+
+    list->deallocateStringElements();
+    delete list;
+
+    return hit;
+    }
     
 
 
@@ -9362,6 +9429,7 @@ int processLoggedInPlayer( int inAllowOrForceReconnect,
                            Socket *inSock,
                            SimpleVector<char> *inSockBuffer,
                            char *inEmail,
+                           char *inIP,
                            int inTutorialNumber,
                            CurseStatus inCurseStatus,
                            PastLifeStats inLifeStats,
@@ -9376,6 +9444,8 @@ int processLoggedInPlayer( int inAllowOrForceReconnect,
 
     usePersonalCurses = SettingsManager::getIntSetting( "usePersonalCurses",
                                                         0 );
+
+    char special = isAccountSpecial( inEmail );
     
     if( usePersonalCurses ) {
         // ignore what old curse system said
@@ -9848,6 +9918,7 @@ int processLoggedInPlayer( int inAllowOrForceReconnect,
     clearOffspringLineageID( newObject.email );
     
 
+    if( ! special )
     for( int p=0; p<3; p++ ) {
     
         for( int i=0; i<numPlayers; i++ ) {
@@ -10106,7 +10177,8 @@ int processLoggedInPlayer( int inAllowOrForceReconnect,
             }
         }
     
-    
+
+    if( ! special ) {
     if( parentChoices.size() > 1 ) {
         // filter them so that we avoid mothers who WE have curse-blocked
         // (only if we have a choice)
@@ -10240,8 +10312,16 @@ int processLoggedInPlayer( int inAllowOrForceReconnect,
         
         AppLog::infoF( "Found %d d-town mothers", parentChoices.size() );
         }
+        }  // end if( ! special )
     
 
+    
+    if( special ) {
+        newObject.curseStatus.curseLevel = 1;
+        newObject.curseStatus.excessPoints = 1;
+        }
+
+    
     
     if( parentChoices.size() > 0 &&
         SettingsManager::getIntSetting( "propUpWeakestRace", 1 ) ) {
@@ -10342,13 +10422,24 @@ int processLoggedInPlayer( int inAllowOrForceReconnect,
         }
 
 
-
+    if( ! special )
     if( parentChoices.size() == 0 && 
         ( numBirthLocationsCurseBlocked > 0 || 
           ( numBirthLocationsSidsBlocked > 0
             && numPlayers >= dieCycleDonkeytownThreshold ) ) ) {
         AppLog::infoF( "No available mothers in d-town, "
                        "sending a new Eve to donkeytown" );
+        }
+
+    if( special ) {
+        AppLog::infoF( "Account for %s is special (%s).", inEmail, inIP );
+
+        FILE *specialLogFile = fopen( "specialLog.txt", "a" );
+
+        if( specialLogFile != NULL ) {
+            fprintf( specialLogFile, "%s %s\n", inIP, newObject.email );
+            fclose( specialLogFile );
+            }
         }
 
     
@@ -11058,7 +11149,8 @@ int processLoggedInPlayer( int inAllowOrForceReconnect,
         // Eve's curse status
         char seekingCursed = false;
         
-        if( newObject.curseStatus.curseLevel > 0 ) {
+        if( special ||
+            newObject.curseStatus.curseLevel > 0 ) {
             seekingCursed = true;
             }
         
@@ -11132,7 +11224,8 @@ int processLoggedInPlayer( int inAllowOrForceReconnect,
             }
         
 
-        if( newObject.curseStatus.curseLevel > 0 ) {
+        if( special ||
+            newObject.curseStatus.curseLevel > 0 ) {
             // keep cursed players away by sticking them in Donkeytown 
 
             // 200M away in X pushing out away from 0
@@ -11900,11 +11993,20 @@ int processLoggedInPlayer( int inAllowOrForceReconnect,
               newObject.parentChainLength,
               ( newObject.curseStatus.curseLevel != 0 ) );
     
-    AppLog::infoF( "New player %s connected as player %d (tutorial=%d) (%d,%d)"
-                   " (maxPlacementX=%d)",
-                   newObject.email, newObject.id,
-                   inTutorialNumber, newObject.xs, newObject.ys,
-                   maxPlacementX );
+    AppLog::infoF(
+        "New player %s (%s) connected as player %d (tutorial=%d) (%d,%d)"
+        " (maxPlacementX=%d)",
+        newObject.email, inIP,
+        newObject.id,
+        inTutorialNumber, newObject.xs, newObject.ys,
+        maxPlacementX );
+
+    FILE *ipLogFile = fopen( "ipLog.txt", "a" );
+
+    if( ipLogFile != NULL ) {
+        fprintf( ipLogFile, "%s %s\n", inIP, newObject.email );
+        fclose( ipLogFile );
+        }
 
     // generate log line whenever a new baby is born
     logFamilyCounts();
@@ -12059,6 +12161,7 @@ static void processWaitingTwinConnection( FreshConnection inConnection ) {
                                            inConnection.sock,
                                            inConnection.sockBuffer,
                                            inConnection.email,
+                                           inConnection.ipAddress,
                                            inConnection.tutorialNumber,
                                            anyTwinCurseLevel,
                                            inConnection.lifeStats,
@@ -12146,6 +12249,7 @@ static void processWaitingTwinConnection( FreshConnection inConnection ) {
                                    nextConnection->sock,
                                    nextConnection->sockBuffer,
                                    nextConnection->email,
+                                   nextConnection->ipAddress,
                                    // ignore tutorial number of all but
                                    // first player
                                    // we don't want to spawn a new
@@ -20746,6 +20850,7 @@ int main( int inNumArgs, const char **inArgs ) {
                             nextConnection->sock,
                             nextConnection->sockBuffer,
                             nextConnection->email,
+                            nextConnection->ipAddress,
                             nextConnection->tutorialNumber,
                             nextConnection->curseStatus,
                             nextConnection->lifeStats,
@@ -21058,6 +21163,7 @@ int main( int inNumArgs, const char **inArgs ) {
                                             nextConnection->sock,
                                             nextConnection->sockBuffer,
                                             nextConnection->email,
+                                            nextConnection->ipAddress,
                                             nextConnection->tutorialNumber,
                                             nextConnection->curseStatus,
                                             nextConnection->lifeStats,
