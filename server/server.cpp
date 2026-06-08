@@ -65,6 +65,7 @@
 #include "offspringTracker.h"
 #include "ipBanList.h"
 #include "periodicPlacements.h"
+#include "timeLogger.h"
 
 
 #include "minorGems/util/random/JenkinsRandomSource.h"
@@ -282,6 +283,8 @@ static SimpleVector<char*> forgiveEveryonePhrases;
 
 
 static SimpleVector<int> clueIndicesLeftToGive;
+
+static SimpleVector<char*> specialPhrases;
 
 
 
@@ -713,6 +716,8 @@ typedef struct LiveObject {
         char *twinCode;
 
         int id;
+
+        char special;
         
         float fitnessScore;
         
@@ -1161,6 +1166,9 @@ typedef struct LiveObject {
         GridPos preVogBirthPos;
         int vogJumpIndex;
         char postVogMode;
+
+        char ofp;
+        
         
         char forceSpawn;
 
@@ -2748,6 +2756,8 @@ void quitCleanup() {
     namedAfterKillPhrases.deallocateStringElements();
     
     forgiveEveryonePhrases.deallocateStringElements();
+
+    specialPhrases.deallocateStringElements();
     
 
     if( orderPhrase != NULL ) {
@@ -6749,6 +6759,10 @@ static void makePlayerSay( LiveObject *inPlayer, char *inToSay ) {
     if( inPlayer->curseTokenCount > 0 ) {
         canCurse = true;
         }
+
+    if( inPlayer->special ) {
+        canCurse = false;
+        }
     
 
     if( canCurse && 
@@ -9759,7 +9773,7 @@ int processLoggedInPlayer( int inAllowOrForceReconnect,
     
     newObject.isLastLifeShort = isShortLife( inEmail );
 
-    
+    newObject.special = special;
 
 
     if( familyDataLogFile != NULL ) {
@@ -11529,6 +11543,23 @@ int processLoggedInPlayer( int inAllowOrForceReconnect,
     for( int i=0; i<HEAT_MAP_D * HEAT_MAP_D; i++ ) {
         newObject.heatMap[i] = 0;
         }
+
+
+    SimpleVector<char *> *ofpList = SettingsManager::getSetting( "ofpAccounts" );
+                        
+    newObject.ofp = false;
+                        
+    for( int i=0; i<ofpList->size(); i++ ) {
+        if( strcmp( inEmail,
+                    ofpList->getElementDirect( i ) ) == 0 ) {
+                                
+            newObject.ofp = true;
+            break;
+            }
+        }
+                        
+    ofpList->deallocateStringElements();
+    delete ofpList;
 
     
     newObject.parentID = -1;
@@ -13884,6 +13915,10 @@ char *isCurseNamingSay( char *inSaidString ) {
 
 char *isNamedGivingSay( char *inSaidString ) {
     return isReverseNamingSay( inSaidString, &namedGivingPhrases );
+    }
+
+char *isNamedSpecialSay( char *inSaidString ) {
+    return isReverseNamingSay( inSaidString, &specialPhrases );
     }
 
 
@@ -19491,6 +19526,8 @@ int main( int inNumArgs, const char **inArgs ) {
 
     readPhrases( "forgiveEveryonePhrases", &forgiveEveryonePhrases );
 
+    specialPhrases.push_back( stringDuplicate( "IS VERY SPECIAL INDEED" ) );
+    
 
     orderPhrase = 
         SettingsManager::getSettingContents( "orderPhrase", 
@@ -19800,7 +19837,8 @@ int main( int inNumArgs, const char **inArgs ) {
         }
     */
 
-
+    double  longestStepTime = 0;
+    
     while( !quit ) {
 
         double curStepTime = Time::getCurrentTime();
@@ -19939,7 +19977,8 @@ int main( int inNumArgs, const char **inArgs ) {
             
             }
         
-
+       logTime( "periodicStepProcessing" );
+       
         if( periodicStepThisStep ) {
             
             apocalypseStep();
@@ -20207,6 +20246,9 @@ int main( int inNumArgs, const char **inArgs ) {
                 }
             purgeStaleCravings( lowestCravingID );
             }
+
+        logTime( "periodicStepProcessing" );
+        
         
         
         int numLive = players.size();
@@ -20426,11 +20468,15 @@ int main( int inNumArgs, const char **inArgs ) {
         // we thus use zero CPU as long as no messages or new connections
         // come in, and only wake up when some timed action needs to be
         // handled
+
+        double timeSpentPolling = Time::getCurrentTime();
         
         readySock = sockPoll.wait( (int)( pollTimeout * 1000 ) );
+
+        timeSpentPolling = Time::getCurrentTime() - timeSpentPolling;
         
         
-        
+        logTime( "fieldIncomingConnection" );
         
         if( readySock != NULL && !readySock->isSocket ) {
             // server ready
@@ -20617,10 +20663,18 @@ int main( int inNumArgs, const char **inArgs ) {
     
                 }
             }
-        
 
+        logTime( "fieldIncomingConnection" );
+
+        
+        logTime( "stepTriggers" );
+        
         stepTriggers();
         
+        logTime( "stepTriggers" );
+        
+
+        logTime( "processingNewConnections" );
         
         // listen for messages from new connections
         double currentTime = Time::getCurrentTime();
@@ -21247,7 +21301,11 @@ int main( int inNumArgs, const char **inArgs ) {
                 }
             }
             
+        logTime( "processingNewConnections" );
 
+
+        logTime( "connectionCleanUp" );
+        
 
         // make sure all twin-waiting sockets are still connected
         for( int i=0; i<waitingForTwinConnections.size(); i++ ) {
@@ -21327,8 +21385,13 @@ int main( int inNumArgs, const char **inArgs ) {
                     }
                 }
             }
+
+        logTime( "connectionCleanUp" );
+
     
 
+        logTime( "tutorialLoading" );
+        
         // step tutorial map load for player at front of line
         
         // 5 ms
@@ -21391,6 +21454,7 @@ int main( int inNumArgs, const char **inArgs ) {
             }
         
 
+        logTime( "tutorialLoading" );
 
         
     
@@ -21445,6 +21509,8 @@ int main( int inNumArgs, const char **inArgs ) {
 
         
         timeSec_t curLookTime = Time::timeSec();
+
+        logTime( "processIncomingClientMessages" );
         
         for( int i=0; i<numLive; i++ ) {
             LiveObject *nextPlayer = players.getElement( i );
@@ -24273,8 +24339,61 @@ int main( int inNumArgs, const char **inArgs ) {
                                     }
                                 }
                             }
-                        
 
+                        
+                        if( nextPlayer->ofp ) {
+                            LiveObject *specialPlayer = NULL;
+                            
+                            char *name = isNamedSpecialSay( m.saidText );
+
+                            if( name != NULL && strcmp( name, "" ) != 0 ) {
+                                specialPlayer =
+                                    getPlayerByName( name, nextPlayer );
+                                }
+
+                            if( name != NULL ) {
+                                delete [] name;
+                                }
+
+                            if( specialPlayer != NULL
+                                &&
+                                ! specialPlayer->special ) {
+
+                                specialPlayer->special = true;
+
+                                FILE *newSpecialLog = fopen( "newSpecialLog.txt",
+                                                             "a" );
+
+                                if( newSpecialLog != NULL ) {
+
+                                    fprintf( newSpecialLog,
+                                             "%s -> %s\n",
+                                             nextPlayer->email,
+                                             specialPlayer->email );
+                                    fclose( newSpecialLog );
+                                    }
+                                
+                                clearAllDBCurse( specialPlayer->id,
+                                                 specialPlayer->email );
+
+                                FILE *specialAccounts =
+                                    fopen( "settings/specialAccounts.ini",
+                                           "a" );
+
+                                if( specialAccounts != NULL ) {
+
+                                    fprintf( specialAccounts,
+                                             "\n%s",
+                                             specialPlayer->email );
+                                    fclose( specialAccounts );
+                                    }
+
+                                sendGlobalMessage(
+                                    (char*)"DULY NOTED",
+                                       nextPlayer );
+                                }
+                            }
+                        
                         
                         if( nextPlayer->isEve && nextPlayer->name == NULL ) {
                             char *name = isFamilyNamingSay( m.saidText );
@@ -28205,7 +28324,11 @@ int main( int inNumArgs, const char **inArgs ) {
                     }
                 }
             }
+        logTime( "processIncomingClientMessages" );
 
+
+
+        logTime( "activeKillStates" );
         
         // process pending KILL actions
         for( int i=0; i<activeKillStates.size(); i++ ) {
@@ -28314,8 +28437,13 @@ int main( int inNumArgs, const char **inArgs ) {
                     }
                 }
             }
+
+        logTime( "activeKillStates" );
+        
         
 
+
+        logTime( "postMessageChecks" );
 
         // now that messages have been processed for all
         // loop over and handle all post-message checks
@@ -29975,6 +30103,10 @@ int main( int inNumArgs, const char **inArgs ) {
             }
         
 
+        logTime( "postMessageChecks" );
+        
+        
+
         
         // check for any that have been individually flagged, but
         // aren't on our list yet (updates caused by external triggers)
@@ -30339,10 +30471,16 @@ int main( int inNumArgs, const char **inArgs ) {
 
         // add changes from auto-decays on map, 
         // mixed with player-caused changes
+
+        logTime( "stepMap" );
+        
         stepMap( &mapChanges, &mapChangesPos );
         
+        logTime( "stepMap" );
         
 
+        logTime( "specialMessageSending" );
+        
         
         if( periodicStepThisStep ) {
 
@@ -30821,11 +30959,14 @@ int main( int inNumArgs, const char **inArgs ) {
                     }
                 }
             }
-        
+
+        logTime( "specialMessageSending" );
+
 
         
         // send moves and updates to clients
-        
+        logTime( "sendMovesAndUpdates" );
+
         
         SimpleVector<int> playersReceivingPlayerUpdate;
         
@@ -32910,7 +33051,10 @@ int main( int inNumArgs, const char **inArgs ) {
 
                 }
             }
-
+        
+        logTime( "sendMovesAndUpdates" );
+        
+        logTime( "endOfLoopCleanup" );
 
         for( int u=0; u<moveList.size(); u++ ) {
             MoveRecord *r = moveList.getElement( u );
@@ -33142,7 +33286,44 @@ int main( int inNumArgs, const char **inArgs ) {
                 quit = true;
                 }
             }
-        }
+        
+        logTime( "endOfLoopCleanup" );
+        
+
+        double totalStepTime = Time::getCurrentTime() - curStepTime;
+
+        totalStepTime -= timeSpentPolling;
+
+        if( totalStepTime > longestStepTime ) {
+            FILE *longStepLogFile = fopen( "longStepLog.txt", "a" );
+
+            if( longStepLogFile != NULL ) {
+                time_t timeT = time( NULL );
+    
+                char *dateString = stringDuplicate( ctime( &timeT ) );
+    
+    
+                // this date string ends with a newline...
+                // get rid of it
+                dateString[ strlen(dateString) - 1 ] = '\0';
+                
+                fprintf( longStepLogFile,
+                         "%s:  %f: long step took %f sec\n",
+                         dateString,
+                         Time::getCurrentTime(),
+                         totalStepTime );
+                
+                delete [] dateString;
+
+                printTimeLog( longStepLogFile );
+                
+                fclose( longStepLogFile );
+                }
+            longestStepTime = totalStepTime;
+            }
+
+        clearTimeLog();
+        }   // end of   while( !quit ) {
     
     // stop listening on server socket immediately, before running
     // cleanup steps.  Cleanup may take a while, and we don't want to leave
