@@ -359,33 +359,3 @@ else()
     include_directories(${OPENGL_INCLUDE_DIR})
     target_link_libraries(YumLife_linux ${OPENGL_LIBRARIES})
 endif()
-
-find_program(XXD xxd)
-if(XXD)
-    find_package(Threads REQUIRED)
-
-    set(CRC_FUN_GENERATED_DIR "${CMAKE_CURRENT_BINARY_DIR}/yum/crc-fun")
-    set(CRC_FUN_WORD_LIST_HEADER "${CRC_FUN_GENERATED_DIR}/curseWordList_xxd.h")
-
-    add_custom_command(
-        OUTPUT "${CRC_FUN_WORD_LIST_HEADER}"
-        COMMAND ${CMAKE_COMMAND} -E make_directory "${CRC_FUN_GENERATED_DIR}"
-        COMMAND "${XXD}" -i curseWordList.txt "${CRC_FUN_WORD_LIST_HEADER}"
-        WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/server"
-        DEPENDS "${CMAKE_SOURCE_DIR}/server/curseWordList.txt"
-        VERBATIM
-    )
-
-    add_executable(crc_fun
-        yum/crc-fun/crc-fun.cpp
-        minorGems/util/crc32.cpp
-        "${CRC_FUN_WORD_LIST_HEADER}"
-    )
-    set_source_files_properties("${CRC_FUN_WORD_LIST_HEADER}" PROPERTIES GENERATED TRUE)
-    set_target_properties(crc_fun PROPERTIES OUTPUT_NAME crc-fun)
-    target_include_directories(crc_fun PRIVATE
-        "${CMAKE_SOURCE_DIR}"
-        "${CRC_FUN_GENERATED_DIR}"
-    )
-    target_link_libraries(crc_fun PRIVATE Threads::Threads)
-endif()
