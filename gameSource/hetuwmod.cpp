@@ -2683,16 +2683,17 @@ void HetuwMod::drawInputString() {
 }
 
 void HetuwMod::resolveGlobalCoords() {
-	int absX, absY;
-	bool hasX = gps.getAbsoluteX(absX);
-	bool hasY = gps.getAbsoluteY(absY);
+	int offsetX, offsetY;
+	bool hasX = gps.getClientGlobalOffsetX(offsetX);
+	bool hasY = gps.getClientGlobalOffsetY(offsetY);
 
 	if (!hasX || !hasY) return;
 
 	for (size_t i = 0; i < homePosStack.size(); i++) {
 		if (homePosStack[i]->isGlobal) {
-			homePosStack[i]->x -= absX;
-			homePosStack[i]->y -= absY;
+			// Convert global -> client-local: subtract B+G (current offset)
+			homePosStack[i]->x -= offsetX;
+			homePosStack[i]->y -= offsetY;
 			homePosStack[i]->isGlobal = false;
 		}
 	}
@@ -2759,13 +2760,15 @@ void HetuwMod::createCordsDrawStr() {
 
 		switch (homePosStack[i]->type) {
 			case hpt_custom: {
-					int absY;
-					bool hasY = gps.getAbsoluteY(absY);
+					int offsetY;
+					bool hasY = gps.getClientGlobalOffsetY(offsetY);
 
 					if (!homePosStack[i]->isGlobal) {
 						ss << homePosStack[i]->c << " " << x << " " << y << eta;
 					} else if (hasY) {
-						ss << homePosStack[i]->c << " - " << y - absY;
+						// marker is still global (GPS just resolved); show it
+						// in the current display frame: global - B+G = client-local
+						ss << homePosStack[i]->c << " - " << y - offsetY;
 					} else {
 						ss << homePosStack[i]->c << " - -";
 					}
@@ -2812,18 +2815,18 @@ void HetuwMod::createCordsDrawStr() {
 				countedCoord("PLANE", flightCount);
 				break;
 			case hpt_gps: {
-				int absX, absY;
-				bool hasX = gps.getAbsoluteX(absX);
-				bool hasY = gps.getAbsoluteY(absY);
-				// these are the coords of the birth position, but we want this
-				// to point to 0,0 so clicking on it gives global coords for
-				// other locations.
-				absX *= -1;
-				absY *= -1;
+				int offsetX, offsetY;
+				bool hasX = gps.getClientGlobalOffsetX(offsetX);
+				bool hasY = gps.getClientGlobalOffsetY(offsetY);
+				// The GPS marker is pinned at client-local (0,0).  We display
+				// it as the negative of B+G so that clicking it sets cordOffset
+				// = B+G and the current display frame becomes true-global coords.
+				// In the global frame the player readout shows:
+				//   client-local + cordOffset = client-local + (B+G) = global
 				if (hasX && hasY) {
-					ss << "GPS " << absX+cordOffset.x << " " << absY+cordOffset.y;
+					ss << "GPS " << -offsetX+cordOffset.x << " " << -offsetY+cordOffset.y;
 				} else if (hasY) {
-					ss << "GPS - " << absY+cordOffset.y;
+					ss << "GPS - " << -offsetY+cordOffset.y;
 				} else {
 					ss << "GPS - -";
 				}
@@ -3968,15 +3971,14 @@ bool HetuwMod::livingLifePageMouseDown( float mX, float mY ) {
 						}
 						homePosStack.erase(homePosStack.begin()+i);
 					} else {
-						if (homePosStack[i]->type == hpt_gps) {
-							// GPS uses live coordinates from tracker
-							int absX, absY;
-							if (gps.getAbsoluteX(absX) && gps.getAbsoluteY(absY)) {
-								// inverted because these are global coords of the birth pos,
-								// not birth-relative coords to global 0,0
-								cordOffset.x = absX;
-								cordOffset.y = absY;
-							}
+					if (homePosStack[i]->type == hpt_gps) {
+						// Set cordOffset = B+G so that displayed coords become
+						// true-global: client-local + cordOffset = client-local + (B+G) = global
+						int offsetX, offsetY;
+						if (gps.getClientGlobalOffsetX(offsetX) && gps.getClientGlobalOffsetY(offsetY)) {
+							cordOffset.x = offsetX;
+							cordOffset.y = offsetY;
+						}
 						} else if (homePosStack[i]->isGlobal) {
 							/* don't touch offsets, we don't know where these coords are yet */
 						} else {
@@ -4793,8 +4795,8 @@ void HetuwMod::onCurseUpdate(LiveObject* o) {
 	HetuwMod::writeLineToLogs(type, data);
 }
 
-void HetuwMod::onStatueResponse(int birthRelativeX, int birthRelativeY, int displayID, const char *name, const char *clothingSet, const char *finalWords) {
-	gps.onStatueResponse(birthRelativeX, birthRelativeY, displayID, name, clothingSet, finalWords);
+void HetuwMod::onStatueResponse(int clientLocalX, int clientLocalY, int displayID, const char *name, const char *clothingSet, const char *finalWords) {
+	gps.onStatueResponse(clientLocalX, clientLocalY, displayID, name, clothingSet, finalWords);
 }
 
 void HetuwMod::onFlightReset() {

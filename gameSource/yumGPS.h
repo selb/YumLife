@@ -25,7 +25,7 @@ public:
 
     // Events from hetuwmod
     void onNewLife(LivingLifePage *livingLifePage);
-    void onStatueResponse(int birthRelativeX, int birthRelativeY,
+    void onStatueResponse(int clientLocalX, int clientLocalY,
                           int displayID, const char *name,
                           const char *clothingSet, const char *finalWords);
     void onFlightReset();
@@ -36,6 +36,11 @@ public:
     std::string getStatus();
     bool getAbsoluteX(int &x);
     bool getAbsoluteY(int &y);
+    // Returns B+G: global coordinate at client-local origin (0,0).
+    // Add to a client-local coord to get global; subtract from global to get
+    // client-local.  Uses current G, so correct after reconnect/flight.
+    bool getClientGlobalOffsetX(int &x);
+    bool getClientGlobalOffsetY(int &y);
     bool isEnabled();
 
     // Chat command handling
@@ -43,7 +48,7 @@ public:
     void onLocalChat(int playerID, const char *message);
 
     // Cross-life saved coordinate tracking
-    void addSavedCoordinate(char name, int x, int y); // birth-relative coords
+    void addSavedCoordinate(char name, int x, int y); // client-local coords
     void removeSavedCoordinate(char name);
     const std::vector<SavedCoordinate>& getSavedCoordinates();
 

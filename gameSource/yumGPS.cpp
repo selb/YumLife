@@ -543,7 +543,7 @@ void yumGPS::sendStatueRequest(int birthRelativeX, int birthRelativeY) {
     mLivingLifePage->sendToServerSocket(message);
 }
 
-void yumGPS::onStatueResponse(int birthRelativeX, int birthRelativeY,
+void yumGPS::onStatueResponse(int clientLocalX, int clientLocalY,
                                int displayID, const char *name,
                                const char *clothingSet, const char *finalWords) {
     if (!mEnabled) {
@@ -564,11 +564,11 @@ void yumGPS::onStatueResponse(int birthRelativeX, int birthRelativeY,
             strcmp(target.finalWords, finalWords) == 0) {
 
             // Match found! Calculate true global birth position.
-            // birthRelativeX/Y from STATUE_INFO are client-local (post-
-            // applyReceiveOffset); convert to birth-relative via sendX/sendY
-            // so mAbsoluteX/Y are the true global birthPos (B), not B+G.
-            mAbsoluteX = target.x - mLivingLifePage->sendX(birthRelativeX);
-            mAbsoluteY = STATUE_TARGET_Y - mLivingLifePage->sendY(birthRelativeY);
+            // clientLocalX/Y are client-local (post-applyReceiveOffset);
+            // sendX/sendY convert to birth-relative so mAbsoluteX/Y hold
+            // the true global birthPos (B), not B+G.
+            mAbsoluteX = target.x - mLivingLifePage->sendX(clientLocalX);
+            mAbsoluteY = STATUE_TARGET_Y - mLivingLifePage->sendY(clientLocalY);
             mHasAbsoluteX = true;
             mHasAbsoluteY = true;
 
@@ -652,6 +652,26 @@ bool yumGPS::getAbsoluteX(int &x) {
 bool yumGPS::getAbsoluteY(int &y) {
     if (mHasAbsoluteY) {
         y = mAbsoluteY;
+        return true;
+    }
+    return false;
+}
+
+bool yumGPS::getClientGlobalOffsetX(int &x) {
+    // Returns B+G: the global coordinate of client-local origin (0,0).
+    // Adding this to a client-local coord yields the true global coord;
+    // subtracting it from a global coord yields client-local.
+    // Uses current G (via sendX) so correct after reconnect or flight.
+    if (mHasAbsoluteX && mLivingLifePage) {
+        x = mLivingLifePage->sendX(mAbsoluteX);
+        return true;
+    }
+    return false;
+}
+
+bool yumGPS::getClientGlobalOffsetY(int &y) {
+    if (mHasAbsoluteY && mLivingLifePage) {
+        y = mLivingLifePage->sendY(mAbsoluteY);
         return true;
     }
     return false;
