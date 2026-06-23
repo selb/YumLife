@@ -189,6 +189,32 @@ void yumGPS::onNewLife(LivingLifePage *livingLifePage) {
     mEnabled = cfgEnabled;
 }
 
+void yumGPS::onFlightReset() {
+    // Server has reset birthPos to landing position; old mAbsoluteX/Y
+    // (true global old B) are now wrong.  Reset per-session scanning
+    // state so GPS re-locks from the new location.
+    //
+    // mKnownGlobalWells and mSavedCoordinates are true global and
+    // persist across the flight — they speed up re-locking if the
+    // landing site is near a previously seen well.
+    mHasAbsoluteX = false;
+    mAbsoluteX = 0;
+    mHasAbsoluteY = false;
+    mAbsoluteY = 0;
+
+    for (int i = 0; i < BIOME_COUNT; i++) {
+        mBiomeBounds[i].hasMin = false;
+        mBiomeBounds[i].hasMax = false;
+    }
+
+    mBirthRelativeWellsSeen.clear();
+    mGlobalWellsSeen.clear();
+    mGuesses.clear();
+    mScanOffsets.clear();
+    mHighPriorityScanQueue.clear();
+    mIterationCounter = 0;
+}
+
 void yumGPS::step() {
     if (!mEnabled) {
         return;
@@ -305,8 +331,10 @@ void yumGPS::updateBiomeTracking() {
                 continue;
             }
 
-            // Convert map coordinates to world coordinates (birth-relative)
-            int worldY = mapY + mapOffsetY - MAP_D / 2;
+            // Convert map coordinates to birth-relative coordinates.
+            // mapY + mapOffsetY - MAP_D/2 is client-local; sendY converts
+            // to birth-relative by adding mMapGlobalOffset.
+            int worldY = mLivingLifePage->sendY(mapY + mapOffsetY - MAP_D / 2);
 
             // Check if this is one of our tracked biomes
             BiomeType biome;
@@ -460,7 +488,10 @@ void yumGPS::scanObjects() {
             }
 
             // Found a well!
-            Coords birthRelCoord(birthRelX, birthRelY);
+            // birthRelX/Y are client-local; convert to birth-relative for
+            // tracking sets and global-coordinate math.
+            Coords birthRelCoord(mLivingLifePage->sendX(birthRelX),
+                                 mLivingLifePage->sendY(birthRelY));
 
             // Check if we've already seen this well (birth-relative)
             if (mBirthRelativeWellsSeen.find(birthRelCoord) == mBirthRelativeWellsSeen.end()) {
@@ -470,9 +501,9 @@ void yumGPS::scanObjects() {
                 if (!resolved) {
                     // Bounce against known global wells to generate high-priority scans
                     for (const auto &globalWellCoord : mKnownGlobalWells) {
-                        // Assume THIS well (at birthRelX, birthRelY) IS that known global well
-                        int impliedBirthX = globalWellCoord.first - birthRelX;
-                        int impliedBirthY = globalWellCoord.second - birthRelY;
+                        // Assume THIS well IS that known global well
+                        int impliedBirthX = globalWellCoord.first - birthRelCoord.first;
+                        int impliedBirthY = globalWellCoord.second - birthRelCoord.second;
 
                         // Calculate where the first statue would be
                         int statueX = STATUE_TARGETS[0].x - impliedBirthX;
@@ -491,8 +522,8 @@ void yumGPS::scanObjects() {
 
             // If GPS is resolved, update the persisted global wells list
             if (resolved) {
-                int globalX = mAbsoluteX + birthRelX;
-                int globalY = mAbsoluteY + birthRelY;
+                int globalX = mAbsoluteX + birthRelCoord.first;
+                int globalY = mAbsoluteY + birthRelCoord.second;
                 addKnownGlobalWell(globalX, globalY);
             }
         }
@@ -506,7 +537,7 @@ void yumGPS::sendStatueRequest(int birthRelativeX, int birthRelativeY) {
 
     char message[128];
     snprintf(message, sizeof(message), "STATUE %d %d#",
-             mLivingLifePage->sendX(birthRelativeX), mLivingLifePage->sendY(birthRelativeY));
+             birthRelativeX, birthRelativeY);
 
     // Send to server
     mLivingLifePage->sendToServerSocket(message);
@@ -532,9 +563,12 @@ void yumGPS::onStatueResponse(int birthRelativeX, int birthRelativeY,
             strcmp(target.clothingSet, clothingSet) == 0 &&
             strcmp(target.finalWords, finalWords) == 0) {
 
-            // Match found! Calculate birth global position
-            mAbsoluteX = target.x - birthRelativeX;
-            mAbsoluteY = STATUE_TARGET_Y - birthRelativeY;
+            // Match found! Calculate true global birth position.
+            // birthRelativeX/Y from STATUE_INFO are client-local (post-
+            // applyReceiveOffset); convert to birth-relative via sendX/sendY
+            // so mAbsoluteX/Y are the true global birthPos (B), not B+G.
+            mAbsoluteX = target.x - mLivingLifePage->sendX(birthRelativeX);
+            mAbsoluteY = STATUE_TARGET_Y - mLivingLifePage->sendY(birthRelativeY);
             mHasAbsoluteX = true;
             mHasAbsoluteY = true;
 
@@ -639,9 +673,11 @@ yumGPS::Coords yumGPS::findNearestKnownWell() {
         return mKnownGlobalWells[0]; // Fallback if no live object
     }
 
-    // Convert player's birth-relative position to global coordinates
-    int playerGlobalX = mAbsoluteX + ourLiveObject->xd;
-    int playerGlobalY = mAbsoluteY + ourLiveObject->yd;
+    // Convert player's client-local position to global coordinates.
+    // ourLiveObject->xd/yd are client-local; sendX/sendY convert to
+    // birth-relative, then + mAbsoluteX (true global B) = global.
+    int playerGlobalX = mAbsoluteX + mLivingLifePage->sendX(ourLiveObject->xd);
+    int playerGlobalY = mAbsoluteY + mLivingLifePage->sendY(ourLiveObject->yd);
 
     // Find geometrically nearest well to player's current position
     Coords nearest = mKnownGlobalWells[0];
@@ -744,8 +780,10 @@ void yumGPS::onLocalChat(int playerID, const char *message) {
 void yumGPS::addSavedCoordinate(char name, int x, int y) {
     bool isGlobal = mHasAbsoluteX && mHasAbsoluteY;
     if (isGlobal) {
-        x += mAbsoluteX;
-        y += mAbsoluteY;
+        // x,y are client-local; convert to global via sendX/sendY (to
+        // birth-relative) then + mAbsoluteX (true global B).
+        x = mLivingLifePage->sendX(x) + mAbsoluteX;
+        y = mLivingLifePage->sendY(y) + mAbsoluteY;
     }
 
     // Update existing
@@ -804,8 +842,8 @@ void yumGPS::save(yumStateStore &store) {
     for (auto &coord : mSavedCoordinates) {
         // resolve now if we can
         if (!coord.isGlobal && mHasAbsoluteX && mHasAbsoluteY) {
-            coord.coords.first += mAbsoluteX;
-            coord.coords.second += mAbsoluteY;
+            coord.coords.first = mLivingLifePage->sendX(coord.coords.first) + mAbsoluteX;
+            coord.coords.second = mLivingLifePage->sendY(coord.coords.second) + mAbsoluteY;
             coord.isGlobal = true;
         }
         // only save global coords

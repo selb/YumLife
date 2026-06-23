@@ -28,6 +28,7 @@ public:
     void onStatueResponse(int birthRelativeX, int birthRelativeY,
                           int displayID, const char *name,
                           const char *clothingSet, const char *finalWords);
+    void onFlightReset();
     void step();
     void disable();
 

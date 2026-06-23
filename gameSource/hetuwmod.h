@@ -522,6 +522,7 @@ public:
 	static void onNameUpdate(LiveObject* o);
 	static void onCurseUpdate(LiveObject* o);
 	static void onStatueResponse(int birthRelativeX, int birthRelativeY, int displayID, const char *name, const char *clothingSet, const char *finalWords);
+	static void onFlightReset();
 	static void removeLastName(char *newName, const char* name );
 	static string getLastName(const char* name);
 

@@ -4797,6 +4797,10 @@ void HetuwMod::onStatueResponse(int birthRelativeX, int birthRelativeY, int disp
 	gps.onStatueResponse(birthRelativeX, birthRelativeY, displayID, name, clothingSet, finalWords);
 }
 
+void HetuwMod::onFlightReset() {
+	gps.onFlightReset();
+}
+
 void HetuwMod::drawDeathMessages() {
 	if ( deathMessages.size() <= 0 ) return;
 

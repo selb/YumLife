@@ -16391,6 +16391,12 @@ void LivingLifePage::step() {
 
                         // home markers invalid now
                         homePosStack.deleteAll();
+
+                        // Server has reset birthPos to landing position;
+                        // GPS resolved coords and per-session scan state
+                        // are now invalid.  Reset so GPS re-locks from the
+                        // new location (mKnownGlobalWells persists).
+                        HetuwMod::onFlightReset();
                         }
                     }
                 }            
