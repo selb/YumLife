@@ -272,6 +272,23 @@ elseif(APPLE)
         COMMAND install_name_tool -id "@executable_path/../Frameworks/${SDL2_REALNAME}" "$<TARGET_BUNDLE_DIR:YumLife_macos>/Contents/Frameworks/${SDL2_REALNAME}"
     )
 
+    # Find SDL3 dylib and copy it into the app bundle. sdl2-compat loads SDL3
+    # dynamically at runtime.
+    find_library(SDL3_LIBRARY NAMES SDL3 SDL3.0 PATHS /opt/homebrew/lib)
+    if(NOT SDL3_LIBRARY)
+        message(FATAL_ERROR "libSDL3.dylib not found. Please install SDL3 (brew install sdl3)")
+    endif()
+    get_filename_component(SDL3_REALPATH "${SDL3_LIBRARY}" REALPATH)
+    get_filename_component(SDL3_REALNAME "${SDL3_REALPATH}" NAME)
+
+    add_custom_command(TARGET YumLife_macos POST_BUILD
+        COMMENT "Copying SDL3 dylib into app bundle Frameworks directory and fixing install name"
+        COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_BUNDLE_DIR:YumLife_macos>/Contents/Frameworks"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different "${SDL3_REALPATH}" "$<TARGET_BUNDLE_DIR:YumLife_macos>/Contents/Frameworks/libSDL3.dylib"
+        COMMAND chmod u+w "$<TARGET_BUNDLE_DIR:YumLife_macos>/Contents/Frameworks/libSDL3.dylib"
+        COMMAND install_name_tool -id "@executable_path/../Frameworks/libSDL3.dylib" "$<TARGET_BUNDLE_DIR:YumLife_macos>/Contents/Frameworks/libSDL3.dylib"
+    )
+
     # Generate the icns from mac_icon.png using iconutil
     set(MAC_ICON_PNG "${CMAKE_SOURCE_DIR}/mac_icon.png")
     set(MAC_ICON_ICNS "${CMAKE_BINARY_DIR}/mac_icon.icns")
@@ -316,11 +333,14 @@ elseif(APPLE)
             # Clear out any remaining trace of previous signatures
             COMMAND codesign --remove-signature "$<TARGET_BUNDLE_DIR:YumLife_macos>"
             COMMAND codesign --remove-signature "$<TARGET_BUNDLE_DIR:YumLife_macos>/Contents/Frameworks/${SDL_REALNAME}"
+            COMMAND codesign --remove-signature "$<TARGET_BUNDLE_DIR:YumLife_macos>/Contents/Frameworks/${SDL2_REALNAME}"
+            COMMAND codesign --remove-signature "$<TARGET_BUNDLE_DIR:YumLife_macos>/Contents/Frameworks/libSDL3.dylib"
             COMMAND rm -rf "$<TARGET_BUNDLE_DIR:YumLife_macos>/Contents/_CodeSignature" "$<TARGET_BUNDLE_DIR:YumLife_macos>/_CodeSignature"
             COMMAND xattr -cr "$<TARGET_BUNDLE_DIR:YumLife_macos>"
             # Actually sign now
             COMMAND codesign --force --sign "$ENV{YUMLIFE_CODESIGN}" --timestamp --options runtime "$<TARGET_BUNDLE_DIR:YumLife_macos>/Contents/Frameworks/${SDL_REALNAME}" VERBATIM
             COMMAND codesign --force --sign "$ENV{YUMLIFE_CODESIGN}" --timestamp --options runtime "$<TARGET_BUNDLE_DIR:YumLife_macos>/Contents/Frameworks/${SDL2_REALNAME}" VERBATIM
+            COMMAND codesign --force --sign "$ENV{YUMLIFE_CODESIGN}" --timestamp --options runtime "$<TARGET_BUNDLE_DIR:YumLife_macos>/Contents/Frameworks/libSDL3.dylib" VERBATIM
             COMMAND codesign --force --sign "$ENV{YUMLIFE_CODESIGN}" --timestamp --options runtime --preserve-metadata=entitlements,requirements,flags "$<TARGET_BUNDLE_DIR:YumLife_macos>" VERBATIM
             # Verify the signature
             COMMAND codesign --verify --verbose=4 "$<TARGET_BUNDLE_DIR:YumLife_macos>"
