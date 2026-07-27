@@ -198,6 +198,10 @@ void yumGPS::step() {
         return;
     }
 
+    // disable statue scanning until a new global coord acquisition method is
+    // implemented
+    return;
+
     // Scan for wells and other known objects
     scanObjects();
 
